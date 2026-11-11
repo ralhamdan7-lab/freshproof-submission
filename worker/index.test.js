@@ -25,8 +25,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.44 release version", () => {
-  assert.equal(VERSION, "0.2.44");
+test("v0.2.45 release version", () => {
+  assert.equal(VERSION, "0.2.45");
 });
 
 test("middle-initial office-holder claim remains intact", () => {

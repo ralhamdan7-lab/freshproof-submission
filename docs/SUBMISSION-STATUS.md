@@ -24,13 +24,19 @@ The latest successful live acceptance run checked:
 
 These are bounded acceptance cases, not representative accuracy evaluation. No broad precision, recall, false-positive rate, citation correctness, latency, or cost-per-claim claims are made.
 
+## Presentation media prepared
+- A 10-slide editable pitch deck and matching 10-page PDF export have been generated.
+- A 2-minute-34-second, 1920x1080 narrated product walkthrough has been generated with English subtitles.
+- The walkthrough combines validated pitch visuals with five supplied product-interface test captures. It is a narrated walkthrough, not an uninterrupted live browser recording; the supplied UI captures are genuine screenshots, while staging deployment and automated acceptance were verified separately.
+- The video narration distinguishes engineering/regression evidence from real-world accuracy and does not claim broad precision or recall.
+- The complete media pack is available as a downloadable ZIP outside this repository and must be uploaded/linked in the organizer submission form as its fields require.
+
 ## Deployment boundary
 Only the isolated Staging Worker was deployed. Production remains unapproved and unchanged. This public repository is not configured for deployment to the private Staging environment.
 
 ## Remaining before final submission
-1. Record a fresh unmocked demo video from the live Staging URL.
-2. Confirm current official portal fields and video requirement.
-3. Add the deck and demo link to the submission package.
-4. Submit through the organizer portal and retain its receipt.
+1. Confirm current official portal fields and required acknowledgements directly in the organizer portal.
+2. Upload the public repository URL, working Staging demo URL, pitch deck, and walkthrough wherever the portal requests them.
+3. Submit through the organizer portal and retain its official receipt.
 
 No organizer submission is claimed by this status file.

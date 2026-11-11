@@ -57,6 +57,11 @@ Run `npm test` for deterministic regression tests and `npm run benchmark:tempora
 
 The synthetic benchmark is a regression diagnostic only. It is not a real-world accuracy estimate and does not measure claim-to-evidence entailment, citation correctness, latency, or cost. See [Benchmark limitations](docs/BENCHMARK.md).
 
+## Submission materials
+- [Judge-ready project description and AI-use disclosure](docs/SUBMISSION-COPY.md)
+- [Submission status and verification snapshot](docs/SUBMISSION-STATUS.md)
+- [Pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)

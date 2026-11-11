@@ -1,6 +1,6 @@
 # FreshProof — Pitch Deck
 
-The editable presentation file is prepared separately as `FreshProof_Hackathon_Pitch_Deck.pptx`.
+The editable 10-slide presentation file is provided separately as `FreshProof_Hackathon_Pitch_Deck.pptx`.
 
 ## Slide structure
 
@@ -13,8 +13,8 @@ The editable presentation file is prepared separately as `FreshProof_Hackathon_P
 7. Technical architecture — browser UI, Cloudflare Worker, Tavily Search, primary sources
 8. Validation — 181/181 automated tests, 32-case synthetic diagnostic, bounded live acceptance and explicit limitations
 9. Differentiation — claim-level temporal provenance and safe abstention
-10. Next steps — held-out evaluation, Staging re-acceptance, accessibility/security review
+10. Next steps — held-out evaluation, accessibility/security review, and broader evaluation
 
 ## Presentation integrity
 
-The deck does not claim production readiness, broad factual accuracy, calibrated confidence, or a statistically representative benchmark. The Python.org direct-fetch HTTP 403 fallback limitation is disclosed. The latest evidence-confidence guard is automated-CI tested but not yet re-deployed to Staging.
+The deck does not claim production readiness, broad factual accuracy, calibrated confidence, or a statistically representative benchmark. The Python.org direct-fetch HTTP 403 fallback limitation is disclosed. Evidence-confidence guard v0.2.45 is now deployed to Staging and passed automated and bounded live acceptance.

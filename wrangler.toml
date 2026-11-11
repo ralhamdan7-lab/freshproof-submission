@@ -1,0 +1,13 @@
+name = "freshproof"
+main = "worker/index.js"
+compatibility_date = "2026-11-09"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGIN = "http://localhost:8787"
+ENABLE_CORRECTION_CANDIDATE_REVIEW = "false"
+FREE_WORKERS_AI_QUOTA_VERIFIED = "false"
+
+[assets]
+directory = "./src"
+binding = "ASSETS"

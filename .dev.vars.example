@@ -1,0 +1,4 @@
+TAVILY_API_KEY=replace-locally
+ALLOWED_ORIGIN=http://localhost:8787
+# Optional; disabled unless explicitly set to true
+# ENABLE_SEMANTIC_TRIAGE=true

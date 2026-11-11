@@ -1,0 +1,202 @@
+{
+  "dataset_id": "freshproof-temporal-smoke-v1",
+  "purpose": "Synthetic diagnostic set for the current rule-based temporal-intent detector; not a representative real-world benchmark.",
+  "language_mix": [
+    "en",
+    "ar"
+  ],
+  "cases": [
+    {
+      "id": "P01",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "The current CEO of the company is Dana Smith."
+    },
+    {
+      "id": "P02",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "The city's population is currently estimated at 2.4 million."
+    },
+    {
+      "id": "P03",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "The latest version of the application is 8.4."
+    },
+    {
+      "id": "P04",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "As of 2026, the regulation remains in force."
+    },
+    {
+      "id": "P05",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "The company recently acquired a regional competitor."
+    },
+    {
+      "id": "P06",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "Today's exchange rate is 3.75 riyals per dollar."
+    },
+    {
+      "id": "P07",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "The product is still available in the market."
+    },
+    {
+      "id": "P08",
+      "language": "en",
+      "expected_temporal": true,
+      "text": "The current minister announced a new policy."
+    },
+    {
+      "id": "P09",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "الرئيس الحالي أعلن القرار."
+    },
+    {
+      "id": "P10",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "البيانات الحالية متاحة للمراجعة."
+    },
+    {
+      "id": "P11",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "التصنيف الراهن للجهة تغير."
+    },
+    {
+      "id": "P12",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "أحدث إصدار من النظام صدر مؤخراً."
+    },
+    {
+      "id": "P13",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "سعر المنتج اليوم يبلغ خمسين ريالاً."
+    },
+    {
+      "id": "P14",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "لا تزال اللائحة سارية حتى الآن."
+    },
+    {
+      "id": "P15",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "عدد السكان الحالي يقدر بمليون نسمة."
+    },
+    {
+      "id": "P16",
+      "language": "ar",
+      "expected_temporal": true,
+      "text": "تم تعيين الوزير في عام 2025."
+    },
+    {
+      "id": "N01",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "The Treaty of Versailles was signed in 1919."
+    },
+    {
+      "id": "N02",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "Apollo 11 landed on the Moon in 1969."
+    },
+    {
+      "id": "N03",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "The Berlin Wall fell in 1989."
+    },
+    {
+      "id": "N04",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "World War II ended in 1945."
+    },
+    {
+      "id": "N05",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "Water is composed of hydrogen and oxygen atoms."
+    },
+    {
+      "id": "N06",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "A triangle has three sides."
+    },
+    {
+      "id": "N07",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "The Great Pyramid of Giza was built in ancient Egypt."
+    },
+    {
+      "id": "N08",
+      "language": "en",
+      "expected_temporal": false,
+      "text": "Shakespeare wrote Hamlet."
+    },
+    {
+      "id": "N09",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "وُقّعت معاهدة فرساي عام 1919."
+    },
+    {
+      "id": "N10",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "هبطت أبولو 11 على سطح القمر عام 1969."
+    },
+    {
+      "id": "N11",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "سقط جدار برلين عام 1989."
+    },
+    {
+      "id": "N12",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "انتهت الحرب العالمية الثانية عام 1945."
+    },
+    {
+      "id": "N13",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "يتكون الماء من ذرتي الهيدروجين والأكسجين."
+    },
+    {
+      "id": "N14",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "للمثلث ثلاثة أضلاع."
+    },
+    {
+      "id": "N15",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "كتب شكسبير مسرحية هاملت."
+    },
+    {
+      "id": "N16",
+      "language": "ar",
+      "expected_temporal": false,
+      "text": "تقع الأهرامات في الجيزة بمصر."
+    }
+  ]
+}

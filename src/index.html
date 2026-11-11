@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101318">
+  <meta name="description" content="FreshProof checks time-sensitive AI claims against fresh evidence.">
+  <title>FreshProof — Verify what changed</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="FreshProof home"><span class="mark">F</span> FreshProof</a>
+      <span class="topnote">EVIDENCE-FIRST TEMPORAL VERIFICATION</span>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse"></span> CHECK THE ANSWER, NOT JUST THE WORDS</div>
+        <h1>Is this answer<br><em>still true?</em></h1>
+        <p class="subhead">FreshProof finds claims that may have changed, checks recent evidence, and shows you what supports—or challenges—the answer.</p>
+      </div>
+      <div class="hero-visual"><img src="/magnifying-glass.svg" alt="Handheld magnifying glass representing close evidence inspection" width="520" height="560"></div>
+    </section>
+
+    <section class="workspace">
+      <label for="answer">PASTE AN AI-GENERATED ANSWER OR ENTER YOUR OWN CLAIM</label>
+      <textarea id="answer" maxlength="12000" placeholder="Paste an AI-generated answer or enter a claim you want to verify…"></textarea>
+      <div class="controls">
+        <span id="counter">0 / 12,000</span>
+        <button id="verify" type="button"><span>Verify claims</span><b>↗</b></button>
+      </div>
+      <div id="notice" class="notice" role="status" aria-live="polite">Claims are checked individually. Avoid including personal or confidential information.</div>
+    </section>
+
+    <section id="results" class="results" hidden>
+      <div class="results-head">
+        <div><div class="eyebrow">VERIFICATION REPORT</div><h2 id="report-title">Evidence review</h2></div>
+        <div id="summary" class="summary"></div>
+      </div>
+      <div id="claim-list" class="claim-list"></div>
+      <p class="disclaimer">FreshProof is an evidence-triage tool. Search results may be incomplete; verify important claims against primary sources.</p>
+    </section>
+
+    <section class="about" id="about" aria-labelledby="about-title">
+      <div class="eyebrow">ABOUT THIS PROJECT</div>
+      <h2 id="about-title">Ownership &amp; provenance</h2>
+      <p><strong>FreshProof</strong> — Evidence-First Temporal Verification Engine.</p>
+      <p><strong>Project Owner:</strong> Raed Alhamdan</p>
+      <p class="about-links"><a href="https://github.com/ralhamdan7-lab/freshproof/blob/main/OWNERSHIP.md" target="_blank" rel="noopener noreferrer">Ownership declaration</a><a href="https://github.com/ralhamdan7-lab/freshproof/blob/main/docs/PROVENANCE.md" target="_blank" rel="noopener noreferrer">Project provenance &amp; source record</a><a href="https://github.com/ralhamdan7-lab/freshproof" target="_blank" rel="noopener noreferrer">Source repository</a></p>
+      <p class="about-note">Owner self-declaration and project history. Third-party components remain subject to their respective licenses and terms.</p>
+    </section>
+
+    <footer><span>FreshProof © 2026 · Project Owner: Raed Alhamdan</span><span>Fresh evidence. Clear uncertainty.</span></footer>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 560" fill="none" role="img" aria-labelledby="title desc">
+<title id="title">FreshProof handheld magnifying glass</title>
+<desc id="desc">A classic handheld magnifying glass with a round illuminated teal lens and a polished angled handle, on a transparent background.</desc>
+<defs>
+  <linearGradient id="rim" x1="105" y1="65" x2="350" y2="345" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#F4FBFF"/><stop offset=".22" stop-color="#AFC3D4"/><stop offset=".48" stop-color="#526A80"/><stop offset=".72" stop-color="#E0EDF5"/><stop offset="1" stop-color="#71899D"/>
+  </linearGradient>
+  <linearGradient id="handle" x1="322" y1="310" x2="445" y2="475" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#DCE8F1"/><stop offset=".28" stop-color="#71889B"/><stop offset=".58" stop-color="#263B4E"/><stop offset=".82" stop-color="#A9BDCC"/><stop offset="1" stop-color="#50677B"/>
+  </linearGradient>
+  <linearGradient id="glass" x1="130" y1="90" x2="330" y2="315" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#B9FFF0" stop-opacity=".36"/><stop offset=".42" stop-color="#42DDE0" stop-opacity=".18"/><stop offset="1" stop-color="#28AFCB" stop-opacity=".28"/>
+  </linearGradient>
+  <linearGradient id="shine" x1="120" y1="100" x2="260" y2="245" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#F2FFFC" stop-opacity=".9"/><stop offset="1" stop-color="#9AF5E6" stop-opacity="0"/>
+  </linearGradient>
+  <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="9" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="shadow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="14"/>
+  </filter>
+</defs>
+<!-- Soft, transparent teal grounding shadow -->
+<ellipse cx="288" cy="475" rx="128" ry="24" fill="#28CFC7" opacity=".13" filter="url(#shadow)"/>
+<!-- Classic single-piece handle, angled naturally down-right -->
+<path d="M316 294L350 324L448 423C463 438 463 462 448 477L438 487C423 502 399 501 384 486L286 387L258 357L316 294Z" fill="url(#handle)" stroke="#D7E5EF" stroke-opacity=".75" stroke-width="4"/>
+<path d="M328 326L421 420" stroke="#F1FBFF" stroke-opacity=".72" stroke-width="7" stroke-linecap="round"/>
+<path d="M302 365L398 462" stroke="#39D8D8" stroke-opacity=".7" stroke-width="5" stroke-linecap="round" filter="url(#glow)"/>
+<path d="M391 479L431 439" stroke="#172838" stroke-opacity=".8" stroke-width="5" stroke-linecap="round"/>
+<!-- Lens housing -->
+<circle cx="218" cy="211" r="151" fill="#111B27" fill-opacity=".7" stroke="url(#rim)" stroke-width="22"/>
+<circle cx="218" cy="211" r="137" fill="url(#glass)" stroke="#8DF4E4" stroke-opacity=".78" stroke-width="3"/>
+<!-- Subtle optical reflections, kept inside the lens -->
+<path d="M129 119C160 91 207 77 247 83" stroke="url(#shine)" stroke-width="15" stroke-linecap="round"/>
+<path d="M111 154C121 132 137 114 157 101" stroke="#F1FFFC" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
+<path d="M120 260C148 303 194 329 241 328" stroke="#61E9E0" stroke-opacity=".26" stroke-width="4" stroke-linecap="round"/>
+<circle cx="218" cy="211" r="126" stroke="#C7FFF2" stroke-opacity=".25" stroke-width="2"/>
+<!-- Small hinge connecting lens rim to handle -->
+<path d="M316 300L344 328" stroke="#AFC3D4" stroke-width="24" stroke-linecap="round"/>
+<path d="M316 300L344 328" stroke="#263D50" stroke-width="10" stroke-linecap="round"/>
+<circle cx="330" cy="314" r="8" fill="#A8F0CF" stroke="#E9FFF9" stroke-width="2"/>
+</svg>

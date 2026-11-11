@@ -1,0 +1,13 @@
+{
+  "name": "freshproof",
+  "version": "0.2.44",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test",
+    "benchmark:temporal": "node benchmarks/run-temporal-benchmark.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.36.0"
+  },
+  "type": "module"
+}

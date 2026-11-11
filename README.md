@@ -62,6 +62,7 @@ The synthetic benchmark is a regression diagnostic only. It is not a real-world 
 ## Submission materials
 - [Judge-ready project description and AI-use disclosure](docs/SUBMISSION-COPY.md)
 - [Submission status and verification snapshot](docs/SUBMISSION-STATUS.md)
+- [Detailed v0.2.45 Staging acceptance results](docs/ACCEPTANCE-RESULTS-v0.2.45.md)
 - [Pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
 
 ## Documentation

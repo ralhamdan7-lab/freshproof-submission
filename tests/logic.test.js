@@ -654,7 +654,7 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.44");
+    assert.equal(body.version, "0.2.45");
     assert.equal(body.claims.length, 2);
     assert.equal(body.claims[1].text, "its official brand name has not changed.");
     assert.equal(body.claims[1].resolved_context.resolved_claim, "Twitter's official brand name has not changed.");

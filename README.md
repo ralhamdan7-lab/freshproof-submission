@@ -4,6 +4,8 @@ FreshProof checks claims in AI-generated answers one by one, retrieves traceable
 
 **Product pillars:** VERIFY · EXPLAIN · CORRECT
 
+**Current Staging prototype:** [freshproof-staging.ralhamdan7.workers.dev](https://freshproof-staging.ralhamdan7.workers.dev) · v0.2.45
+
 ## What it does
 
 - Splits an answer into bounded claim candidates (up to five per request).
@@ -79,5 +81,7 @@ Claim extraction is heuristic, not full natural-language atomic fact decompositi
 No calibrated numeric confidence or broad real-world precision/recall claim is made.
 
 ## Project status
+
+Current validated Staging release: **v0.2.45**. The automated suite passed 181/181 tests, and bounded live acceptance passed five individual cases plus a three-claim combined-answer scenario. See [Submission status](docs/SUBMISSION-STATUS.md) for exact evidence and limitations.
 
 This is a hackathon prototype. Its automated tests and bounded live acceptance cases do not establish production readiness. Review the security notes and verify provider configuration before deploying your own instance.

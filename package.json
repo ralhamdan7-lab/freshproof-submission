@@ -1,6 +1,6 @@
 {
   "name": "freshproof",
-  "version": "0.2.44",
+  "version": "0.2.45",
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test",

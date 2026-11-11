@@ -4,39 +4,54 @@ Updated: 2026-11-12
 
 ## Public submission repository
 
-The sanitized source, tests, and core product documentation are published in this repository. The original development repository remains private.
+This is the sanitized public submission repository. The original development repository remains private. The public source, tests, and documentation are kept separate from internal development records and deployment workflows.
 
-## Verified implementation snapshot
+## Current verified release
 
-- Source baseline: FreshProof v0.2.44.
-- Automated regression run: GitHub Actions run [#43098923491](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43098923491), completed successfully.
-- Node test suite: 181 passed, 0 failed.
-- Worker, adjudication, domain-adapter, and browser syntax checks passed.
+- Application version: **v0.2.45**.
+- Staging URL: https://freshproof-staging.ralhamdan7.workers.dev
+- Staging deploy workflow: [#43105275398 — success](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43105275398).
+- Regression workflow: [#43105450053 — success](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43105450053).
+- Node test suite: **181 passed, 0 failed**.
+- Worker, adjudication, domain adapter, and browser syntax checks: passed.
 - 32-case bilingual synthetic temporal diagnostic: 32/32 expected classifications. This is a hand-authored regression set, not a real-world accuracy estimate.
-- The tested commit includes the evidence-confidence guard that prevents retrieval count and publication dates alone from inflating evidence confidence.
+- Staging live acceptance: [#43105449840 — success](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43105449840).
+- The live acceptance run includes five bounded cases and one multi-claim request with three independent claims.
 
-## Live deployment boundary
+## Live acceptance results
 
-The latest previously verified Staging deployment is v0.2.44. The evidence-confidence guard passed automated CI after that deployment, but a subsequent Staging deployment and live re-acceptance of that guard are not claimed here.
+| Scenario | Observed outcome | Important boundary |
+|---|---|---|
+| US office-holder stale claim | CONTRADICTED | Official White House evidence; no generic correction issued |
+| Arabic Python 2.7 support | SUPERSEDED | Correction PROVIDED with official Python.org sunset reference |
+| Node.js v20 lifecycle | SUPERSEDED | Official Node.js release schedule; no invented correction |
+| ChatGPT Plus price | NEEDS_REVIEW | Official Help Center evidence retrieved; no unsupported price verdict |
+| Apollo 11 (1969) | NEEDS_REVIEW / NOT_TIME_SENSITIVE | Factual status remains unresolved; correction withheld |
+| Three-claim combined answer | 3 claims isolated | Water and Apollo remain NEEDS_REVIEW with corrections withheld; Python 2.7 alone is SUPERSEDED with correction PROVIDED |
 
-Production remains unapproved and unchanged. Do not deploy this repository's Worker without first configuring a separate environment, secret, exact allowed origin, rate limiting, provider quota controls, and privacy terms.
+### Python.org retrieval limitation
 
-## Demonstration evidence
+Direct Python.org retrieval returned HTTP 403. The adapter validated a domain-restricted indexed excerpt from the exact official sunset page, matching the official host/path, sunset date, and explicit support-ending wording. The application disclosed that the page itself was not directly fetched. The live test observed one official source, so evidence confidence remains LIMITED; no corroboration claim is made.
 
-The bounded Staging acceptance record includes:
-- Python 2.7 support claim: SUPERSEDED, with an official Python.org sunset reference and a disclosed indexed-excerpt fallback limitation when direct retrieval returned HTTP 403.
-- Node.js v20 lifecycle: SUPERSEDED without inventing an exact end-of-life date.
-- Current US office-holder claim: CONTRADICTED under a narrow official-source rule.
-- Pricing retrieval and historical Apollo 11 claim: NEEDS_REVIEW where the evidence did not justify a factual verdict.
-- Owner-assisted multi-claim UI review: three independent claim cards; correction provided only for the Python 2.7 claim.
+## Evidence-confidence guard
 
-These are bounded cases, not representative accuracy evaluation.
+The guard prevents retrieval volume or publication-date presence from inflating evidence confidence. Without a completed advisory relation assessment it returns LIMITED; a corroboration-candidate label requires at least two distinct qualified domains with a matching advisory relation. It does not create a calibrated probability or determine the factual verdict.
 
-## Remaining before final submission
+The guard is included in v0.2.45, passed the 181-test regression suite, and is now deployed and exercised through the bounded Staging live-acceptance workflow.
 
-1. Re-run the current Staging demo and capture a fresh, unmocked screen recording.
-2. Confirm the official portal's current required fields and whether video is mandatory.
-3. Enter the final project description, technology list, AI-use disclosure, repository URL, and demo link.
+## Evaluation limits
+
+The 32-case synthetic set is diagnostic only. The bounded live cases do not establish representative real-world precision, recall, false-positive rate, citation correctness, calibrated confidence, latency, or cost per claim. Production readiness has not been established.
+
+## Demonstration
+
+The live demo is available at https://freshproof-staging.ralhamdan7.workers.dev. Use non-confidential sample claims only. The Python 2.7 scenario is the clearest stale-answer demonstration; disclose the direct-fetch limitation if it appears.
+
+## Remaining before final organizer submission
+
+1. Confirm the current organizer portal fields and whether a demo video is mandatory.
+2. Attach the public repository URL, project description, technology list, and AI-use disclosure.
+3. If the portal requires a demo video, record the live Staging workflow; do not use mocked results.
 4. Submit through the organizer's portal and retain the confirmation receipt.
 
-No submission to the organizer is claimed by this status file.
+No submission to the organizer is claimed by this status file. Production remains unapproved and unchanged.

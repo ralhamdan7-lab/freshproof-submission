@@ -94,14 +94,14 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
   }
 }
 
-test("v0.2.44 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
-  assert.equal(VERSION, "0.2.44");
+test("v0.2.45 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
+  assert.equal(VERSION, "0.2.45");
 
   // Positive end-to-end path: deterministic retrieval + injected model fixture,
   // through Worker API, adjudication, explanation, correction, and response.
   const positive = await runApiScenario();
   assert.equal(positive.response.status, 200);
-  assert.equal(positive.body.version, "0.2.44");
+  assert.equal(positive.body.version, "0.2.45");
   assert.equal(positive.body.claims.length, 1);
   const result = positive.body.claims[0];
   assert.equal(result.status, "CONTRADICTED");
@@ -184,7 +184,7 @@ test("frontend renders supporting excerpts as text, not executable HTML", async 
 });
 
 
-test("v0.2.44 factual verification runs for non-time-sensitive claims", async () => {
+test("v0.2.45 factual verification runs for non-time-sensitive claims", async () => {
   const originalFetch = globalThis.fetch;
   const stableClaim = "Water is composed of hydrogen and oxygen.";
   const stableSources = [
@@ -212,7 +212,7 @@ test("v0.2.44 factual verification runs for non-time-sensitive claims", async ()
     const body = await response.json();
     const result = body.claims[0];
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.44");
+    assert.equal(body.version, "0.2.45");
     assert.equal(result.temporal_assessment.status, "NOT_TIME_SENSITIVE");
     assert.equal(result.status, "CURRENT");
     assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");
@@ -221,7 +221,7 @@ test("v0.2.44 factual verification runs for non-time-sensitive claims", async ()
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test("v0.2.44 non-time-sensitive claim still abstains when semantic assessment is disabled", async () => {
+test("v0.2.45 non-time-sensitive claim still abstains when semantic assessment is disabled", async () => {
   const originalFetch = globalThis.fetch;
   const stableClaim = "Water is composed of hydrogen and oxygen.";
   const stableSources = [

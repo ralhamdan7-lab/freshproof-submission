@@ -1,53 +1,51 @@
-# Submission Copy — FreshProof
+# FreshProof — Judge-Ready Project Description
 
-## Project title
-FreshProof — Evidence-First Temporal Verification Engine
+## Project
+**FreshProof — Evidence-First Temporal Verification Engine**
 
-## Track
-Stale-Answer Detector
-
-## Short description
-FreshProof is an evidence-first verification engine that checks claims in AI-generated answers individually. It retrieves bounded source evidence, distinguishes event dates from source publication and retrieval dates, explains what the evidence supports or contradicts, and offers a correction only when a source-grounded replacement is justified. When evidence is insufficient or conflicting, FreshProof abstains rather than inventing certainty.
+**Track:** Stale-Answer Detector
 
 ## Problem
-AI-generated answers can remain fluent and plausible after the facts they describe have changed. Search-based approaches can return recent links without establishing whether those sources actually support or contradict each individual claim. Answer-level freshness labels also hide the fact that a single response can contain stable, outdated, and unresolved statements.
+AI-generated answers can remain fluent and plausible after the facts they describe have changed. A normal web search may find recent pages without determining whether each individual claim is still valid, whether the evidence refers to the relevant event, or whether a source merely republishes older information.
 
 ## Solution
-FreshProof extracts bounded claim candidates and evaluates each separately through a controlled evidence pipeline. It preserves source URLs and date provenance, separates factual verification from temporal sensitivity, uses conservative evidence rules, and returns an explicit review state when the evidence does not justify a conclusion. Corrections are gated by source and quote validation.
+FreshProof verifies claims individually rather than treating an entire answer as one block. It extracts bounded claim candidates, retrieves traceable evidence, evaluates the relationship between each claim and its evidence, separates factual verdicts from temporal sensitivity, and explains why it reached a result. It offers a correction only when a source-grounded replacement satisfies conservative validation rules. Otherwise, it abstains.
 
-## Key differentiators
-- Claim-level rather than whole-answer verification.
-- Separate factual status, temporal assessment, source profile, evidence confidence, and publication freshness.
-- Distinguishes event date, publication date, and retrieval time.
-- Primary-source preference and traceable evidence links.
-- Explicit abstention for missing, conflicting, or weak evidence.
-- Source-grounded correction only when the correction contract is satisfied.
-- Arabic and English claim presentation with per-claim text direction.
+## Product pillars
+- **VERIFY:** identify independent claims and compare each with recent, relevant evidence.
+- **EXPLAIN:** expose sources, evidence relationships, event dates, publication dates, retrieval context, and limitations.
+- **CORRECT:** provide a replacement only when supported by validated evidence; otherwise withhold it.
 
-## Technologies
-- Cloudflare Workers and static browser assets.
-- JavaScript / Node.js.
-- Tavily Basic Search for bounded evidence retrieval.
-- Cloudflare native rate limiting where configured.
-- Node.js built-in test runner.
-- Optional Cloudflare Workers AI relation triage is disabled by default and is not required for the core workflow.
+## Key distinction
+NOT_TIME_SENSITIVE is a secondary temporal assessment, not a factual verdict. FreshProof does not equate a stable claim with a true claim. Evidence confidence, source profile, publication freshness, temporal sensitivity, and factual status are separate dimensions.
 
-## How AI is used
-Tavily is used to retrieve evidence for the claims under review. Optional Workers AI semantic relation triage is implemented as an advisory capability but remains disabled by default; it is not allowed to independently determine the final factual verdict. AI-assisted development tools, including ChatGPT, were used during implementation. The deployed Staging prototype does not rely on an LLM to generate final factual verdicts.
+## Architecture
+Browser UI → Cloudflare Worker → Tavily Search → source normalization and conservative claim-level adjudication → structured report.
 
-## Validation
-- Automated regression: 181/181 tests passed.
-- Staging v0.2.45 deployment: successful.
-- Bounded live Staging acceptance: five individual cases passed, plus a three-claim combined-answer acceptance.
-- Synthetic temporal smoke set: 32/32 expected classifications; this is a regression diagnostic only, not a real-world accuracy estimate.
+The Worker enforces bounded requests and claim extraction. No database or user-account system is required. Optional Workers AI semantic analysis is disabled by default.
 
-## Demo scenario
-Input: “Python 2.7 is still officially supported.”
+## Demonstrated behavior
+The live Staging acceptance suite covers:
+- A stale US office-holder claim, contradicted by current White House evidence.
+- An Arabic Python 2.7 support claim, superseded with a correction tied to the official Python.org sunset page; the direct-fetch restriction and indexed-excerpt fallback are disclosed.
+- Node.js v20 lifecycle verification using official lifecycle evidence.
+- Pricing and stable historical claims where the engine abstains rather than overstates what the evidence establishes.
+- A multi-claim answer in which each claim receives an independent verdict, evidence set, temporal assessment, and correction decision.
 
-FreshProof identifies the claim as SUPERSEDED and presents the official Python.org sunset notice with event date 2020-01-01 and a source-linked correction. Direct retrieval of Python.org returned HTTP 403 in the live acceptance. The adapter validated a domain-restricted indexed excerpt from the exact official page and disclosed that the page itself was not directly fetched. Only one official source was available, so evidence confidence remained LIMITED.
+## Responsible AI and limitations
+FreshProof is evidence-first and abstention-aware. A retrieved page is not automatically proof. Source count and publication recency alone do not establish entailment or confidence. Synthetic benchmark results are regression diagnostics, not estimates of real-world accuracy. The current release does not claim calibrated probability scores or broad real-world precision/recall.
 
-## Demonstrated multi-claim behavior
-A single answer containing water composition, the Apollo 11 landing, and Python 2.7 support was split into three independent claims. The first two remained NEEDS_REVIEW with corrections withheld; only Python 2.7 received SUPERSEDED and a source-grounded correction.
+## Privacy and cost controls
+The prototype does not require a database, user accounts, or persistent storage of submitted answer text. Evidence search uses a server-side Tavily credential. Provider limits and terms apply; the project is designed to avoid paid overages and does not enable optional model services by default.
 
-## Project stage
-Hackathon prototype with a working Staging deployment. Not approved for production use. Representative real-world accuracy, citation correctness, calibrated confidence, latency, and cost-per-claim evaluations remain future work.
+## Technology
+Cloudflare Workers, browser-native HTML/CSS/JavaScript, Node.js test runner, Tavily Search, GitHub.
+
+## AI-use disclosure
+AI tools were used as development assistance for architecture exploration, implementation support, test design, debugging, and documentation. The submitted software, verification rules, evaluation cases, and claims about system behavior are grounded in the repository and recorded test results. Do not describe FreshProof as trained on proprietary data or as autonomously validated beyond the documented tests.
+
+## Links
+- Public source and documentation: https://github.com/ralhamdan7-lab/freshproof-submission
+- Live Staging demo: https://freshproof-staging.ralhamdan7.workers.dev
+
+The Staging environment is a demonstration deployment, not a production service.

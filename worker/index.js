@@ -4,7 +4,7 @@ import { buildProductOutcomes } from "./product-outcomes.js";
 export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 5, maxResultsPerClaim: 5, maxQueries: 5, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
 export const SEMANTIC_MODEL = "@cf/zai-org/glm-4.7-flash";
-export const VERSION = "0.2.44";
+export const VERSION = "0.2.45";
 const PRIMARY_SUFFIXES = [".gov", ".gov.uk", ".gov.sa", ".europa.eu", ".who.int", ".un.org", ".int"];
 const PRIMARY_HOSTS = new Set(["sec.gov", "federalreserve.gov", "bls.gov", "census.gov", "ons.gov.uk", "ec.europa.eu", "data.worldbank.org", "imf.org", "about.x.com", "nodejs.org", "openai.com", "help.openai.com"]);
 const TEMPORAL_PATTERNS = [

@@ -172,6 +172,49 @@ function parseModelJson(raw) {
   try { return JSON.parse(cleaned); } catch { return null; }
 }
 /** Optional, bounded NLI-style triage. Model output is advisory and never changes the verification status. */
+function extractMilestoneDateKeys(text) {
+  const value = String(text || "");
+  const milestoneCues = [
+    { key: "ENTRY_INTO_FORCE", pattern: /\b(?:entered|enters|came|comes)\s+into\s+force\b/gi },
+    { key: "EFFECTIVE_DATE", pattern: /\b(?:took|takes)\s+effect\b|\beffective\s+from\b/gi },
+    { key: "APPLICATION_DATE", pattern: /\b(?:application\s+date|applies?\s+from|applicable\s+from)\b/gi },
+    { key: "ENFORCEMENT_DATE", pattern: /\b(?:enforcement\s+date|enforced\s+from)\b/gi }
+  ];
+  const datePattern = /\b(?:\d{1,2}\s+[A-Z][a-z]+\s+(?:19|20)\d{2}|[A-Z][a-z]+\s+\d{1,2},?\s+(?:19|20)\d{2}|(?:19|20)\d{2}-\d{2}-\d{2})\b/i;
+  const keys = new Set();
+  for (const cue of milestoneCues) {
+    for (const match of value.matchAll(cue.pattern)) {
+      const prefix = value.slice(Math.max(0, match.index - 55), match.index).split(/[.!?;]/).pop() || "";
+      if (/\b(?:did|does|has|had|was|were|is|are|will)\s+not\b|\bnever\b|\bnot\s+(?:entered|enters|came|comes)\b/i.test(prefix)) continue;
+      const tail = value.slice(match.index + match[0].length).split(/[.!?;]/, 1)[0].slice(0, 55);
+      const dateText = tail.match(new RegExp("^(?:\\s*(?:on|from|as of)\\s*)?" + datePattern.source, "i"))?.[0];
+      if (!dateText) continue;
+      const timestamp = Date.parse(dateText.replace(/^\s*(?:on|from|as of)\s*/i, "").trim());
+      if (Number.isFinite(timestamp)) keys.add(cue.key + ":" + new Date(timestamp).toISOString().slice(0, 10));
+    }
+  }
+  return keys;
+}
+
+function hasExactMilestoneDateMatch(claim, snippet) {
+  const claimKeys = extractMilestoneDateKeys(claim);
+  if (!claimKeys.size) return false;
+  const sourceText = String(snippet || "");
+  const sourceKeys = extractMilestoneDateKeys(sourceText);
+  if (![...claimKeys].some(key => sourceKeys.has(key))) return false;
+
+  const stopwords = new Set(["The", "A", "An", "On", "At", "In", "By", "From", "As", "Since", "For", "Under"]);
+  const namedTokens = (String(claim || "").match(/\b[A-Z][A-Za-z0-9-]*\b/g) || []).filter(token => !stopwords.has(token));
+  const sourceLower = sourceText.toLowerCase();
+  const anchors = [];
+  for (let i = 0; i < namedTokens.length; i++) {
+    for (let width = 2; width <= 3 && i + width <= namedTokens.length; width++) {
+      anchors.push(namedTokens.slice(i, i + width).join(" ").toLowerCase());
+    }
+  }
+  return anchors.some(anchor => anchor.length >= 5 && sourceLower.includes(anchor));
+}
+
 export async function adjudicateEvidenceWithModel(claim, sources, ai) {
   if (!ai || typeof ai.run !== "function") return { status: "NOT_CONFIGURED", model: SEMANTIC_MODEL, assessments: [], limitation: "No Workers AI binding is configured; rule-based evidence triage remains active." };
   const bounded = sources.slice(0, LIMITS.maxSemanticSources).map((s, index) => ({ source_index: index, title: String(s.title || "").slice(0, 240), snippet: String(s.snippet || "").slice(0, 900), published_date: s.published_date || null, event_date_candidate: s.event_date_candidate || null, url: s.url }));
@@ -193,7 +236,19 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
     const modelText = result?.response ?? result?.output_text ?? result?.choices?.[0]?.message?.content ?? result?.result?.response ?? result?.result?.output_text ?? result?.result?.choices?.[0]?.message?.content;
     const parsed = parseModelJson(modelText ?? result);
     if (!parsed || !Array.isArray(parsed.assessments)) throw new Error("Invalid model response schema");
-    const assessments = parsed.assessments.filter(a => Number.isInteger(a.source_index) && a.source_index >= 0 && a.source_index < bounded.length && SEMANTIC_RELATIONS.has(a.relation)).map(a => ({ source_index: a.source_index, relation: a.relation, rationale: String(a.rationale || "").slice(0, 280), requires_review: true, method: "MODEL_ADVISORY_NLI" }));
+    const assessments = parsed.assessments.filter(a => Number.isInteger(a.source_index) && a.source_index >= 0 && a.source_index < bounded.length && SEMANTIC_RELATIONS.has(a.relation)).map(a => {
+      const exactMilestoneMatch = ["MIXED", "INSUFFICIENT"].includes(a.relation)
+        && hasExactMilestoneDateMatch(claim, bounded[a.source_index].snippet);
+      return {
+        source_index: a.source_index,
+        relation: exactMilestoneMatch ? "SUPPORTS" : a.relation,
+        rationale: exactMilestoneMatch
+          ? "The source states the exact same milestone and date; other dates in the source refer to distinct milestones."
+          : String(a.rationale || "").slice(0, 280),
+        requires_review: true,
+        method: exactMilestoneMatch ? "EXACT_MILESTONE_DATE_MATCH_ADVISORY" : "MODEL_ADVISORY_NLI"
+      };
+    });
     if (assessments.length !== bounded.length || new Set(assessments.map(a => a.source_index)).size !== bounded.length) throw new Error("Incomplete model assessments");
     return { status: "COMPLETED_ADVISORY", model: SEMANTIC_MODEL, assessments, limitation: "Model classifications are uncalibrated advisory signals. They do not establish truth, source reliability, or a final verification status." };
   } catch {
@@ -233,9 +288,9 @@ export async function assessCorrectionCandidateWithModel(claim, status, sources,
     try {
       const url = new URL(source.url);
       if (url.protocol !== "https:" || url.username || url.password || url.port || String(source.snippet || "").trim().length < 20) continue;
-      const host = url.hostname.toLowerCase().replace(/^www[.]/, "");
-      if (!["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(source.source_reliability) || source.relevance_assessment?.relevance === "LOW") continue;
-      eligibleHosts.add(host);
+      const publisherDomain = registrableDomain(source.url);
+      if (!publisherDomain || !["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(source.source_reliability) || source.relevance_assessment?.relevance === "LOW") continue;
+      eligibleHosts.add(publisherDomain);
       if (source.source_reliability === "PRIMARY_OR_OFFICIAL_DOMAIN") hasPrimary = true;
     } catch {}
   }

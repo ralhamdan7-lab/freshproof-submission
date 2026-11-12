@@ -91,3 +91,11 @@ No calibrated numeric confidence or broad real-world precision/recall claim is m
 Only the isolated Staging Worker is used for the current demonstration. Production remains unapproved and unchanged. This repository is not configured to deploy to the private Staging environment.
 
 The owner must personally complete and submit the official hackathon form. No organizer submission is claimed.
+
+
+## Latest QA evidence — 2026-11-12
+
+- 200/200 automated tests passed, including 1,950 seeded randomized property iterations.
+- [Live randomized Staging acceptance #43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed Arabic/English Python lifecycle, alternate office-holder phrasing, Node.js lifecycle, official pricing abstention, stable facts, and three-claim isolation.
+- [Browser acceptance #43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed bilingual RTL/LTR, validated correction display, safe links, inert HTML-like input, mobile layout, keyboard interaction, and live API integration.
+- Conservative `NEEDS_REVIEW` outcomes are retained when evidence is insufficient. These checks do not establish broad real-world accuracy.

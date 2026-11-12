@@ -1,0 +1,39 @@
+name: FreshProof Staging Browser Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/staging-browser-smoke.mjs'
+      - '.github/workflows/staging-browser-acceptance.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/staging-browser-smoke.mjs'
+      - '.github/workflows/staging-browser-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install browser test dependency
+        run: npm install --no-save --no-package-lock playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test live Staging UI with deterministic API fixture
+        env:
+          FRESH_PROOF_BASE_URL: https://freshproof-staging.ralhamdan7.workers.dev
+        run: node scripts/staging-browser-smoke.mjs

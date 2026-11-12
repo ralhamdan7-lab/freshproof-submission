@@ -25,8 +25,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.45 release version", () => {
-  assert.equal(VERSION, "0.2.45");
+test("v0.2.46 release version", () => {
+  assert.equal(VERSION, "0.2.46");
 });
 
 test("middle-initial office-holder claim remains intact", () => {
@@ -38,6 +38,14 @@ test("middle-initial office-holder claim remains intact", () => {
 test("detects explicit US President claim", () => {
   assert.equal(
     detectOfficeHolderClaim("As of 2026, the President of the United States is Joe Biden.").claimed_holder,
+    "Joe Biden"
+  );
+  assert.equal(
+    detectOfficeHolderClaim("Joe Biden is the current President of the United States.").claimed_holder,
+    "Joe Biden"
+  );
+  assert.equal(
+    detectOfficeHolderClaim("Joe Biden is the current U.S. President.").claimed_holder,
     "Joe Biden"
   );
 });
@@ -447,12 +455,11 @@ test("separate model review fails closed on malformed model output and low-relev
 });
 
 
-test("generic correction candidate review requires both explicit opt-in and verified-free-quota flags", () => {
+test("generic correction candidate review is controlled by explicit feature opt-in only", () => {
   assert.equal(isCorrectionCandidateReviewEnabled({}), false);
-  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true" }), false);
-  assert.equal(isCorrectionCandidateReviewEnabled({ FREE_WORKERS_AI_QUOTA_VERIFIED: "true" }), false);
-  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "false", FREE_WORKERS_AI_QUOTA_VERIFIED: "true" }), false);
-  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true", FREE_WORKERS_AI_QUOTA_VERIFIED: "false" }), false);
+  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "false" }), false);
+  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true" }), true);
+  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true", FREE_WORKERS_AI_QUOTA_VERIFIED: "false" }), true);
   assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true", FREE_WORKERS_AI_QUOTA_VERIFIED: "true" }), true);
 });
 

@@ -4,7 +4,7 @@ import { buildProductOutcomes } from "./product-outcomes.js";
 export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 5, maxResultsPerClaim: 5, maxQueries: 5, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
 export const SEMANTIC_MODEL = "@cf/zai-org/glm-4.7-flash";
-// v0.2.45: evidence confidence requires completed independent-source relation assessment.
+// v0.2.46: evidence confidence requires completed independent-source relation assessment.
 export const VERSION = "0.2.46";
 const PRIMARY_SUFFIXES = [".gov", ".gov.uk", ".gov.sa", ".europa.eu", ".who.int", ".un.org", ".int"];
 const PRIMARY_HOSTS = new Set(["sec.gov", "federalreserve.gov", "bls.gov", "census.gov", "ons.gov.uk", "ec.europa.eu", "data.worldbank.org", "imf.org", "about.x.com", "nodejs.org", "openai.com", "help.openai.com", "python.org", "fifa.com"]);
@@ -207,9 +207,9 @@ export function isCorrectionCandidateReviewEnabled(env = {}) {
 }
 
 /**
- * Optional second-pass correction candidate review. Disabled unless both the
- * feature flag and an operator free-quota verification flag are set.
- * This pass never changes the original verification status.
+ * Optional second-pass correction candidate review. Runs only when the
+ * explicit feature flag is enabled; unavailable or malformed AI responses
+ * fail closed. This pass never changes the original verification status.
  */
 export async function assessCorrectionCandidateWithModel(claim, status, sources, ai) {
   if (!["SUPERSEDED", "CONTRADICTED"].includes(status) || !ai || typeof ai.run !== "function" || !Array.isArray(sources)) return null;

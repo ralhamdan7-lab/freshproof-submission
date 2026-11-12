@@ -1,0 +1,132 @@
+name: FreshProof Staging Live Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/staging-live-matrix.mjs'
+      - 'scripts/staging-randomized-acceptance.mjs'
+  workflow_run:
+    workflows: ["FreshProof Staging Deploy"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-staging-smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+      !contains(join(github.event.head_commit.added, ','), 'worker/') &&
+      !contains(join(github.event.head_commit.modified, ','), 'worker/') &&
+      !contains(join(github.event.head_commit.removed, ','), 'worker/') &&
+      !contains(join(github.event.head_commit.added, ','), 'src/') &&
+      !contains(join(github.event.head_commit.modified, ','), 'src/') &&
+      !contains(join(github.event.head_commit.removed, ','), 'src/') &&
+      !contains(join(github.event.head_commit.modified, ','), 'wrangler.toml') &&
+      !contains(join(github.event.head_commit.modified, ','), 'package.json') &&
+      !contains(join(github.event.head_commit.modified, ','), 'package-lock.json')) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Submit one bounded public test claim to Staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTTP_STATUS=$(curl --silent --show-error --max-time 45 \
+            --output /tmp/freshproof-response.json \
+            --write-out '%{http_code}' \
+            --request POST 'https://freshproof-staging.ralhamdan7.workers.dev/api/verify' \
+            --header 'content-type: application/json' \
+            --header 'origin: https://freshproof-staging.ralhamdan7.workers.dev' \
+            --data '{"text":"Python 2.7 is still officially supported."}')
+          echo "HTTP_STATUS=$HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Staging verification endpoint did not return HTTP 200."
+            cat /tmp/freshproof-response.json
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const body = JSON.parse(fs.readFileSync('/tmp/freshproof-response.json', 'utf8'));
+          if (body.product !== 'FreshProof' || !Array.isArray(body.claims) || body.claims.length !== 1) {
+            throw new Error('Unexpected response contract or claim count.');
+          }
+          const claim = body.claims[0];
+          for (const key of ['status', 'sources', 'explanation_detail', 'correction', 'retrieval_diagnostics']) {
+            if (!(key in claim)) throw new Error('Missing required output field: ' + key);
+          }
+          if (!Array.isArray(claim.sources) || !Array.isArray(claim.explanation_detail.evidence_basis)) {
+            throw new Error('Evidence/explanation structures are malformed.');
+          }
+          if (claim.correction?.status === 'PROVIDED' &&
+              (!claim.correction.text || !Array.isArray(claim.correction.evidence_refs) || claim.correction.evidence_refs.length < 1)) {
+            throw new Error('Correction was marked PROVIDED without evidence references.');
+          }
+          const safe = {
+            version: body.version,
+            claim_status: claim.status,
+            temporal_status: claim.temporal_assessment?.status ?? null,
+            source_count: claim.sources.length,
+            evidence_basis: claim.explanation_detail.evidence_basis.map(x => ({url:x.url,relation:x.relation,publication_date:x.publication_date,event_date_candidate:x.event_date_candidate,acquisition_method:x.acquisition_method})),
+            correction_status: claim.correction?.status ?? null,
+            correction_text: claim.correction?.text ?? null,
+            correction_references: (claim.correction?.evidence_refs || []).map(x => ({url:x.url,event_date:x.event_date})),
+            correction_limitations: claim.correction?.limitations ?? [],
+            explanation_limitations: claim.explanation_detail.limitations ?? [],
+            search_budget: body.methodology?.search_budget ?? null,
+            retrieval_stages: (claim.retrieval_diagnostics || []).map(x => ({provider:x.provider,stage:x.stage,status:x.status,http_status:x.http_status ?? null}))
+          };
+          console.log(JSON.stringify(safe, null, 2));
+          if (claim.status === 'UNVERIFIABLE' && claim.sources.length === 0) {
+            throw new Error('Live retrieval produced no usable evidence.');
+          }
+          NODE
+
+      - name: Verify stable-claim abstention and secondary temporal classification
+        shell: bash
+        run: |
+          set -euo pipefail
+          HTTP_STATUS=$(curl --silent --show-error --max-time 45 \
+            --output /tmp/freshproof-stable-response.json \
+            --write-out '%{http_code}' \
+            --request POST 'https://freshproof-staging.ralhamdan7.workers.dev/api/verify' \
+            --header 'content-type: application/json' \
+            --header 'origin: https://freshproof-staging.ralhamdan7.workers.dev' \
+            --data '{"text":"Water is composed of hydrogen and oxygen."}')
+          echo "HTTP_STATUS=$HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Stable-claim Staging request did not return HTTP 200."
+            cat /tmp/freshproof-stable-response.json
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const body = JSON.parse(fs.readFileSync('/tmp/freshproof-stable-response.json', 'utf8'));
+          const claim = body.claims?.[0];
+          if (body.product !== 'FreshProof' || body.version !== '0.2.46' || !claim) throw new Error('Unexpected Staging response/version.');
+          if (claim.temporal_assessment?.status !== 'NOT_TIME_SENSITIVE') throw new Error('Stable control was not classified NOT_TIME_SENSITIVE.');
+          if (!['NEEDS_REVIEW', 'UNVERIFIABLE'].includes(claim.status)) throw new Error('Stable claim should abstain when advisory semantic analysis does not establish sufficient factual evidence.');
+          if (claim.correction?.status !== 'WITHHELD') throw new Error('Correction must be withheld for an unresolved stable claim.');
+          console.log(JSON.stringify({
+            version: body.version,
+            claim_status: claim.status,
+            temporal_status: claim.temporal_assessment.status,
+            source_count: claim.sources?.length ?? 0,
+            semantic_status: claim.semantic_assessment?.status ?? null,
+            correction_status: claim.correction.status,
+            explanation_summary: claim.explanation_detail?.summary ?? null
+          }, null, 2));
+          NODE
+
+
+      - name: Run randomized-order multi-language live acceptance
+        env:
+          FRESH_PROOF_BASE_URL: https://freshproof-staging.ralhamdan7.workers.dev
+        run: node scripts/staging-randomized-acceptance.mjs

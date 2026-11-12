@@ -6,12 +6,12 @@ Updated: 2026-11-12
 This sanitized submission repository contains the product source, regression tests, benchmark fixtures, and core technical documentation. The development repository remains private.
 
 ## Verified implementation snapshot
-- Runtime release: FreshProof v0.2.45.
+- Staging runtime release: FreshProof v0.2.46. The public repository's implementation snapshot remains v0.2.45 until source synchronization and security review are completed.
 - Automated Node regression suite: 181 passed, 0 failed.
 - Worker, adjudication, domain-adapter, and browser syntax checks passed.
 - 32-case bilingual synthetic temporal diagnostic passed its expected classifications; this is a regression diagnostic, not a real-world accuracy estimate.
 - Evidence-confidence guard: confidence is not inferred from source count or publication dates alone; corroboration candidates require completed relation assessment and distinct qualified domains.
-- Staging deployment: successful through the dedicated Staging-only workflow. The live workflow verified v0.2.45 against bounded cases.
+- Staging deployment: successful through the dedicated Staging-only workflow. Live Staging acceptance workflow #43241870828 verified v0.2.46 on 2026-11-12; see the exact run link in the public README.
 
 ## Live Staging acceptance
 The latest successful live acceptance run checked:
@@ -34,10 +34,18 @@ These are bounded acceptance cases, not representative accuracy evaluation. No b
 ## Deployment boundary
 Only the isolated Staging Worker was deployed. Production remains unapproved and unchanged. This public repository is not configured for deployment to the private Staging environment.
 
+## Additional v0.2.46 verification
+- Live acceptance workflow [#43241870828](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43241870828) completed SUCCESS on commit `890dc81362ca05828c843e1d36825d39c0ed94f4`.
+- Staging explicitly enables advisory semantic relation analysis and evidence-gated correction-candidate review. The model cannot independently set the final verdict.
+- Live assertions passed for a current office-holder contradiction, Arabic Python 2 supersession/correction, Node lifecycle, pricing abstention, historical/stable claim abstention, and three-claim correction isolation.
+- Conservative `NEEDS_REVIEW` outcomes were retained when evidence was insufficient or conflicting.
+- **Important source parity gap:** the public repository's sanitized implementation files remain at v0.2.45; only the public documentation has been aligned to the v0.2.46 Staging evidence. This repo must not be described as an exact mirror of the deployed Staging source until synchronization and secret/privacy review are completed.
+
 ## Remaining before final submission
 1. Confirm current official portal fields and required acknowledgements directly in the organizer portal.
 2. Confirm that the participant has joined the official hackathon Discord; this is listed as required by the event information.
-3. Upload the public repository URL, working Staging demo URL, pitch deck, and walkthrough wherever the portal requests them.
-4. Submit through the organizer portal and retain its official receipt.
+3. Synchronize the sanitized public implementation with the verified v0.2.46 source and rerun the public repository tests/security scan.
+4. Upload the public repository URL, working Staging demo URL, pitch deck, and walkthrough wherever the portal requests them.
+5. Submit through the organizer portal and retain its official receipt.
 
 No organizer submission is claimed by this status file.

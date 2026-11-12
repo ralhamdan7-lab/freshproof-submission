@@ -6,7 +6,7 @@ FreshProof checks claims in AI-generated answers individually, retrieves traceab
 
 **Product pillars:** VERIFY · EXPLAIN · CORRECT
 
-**Live Staging prototype:** [freshproof-staging.ralhamdan7.workers.dev](https://freshproof-staging.ralhamdan7.workers.dev) · **v0.2.46**
+**Live Staging prototype:** [freshproof-staging.ralhamdan7.workers.dev](https://freshproof-staging.ralhamdan7.workers.dev) · **v0.2.47**
 
 ## What it does
 
@@ -32,7 +32,7 @@ FreshProof checks claims in AI-generated answers individually, retrieves traceab
 
 `Browser UI → Cloudflare Worker → Tavily Search → source normalization → advisory relation assessment → conservative evidence adjudication → structured report`
 
-The Worker validates input, extracts claim candidates, performs bounded retrieval, normalizes source metadata, assesses evidence, and returns claim-level explanations and corrections.
+The Worker validates input, extracts claim candidates, performs bounded retrieval, normalizes source metadata, assesses evidence, and returns claim-level explanations and corrections. Independent corroboration is counted by registrable domain, not by subdomain, so multiple pages from one publisher cannot masquerade as independent sources.
 
 ## Staging acceptance — 2026-11-12
 

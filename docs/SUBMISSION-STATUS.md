@@ -6,7 +6,7 @@ Updated: 2026-11-12
 This sanitized submission repository contains the product source, regression tests, benchmark fixtures, and core technical documentation. The development repository remains private.
 
 ## Verified implementation snapshot
-- Staging runtime release: FreshProof v0.2.46. The sanitized application source and regression tests have now been synchronized to v0.2.46 on the release branch. The branch must pass its own CI and secret/privacy scan before merge.
+- Staging runtime release: FreshProof v0.2.46. The sanitized application source and regression tests have been synchronized to v0.2.46 and merged to the public default branch. Changed files were checked against the private verified source; a targeted secret-pattern scan found no credential matches. The public repository did not produce an independently observed CI result for this merge.
 - Automated Node regression suite: 181 passed, 0 failed.
 - Worker, adjudication, domain-adapter, and browser syntax checks passed.
 - 32-case bilingual synthetic temporal diagnostic passed its expected classifications; this is a regression diagnostic, not a real-world accuracy estimate.
@@ -39,7 +39,7 @@ Only the isolated Staging Worker was deployed. Production remains unapproved and
 - Staging explicitly enables advisory semantic relation analysis and evidence-gated correction-candidate review. The model cannot independently set the final verdict.
 - Live assertions passed for a current office-holder contradiction, Arabic Python 2 supersession/correction, Node lifecycle, pricing abstention, historical/stable claim abstention, and three-claim correction isolation.
 - Conservative `NEEDS_REVIEW` outcomes were retained when evidence was insufficient or conflicting.
-- **Source synchronization:** the release branch updates the sanitized application source, package version, regression tests, and security/test documentation to v0.2.46. Its own CI and secret/privacy scan remain required before merge.
+- **Source synchronization:** the public default branch now contains the sanitized v0.2.46 source, package version, regression tests, and security/test documentation. A targeted secret-pattern scan found no credential matches; public-repository CI was not independently observed.
 
 ## Remaining before final submission
 1. Confirm current official portal fields and required acknowledgements directly in the organizer portal.

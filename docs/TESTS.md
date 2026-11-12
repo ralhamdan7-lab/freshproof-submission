@@ -1,6 +1,6 @@
 ## Final v0.2.47 Staging gate — 2026-11-12
 - Final code commit: `2c76535cadaa074cdd5e0bf3b2c7d504bdfa3536`.
-- Node verification: **210/210 PASS**; syntax checks and temporal smoke benchmark passed.
+- Node verification: **212/212 PASS** in private CI [#43266207547](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43266207547); public submission mirror also passed **212/212** in [#43266369521](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43266369521). Syntax checks and temporal smoke benchmark passed.
 - Staging deployment: [#43265374345](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265374345) **SUCCESS**. Cloudflare Worker version ID: `a81e386c-221f-4a06-95a2-4713a998db6b`.
 - Live randomized acceptance: [#43265496909](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265496909) **SUCCESS**, 16 cases spanning 12+ subject areas, including 4-claim and 5-claim mixed-domain inputs.
 - Confirmed deterministic regression contracts: independent corroboration by registrable domain; correction review also rejects sibling subdomains; exact legal milestone/date matches do not become MIXED solely due to later application dates; negation and named-instrument mismatch prevent the milestone override.

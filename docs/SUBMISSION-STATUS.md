@@ -49,3 +49,12 @@ Only the isolated Staging Worker was deployed. Production remains unapproved and
 5. Submit through the organizer portal and retain its official receipt.
 
 No organizer submission is claimed by this status file.
+
+
+## Latest randomized QA — 2026-11-12
+
+- Automated Node regression suite: 200 passed, 0 failed; includes 1,950 seeded generated property iterations.
+- Live randomized Staging acceptance [#43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed seven randomized-order cases plus two smoke controls, within the existing request limit.
+- Covered Arabic/English Python 2 lifecycle corrections, person-first US office-holder contradiction, Node.js v20 lifecycle supersession, official pricing abstention, stable factual claims, and multi-claim isolation.
+- Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed bilingual rendering, correction and source quote presentation, safe links, inert HTML-like input, mobile layout, keyboard submission, and live API integration.
+- No real-world precision/recall or production readiness is claimed. Production remains unchanged; organizer submission remains NOT SUBMITTED.

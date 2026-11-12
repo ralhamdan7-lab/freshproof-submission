@@ -9,13 +9,22 @@ function shuffle(items) {
   return out;
 }
 const cases = [
-  {id:"stable-science-en",text:"Water is composed of hydrogen and oxygen.",expectedClaims:1,stable:true},
-  {id:"stale-software-ar",text:"لا يزال Python 2.7 مدعوماً رسمياً.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
-  {id:"stale-software-en",text:"Python 2.7 is still officially supported.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
-  {id:"obsolete-office-holder",text:"Joe Biden is the current President of the United States.",expectedClaims:1,expectedStatus:"CONTRADICTED"},
-  {id:"node-lifecycle-en",text:"Node.js v20 remains actively supported under LTS.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
-  {id:"openai-pricing-en",text:"ChatGPT Plus currently costs $20 per month in the United States.",expectedClaims:1,expectedStatus:"NEEDS_REVIEW"},
-  {id:"multi-claim-mixed-time",text:"Apollo 11 landed on the Moon in 1969. Water is composed of hydrogen and oxygen. Python 2.7 is still officially supported. Joe Biden is the current President of the United States.",expectedClaims:4,multi:true}
+  {id:"stable-science-en",category:"science",text:"Water is composed of hydrogen and oxygen.",expectedClaims:1,stable:true},
+  {id:"stale-software-ar",category:"technology",text:"لا يزال Python 2.7 مدعوماً رسمياً.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
+  {id:"stale-software-en",category:"technology",text:"Python 2.7 is still officially supported.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
+  {id:"obsolete-office-holder",category:"government",text:"Joe Biden is the current President of the United States.",expectedClaims:1,expectedStatus:"CONTRADICTED"},
+  {id:"node-lifecycle-en",category:"technology",text:"Node.js v20 remains actively supported under LTS.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
+  {id:"openai-pricing-en",category:"economics-and-pricing",text:"ChatGPT Plus currently costs $20 per month in the United States.",expectedClaims:1,expectedStatus:"NEEDS_REVIEW"},
+  {id:"health-emergency-history",category:"public-health",text:"The World Health Organization ended COVID-19's status as a Public Health Emergency of International Concern on 5 May 2023.",expectedClaims:1},
+  {id:"law-regulation-eu-ai-act",category:"law-and-regulation",text:"The European Union AI Act entered into force on 1 August 2024.",expectedClaims:1},
+  {id:"cybersecurity-tls",category:"cybersecurity",text:"TLS 1.0 and TLS 1.1 are deprecated and should not be used for secure communications.",expectedClaims:1},
+  {id:"geopolitics-brexit",category:"geopolitics",text:"The United Kingdom is currently a member of the European Union.",expectedClaims:1},
+  {id:"corporate-leadership",category:"business",text:"Satya Nadella is the current Chief Executive Officer of Microsoft.",expectedClaims:1},
+  {id:"space-history-jwst",category:"space",text:"The James Webb Space Telescope launched on 25 December 2021.",expectedClaims:1},
+  {id:"transport-history-elizabeth-line",category:"transport",text:"The Elizabeth line opened to passengers in May 2022.",expectedClaims:1},
+  {id:"sports-history-world-cup",category:"sports",text:"Argentina won the 2022 FIFA World Cup.",expectedClaims:1},
+  {id:"multi-claim-mixed-time",category:"cross-domain",text:"Apollo 11 landed on the Moon in 1969. Water is composed of hydrogen and oxygen. Python 2.7 is still officially supported. Joe Biden is the current President of the United States.",expectedClaims:4,multi:true},
+  {id:"multi-domain-five-claims",category:"cross-domain",text:"The World Health Organization ended COVID-19's status as a Public Health Emergency of International Concern on 5 May 2023. The European Union AI Act entered into force on 1 August 2024. TLS 1.0 and TLS 1.1 are deprecated for secure communications. The United Kingdom is currently a member of the European Union. Satya Nadella is the current Chief Executive Officer of Microsoft.",expectedClaims:5,multiDomain:true}
 ];
 const validStatuses = new Set(["CURRENT","SUPERSEDED","CONTRADICTED","NEEDS_REVIEW","UNVERIFIABLE"]);
 const validTemporal = new Set(["TIME_SENSITIVE","NOT_TIME_SENSITIVE","TEMPORAL_REVIEW_REQUIRED"]);
@@ -81,32 +90,49 @@ for (const item of shuffle(cases)) {
   if (item.expectedStatus && body.claims[0].status !== item.expectedStatus) {
     throw new Error(item.id + ": expected " + item.expectedStatus + ", got " + body.claims[0].status);
   }
-  if (item.multi) {
+  if (item.multi || item.multiDomain) {
     const byText = body.claims.map(c => ({ text: String(c.text || "").toLowerCase(), claim: c }));
     const findClaim = needle => byText.find(x => x.text.includes(needle))?.claim;
     const water = findClaim("water");
     const apollo = findClaim("apollo 11");
     const python = findClaim("python 2.7");
     const officeHolder = findClaim("joe biden");
-    if (!water || !apollo || !python || !officeHolder) throw new Error("English multi-claim case lost or merged one of its four distinct claims.");
-    if (water.temporal_assessment.status !== "NOT_TIME_SENSITIVE" || apollo.temporal_assessment.status !== "NOT_TIME_SENSITIVE" || python.temporal_assessment.status !== "TEMPORAL_REVIEW_REQUIRED" || officeHolder.temporal_assessment.status !== "TEMPORAL_REVIEW_REQUIRED") {
+    if (item.multi && (!water || !apollo || !python || !officeHolder)) throw new Error("English multi-claim case lost or merged one of its four distinct claims.");
+    if (item.multiDomain) {
+      const health = findClaim("world health organization");
+      const euAct = findClaim("european union ai act");
+      const tls = findClaim("tls 1.0");
+      const brexit = findClaim("united kingdom");
+      const microsoft = findClaim("satya nadella");
+      const domainClaims = [health,euAct,tls,brexit,microsoft];
+      if (domainClaims.some(x => !x) || new Set(domainClaims.map(x => x.claim_id)).size !== 5) throw new Error("Cross-domain input lost or merged one or more of five distinct claims.");
+      if (new Set(domainClaims.map(x => x.claim_id)).size !== domainClaims.length) throw new Error("Cross-domain claims do not have independent identifiers.");
+      for (const claim of domainClaims) {
+        if (!validStatuses.has(claim.status) || !validTemporal.has(claim.temporal_assessment?.status)) throw new Error("Cross-domain claim has an invalid adjudication or temporal status.");
+        if (!Array.isArray(claim.sources) || !Array.isArray(claim.explanation_detail?.evidence_basis)) throw new Error("Cross-domain claim is missing claim-local evidence arrays.");
+      }
+      console.log(JSON.stringify({case:item.id,domains:domainClaims.map((claim,index)=>({domain:["public-health","law-and-regulation","cybersecurity","geopolitics","business"][index],status:claim.status,temporal_status:claim.temporal_assessment.status,source_count:claim.sources.length,correction_status:claim.correction.status}))}));
+    }
+    if (item.multi && (water.temporal_assessment.status !== "NOT_TIME_SENSITIVE" || apollo.temporal_assessment.status !== "NOT_TIME_SENSITIVE" || python.temporal_assessment.status !== "TEMPORAL_REVIEW_REQUIRED" || officeHolder.temporal_assessment.status !== "TEMPORAL_REVIEW_REQUIRED")) {
       throw new Error("English multi-claim case has incorrect claim-specific temporal classification.");
     }
-    if (python.domain_adapter !== "python2_lifecycle" || python.status !== "SUPERSEDED" || python.correction.status !== "PROVIDED" || !(python.correction.evidence_refs || []).some(x => x.url === "https://www.python.org/doc/sunset-python-2/")) {
+    if (item.multi && (python.domain_adapter !== "python2_lifecycle" || python.status !== "SUPERSEDED" || python.correction.status !== "PROVIDED" || !(python.correction.evidence_refs || []).some(x => x.url === "https://www.python.org/doc/sunset-python-2/"))) {
       throw new Error("Python lifecycle evidence/correction was not retained on its own claim.");
     }
-    if (officeHolder.domain_adapter !== "office_holder" || officeHolder.status !== "CONTRADICTED") {
+    if (item.multi && (officeHolder.domain_adapter !== "office_holder" || officeHolder.status !== "CONTRADICTED")) {
       throw new Error("Current office-holder contradiction was not retained on its own claim.");
     }
-    console.log(JSON.stringify({case:item.id,claim_contracts:[
-      {kind:"water",status:water.status,correction_status:water.correction.status,correction_text_present:Boolean(water.correction.text),correction_refs:water.correction.evidence_refs?.length ?? 0},
-      {kind:"apollo",status:apollo.status,correction_status:apollo.correction.status,correction_text_present:Boolean(apollo.correction.text),correction_refs:apollo.correction.evidence_refs?.length ?? 0},
-      {kind:"python",status:python.status,correction_status:python.correction.status,correction_refs:python.correction.evidence_refs?.length ?? 0},
-      {kind:"office_holder",status:officeHolder.status,correction_status:officeHolder.correction.status,correction_refs:officeHolder.correction.evidence_refs?.length ?? 0}
-    ]}));
-    for (const [kind, claim] of [["water",water],["apollo",apollo]]) {
-      if (claim.correction.status === "PROVIDED" || claim.correction.text || (claim.correction.evidence_refs || []).length > 0) {
-        throw new Error("Correction/evidence leaked into unrelated " + kind + " claim.");
+    if (item.multi) {
+      console.log(JSON.stringify({case:item.id,claim_contracts:[
+        {kind:"water",status:water.status,correction_status:water.correction.status,correction_text_present:Boolean(water.correction.text),correction_refs:water.correction.evidence_refs?.length ?? 0},
+        {kind:"apollo",status:apollo.status,correction_status:apollo.correction.status,correction_text_present:Boolean(apollo.correction.text),correction_refs:apollo.correction.evidence_refs?.length ?? 0},
+        {kind:"python",status:python.status,correction_status:python.correction.status,correction_refs:python.correction.evidence_refs?.length ?? 0},
+        {kind:"office_holder",status:officeHolder.status,correction_status:officeHolder.correction.status,correction_refs:officeHolder.correction.evidence_refs?.length ?? 0}
+      ]}));
+      for (const [kind, claim] of [["water",water],["apollo",apollo]]) {
+        if (claim.correction.status === "PROVIDED" || claim.correction.text || (claim.correction.evidence_refs || []).length > 0) {
+          throw new Error("Correction/evidence leaked into unrelated " + kind + " claim.");
+        }
       }
     }
   }
@@ -130,6 +156,7 @@ for (const item of shuffle(cases)) {
   }
   results.push({
     id:item.id,
+    category:item.category,
     claim_count:body.claims.length,
     claims:body.claims.map(c=>({
       claim_id:c.claim_id,
@@ -144,5 +171,5 @@ for (const item of shuffle(cases)) {
     search_budget:body.methodology?.search_budget ?? null
   });
 }
-console.log(JSON.stringify({suite:"staging-randomized-live-acceptance",seed:"0x46f2026",case_count:results.length,results},null,2));
+console.log(JSON.stringify({suite:"staging-randomized-live-acceptance",seed:"0x46f2026",case_count:results.length,categories:[...new Set(results.map(x=>x.category))],results},null,2));
 console.log("PASS: randomized-order live acceptance; claim isolation, temporal classification, evidence shape, correction citations, and abstention contracts verified.");

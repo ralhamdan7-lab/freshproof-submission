@@ -99,3 +99,11 @@ The owner must personally complete and submit the official hackathon form. No or
 - [Live randomized Staging acceptance #43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed Arabic/English Python lifecycle, alternate office-holder phrasing, Node.js lifecycle, official pricing abstention, stable facts, and three-claim isolation.
 - [Browser acceptance #43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed bilingual RTL/LTR, validated correction display, safe links, inert HTML-like input, mobile layout, keyboard interaction, and live API integration.
 - Conservative `NEEDS_REVIEW` outcomes are retained when evidence is insufficient. These checks do not establish broad real-world accuracy.
+
+
+
+## Public repository verification — 2026-11-12
+- Public CI [#43250280181](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280181): **200/200 tests passed**.
+- Public browser acceptance [#43250280219](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280219): **SUCCESS**.
+- Public live Staging acceptance [#43250280631](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280631): **SUCCESS**.
+- The public v0.2.46 Worker source, domain adapters, regression tests, randomized test script, and acceptance workflows were compared byte-for-byte with the private development repository after synchronization.

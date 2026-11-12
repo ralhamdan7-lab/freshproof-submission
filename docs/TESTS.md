@@ -76,3 +76,12 @@ Lexical relevance is not semantic entailment. LOW results are separated from adj
 - Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed RTL/LTR, correction/quote rendering, safe links, inert HTML-like input, mobile overflow, keyboard submission, and live Worker integration.
 - Stable and historical claims remained `NEEDS_REVIEW / NOT_TIME_SENSITIVE` where evidence did not justify a factual verdict. This is intended abstention.
 - These are bounded regression and integration checks, not representative real-world accuracy, calibrated confidence, or performance benchmarks.
+
+
+
+## Final public mirror verification — 2026-11-12
+- Public submission repository PR #2 merged: https://github.com/ralhamdan7-lab/freshproof-submission/pull/2.
+- Public CI [#43250280181](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280181): 200/200 tests passed.
+- Public browser acceptance [#43250280219](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280219): SUCCESS.
+- Public live Staging acceptance [#43250280631](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280631): SUCCESS.
+- Key implementation, randomized tests, live/browser scripts, and workflows were byte-for-byte compared against the private development repository after merge.

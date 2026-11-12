@@ -1,15 +1,8 @@
 name: FreshProof Staging Live Acceptance
 
+# The private development repository is the sole owner of live Staging acceptance.
+# Keep this public mirror's live workflow manual to prevent duplicate requests against the same Staging quota.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/staging-live-matrix.mjs'
-      - 'scripts/staging-randomized-acceptance.mjs'
-  workflow_run:
-    workflows: ["FreshProof Staging Deploy"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 permissions:

@@ -17,7 +17,7 @@ const cases = [
   {id:"openai-pricing-en",category:"economics-and-pricing",text:"ChatGPT Plus currently costs $20 per month in the United States.",expectedClaims:1,expectedStatus:"NEEDS_REVIEW"},
   {id:"health-emergency-history",category:"public-health",diagnostic:true,text:"The World Health Organization ended COVID-19's status as a Public Health Emergency of International Concern on 5 May 2023.",expectedClaims:1},
   {id:"law-regulation-eu-ai-act",category:"law-and-regulation",diagnostic:true,text:"The European Union AI Act entered into force on 1 August 2024.",expectedClaims:1},
-  {id:"cybersecurity-tls",category:"cybersecurity",diagnostic:true,text:"TLS 1.0 and TLS 1.1 are deprecated and should not be used for secure communications.",expectedClaims:1},
+  {id:"cybersecurity-tls",category:"cybersecurity",diagnostic:true,text:"TLS 1.0 and TLS 1.1 are deprecated and should not be used for secure communications.",expectedClaims:1,expectedStatus:"CURRENT"},
   {id:"geopolitics-brexit",category:"geopolitics",diagnostic:true,text:"The United Kingdom is currently a member of the European Union.",expectedClaims:1},
   {id:"corporate-leadership",category:"business",text:"Satya Nadella is the current Chief Executive Officer of Microsoft.",expectedClaims:1},
   {id:"space-history-jwst",category:"space",text:"The James Webb Space Telescope launched on 25 December 2021.",expectedClaims:1},
@@ -48,7 +48,7 @@ for (const item of shuffle(cases)) {
   const raw = await response.text();
   if (response.status !== 200) throw new Error(item.id + ": HTTP " + response.status + " — " + raw.slice(0,1200));
   const body = JSON.parse(raw);
-  if (body.product !== "FreshProof" || body.version !== "0.2.46" || !Array.isArray(body.claims)) {
+  if (body.product !== "FreshProof" || body.version !== "0.2.47" || !Array.isArray(body.claims)) {
     throw new Error(item.id + ": unexpected product/version/claims response");
   }
   if (body.claims.length !== item.expectedClaims) {

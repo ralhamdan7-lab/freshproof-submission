@@ -1,3 +1,15 @@
+## Cross-domain English live acceptance — 2026-11-12 (v0.2.46)
+- Private source commit tested: `a2c069a9e06eae881c84be17bc74f7fe6ba42c0d`.
+- GitHub Actions live Staging run [#43261332019](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43261332019): **SUCCESS**.
+- The seeded randomized-order suite exercised 16 cases spanning science, public health, technology/software lifecycle, cybersecurity, economics/pricing, law/regulation, government, geopolitics, business leadership, space, transport, sports, and two multi-claim inputs (4 claims and 5 claims).
+- Assertions passed for claim counts and unique IDs, supported status/temporal enums, evidence and explanation structures, correction/citation contracts, claim-local correction isolation, Node lifecycle evidence, official pricing abstention, and the specialized Python/office-holder cases.
+- The five-claim cross-domain request extracted five independent claims, stayed within the five-search request budget, and returned five distinct claim-level evidence structures. All five were conservatively classified `NEEDS_REVIEW`; this is not a factual-accuracy pass for those domains.
+- Several generic single-domain cases (public health, law, cybersecurity, geopolitics, business, space, transport, sports, science) also returned `NEEDS_REVIEW` despite retrieving sources. This is a product-capability gap to investigate, not a confirmed false verdict: the engine currently requires complete semantic relation assessments and at least two independent high-relevance primary/institutional domains for generic definitive outcomes.
+- Follow-up source-audit run [#43261880788](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43261880788) is in progress; it adds per-source reliability/relevance, semantic relation, publication/event date, adjudication-signal diagnostics and checks evidence-basis URLs against each claim's own source set.
+- Node CI verification run [#43261899754](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43261899754): **SUCCESS** after the audit-test changes.
+- No Worker/application code, Staging configuration, Production Worker, paid service, billing setting, or API secret was changed by this test expansion. The Staging runtime remains v0.2.46.
+- Do not claim real-world precision/recall or general accuracy from this bounded live matrix. Production release remains blocked pending source-level diagnosis, broader acceptance, and security/privacy review.
+
 ## v0.2.43 — explicit wrong/right claim presentation (PR #52 merged; Staging deployed)
 - Added a bilingual per-claim comparison that preserves the exact original claim and explains what is wrong, outdated, or unresolved.
 - The correct-statement section displays a replacement only when the existing correction contract returns `PROVIDED`; otherwise it explains why no safe alternative can yet be stated.
@@ -65,23 +77,16 @@ Lexical relevance is not semantic entailment. LOW results are separated from adj
 - Live Staging acceptance run [#43241870828](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43241870828) completed SUCCESS on commit `890dc81362ca05828c843e1d36825d39c0ed94f4`.
 - Live checks passed for stable-claim abstention and secondary temporal classification, current office-holder contradiction, Arabic Python 2 supersession/correction, Node lifecycle supersession, official pricing abstention, historical-claim abstention, and a three-claim request.
 - Multi-claim assertions verified independent claim outcomes, temporal classification per claim, and that a correction is attached only to its eligible claim. Recorded request duration was 8,897 ms; this is one run, not a performance benchmark.
-- The workflow's stable-control comment still contains legacy wording suggesting semantic analysis is disabled; the live response now reports `COMPLETED_ADVISORY`. The test assertions passed, but the stale explanatory comment should be aligned in a follow-up workflow-only edit.
+- The stable-control workflow wording has been aligned with the enabled advisory semantic triage: the stable claim still requires independent factual evidence and correctly abstains when evidence is insufficient.
 - Live acceptance is bounded integration evidence, not a representative accuracy evaluation. Synthetic fixtures and the 32-case benchmark remain regression diagnostics only.
 
 
-## Randomized QA and browser acceptance — 2026-11-12
+## 2026-11-12 — seeded randomized and live acceptance expansion
 
-- Automated suite: **200/200 Node tests passed**; five seeded property tests cover 1,950 generated iterations for claim segmentation, temporal classification, adjudication invariants, malformed semantic assessments, and abstention.
-- Live Staging run [#43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed seven randomized-order cases plus two smoke controls: Arabic/English Python 2 lifecycle, person-first office-holder, Node.js v20 lifecycle, official pricing abstention, stable facts, and a three-claim mixed-timeframe answer.
-- Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed RTL/LTR, correction/quote rendering, safe links, inert HTML-like input, mobile overflow, keyboard submission, and live Worker integration.
-- Stable and historical claims remained `NEEDS_REVIEW / NOT_TIME_SENSITIVE` where evidence did not justify a factual verdict. This is intended abstention.
-- These are bounded regression and integration checks, not representative real-world accuracy, calibrated confidence, or performance benchmarks.
-
-
-
-## Final public mirror verification — 2026-11-12
-- Public submission repository PR #2 merged: https://github.com/ralhamdan7-lab/freshproof-submission/pull/2.
-- Public CI [#43250280181](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280181): 200/200 tests passed.
-- Public browser acceptance [#43250280219](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280219): SUCCESS.
-- Public live Staging acceptance [#43250280631](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280631): SUCCESS.
-- Key implementation, randomized tests, live/browser scripts, and workflows were byte-for-byte compared against the private development repository after merge.
+- Added five seeded property tests covering 1,950 generated iterations: claim segmentation bounds/determinism, temporal classifier totality, evidence adjudication invariants, malformed semantic assessment abstention, and stable-claim factual verification.
+- Main CI passed **200/200** Node tests, Worker/adjudication/domain/browser syntax checks, and the 32-case synthetic temporal diagnostic.
+- Live Staging run [#43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed seven sequential randomized-order requests plus two smoke controls (nine total): stable claim, Arabic/English Python 2 lifecycle, person-first office-holder, Node.js lifecycle, official pricing, and a three-claim answer.
+- Observed expected live outcomes: stable science `NEEDS_REVIEW / NOT_TIME_SENSITIVE`; Python 2.7 (Arabic and English) `SUPERSEDED` with Python.org correction; stale US office-holder `CONTRADICTED`; Node.js v20 `SUPERSEDED` with correction withheld; ChatGPT Plus pricing `NEEDS_REVIEW`; three-claim isolation passed.
+- The randomized live suite validates response schema, unique claim IDs, temporal assessment per claim, correction evidence references, official source/date wording for the Python lifecycle adapter, and conservative abstention.
+- Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed the four-card deterministic fixture (Arabic RTL, English LTR, validated correction, inert HTML-like text), mobile viewport, keyboard submission, safe citation links, and live Worker API integration.
+- The synthetic 32-case benchmark remains a hand-authored regression diagnostic, not a real-world accuracy estimate. Live cases are bounded acceptance tests, not held-out evaluation.

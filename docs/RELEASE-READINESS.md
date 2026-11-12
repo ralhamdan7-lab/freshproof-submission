@@ -2,7 +2,7 @@
 - Status: **STAGING DEPLOYED + LIVE ACCEPTANCE VERIFIED**.
 - Final source commit: `2c76535cadaa074cdd5e0bf3b2c7d504bdfa3536`.
 - Worker version ID: `a81e386c-221f-4a06-95a2-4713a998db6b`.
-- Automated suite: 210/210 tests passed; syntax and temporal smoke benchmark passed.
+- Automated suite: 212/212 tests passed in both private CI [#43266207547](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43266207547) and public submission CI [#43266369521](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43266369521); syntax and temporal smoke benchmark passed.
 - Live randomized acceptance: 16 cases across 12+ domains passed, including 4-claim and 5-claim multi-domain requests.
 - Source independence now counts registrable publisher domains for final adjudication, evidence-confidence, and correction-candidate eligibility.
 - Exact legal milestone/date support is normalized only when the source names the same instrument and same milestone/date; negation or a different instrument prevents override.

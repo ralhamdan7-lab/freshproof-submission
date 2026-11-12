@@ -11,6 +11,28 @@ function hostOf(url) {
     return parsed.hostname.toLowerCase().replace(/^www\./, "");
   } catch { return ""; }
 }
+const MULTI_PART_PUBLIC_SUFFIXES = new Set([
+  "co.uk", "org.uk", "gov.uk", "ac.uk", "sch.uk",
+  "com.au", "net.au", "org.au", "edu.au", "gov.au",
+  "co.nz", "org.nz", "govt.nz", "ac.nz",
+  "com.br", "com.cn", "com.sg", "com.hk", "com.tw",
+  "co.jp", "ne.jp", "or.jp", "ac.jp", "go.jp",
+  "co.in", "firm.in", "net.in", "org.in", "gen.in", "ind.in",
+  "com.mx", "com.tr", "co.za", "org.za",
+  "com.sa", "gov.sa", "edu.sa", "org.sa"
+]);
+
+// Count independent registrable domains, not subdomains controlled by one publisher.
+export function registrableDomain(url) {
+  const host = hostOf(url);
+  if (!host) return "";
+  const labels = host.split(".");
+  if (labels.length <= 2) return host;
+  const lastTwo = labels.slice(-2).join(".");
+  if (MULTI_PART_PUBLIC_SUFFIXES.has(lastTwo)) return labels.slice(-3).join(".");
+  return lastTwo;
+}
+
 function validDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value)) return null;
   const n = Date.parse(value);
@@ -21,7 +43,7 @@ function recentDated(source, now, maxAgeDays) {
   return date !== null && date <= now + DAY && now - date <= maxAgeDays * DAY;
 }
 function uniqueHosts(items) {
-  return new Set(items.map(x => hostOf(x.url)).filter(Boolean));
+  return new Set(items.map(x => registrableDomain(x.url)).filter(Boolean));
 }
 function completeAssessment(assessment, sourceCount) {
   if (!assessment || assessment.status !== "COMPLETED_ADVISORY" || !Array.isArray(assessment.assessments)

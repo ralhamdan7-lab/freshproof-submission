@@ -40,8 +40,8 @@ const OFFICE_PATTERNS = [
   { office: "president_of_the_united_states", claim: /\b(?:the )?(?:current )?President of the United States\s+(?:is|remains)\s+([A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){0,3})/i, query: "current President of the United States official White House administration" },
   { office: "president_of_the_united_states", claim: /\b(?:the )?(?:current )?(?:U\.?S\.? President|US President)\s+(?:is|remains)\s+([A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){0,3})/i, query: "current President of the United States official White House administration" },
   // Person-first wording: "Joe Biden is currently the President of the United States."
-  { office: "president_of_the_united_states", claim: /\b([A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){0,3})\s+(?:is|remains)\s+(?:(?:currently|now|presently)\s+)?(?:the\s+)?President of the United States\b/i, query: "current President of the United States official White House administration" },
-  { office: "president_of_the_united_states", claim: /\b([A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){0,3})\s+(?:is|remains)\s+(?:(?:currently|now|presently)\s+)?(?:the\s+)?(?:U\.?S\.? President|US President)\b/i, query: "current President of the United States official White House administration" }
+  { office: "president_of_the_united_states", claim: /\b([A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){0,3})\s+(?:is|remains)\s+(?:(?:currently|now|presently)\s+)?(?:the\s+)?(?:current\s+)?President of the United States\b/i, query: "current President of the United States official White House administration" },
+  { office: "president_of_the_united_states", claim: /\b([A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){0,3})\s+(?:is|remains)\s+(?:(?:currently|now|presently)\s+)?(?:the\s+)?(?:current\s+)?(?:U\.?S\.? President|US President)\b/i, query: "current President of the United States official White House administration" }
 ];
 
 const WHITE_HOUSE_ADMIN_URL = "https://www.whitehouse.gov/administration/";

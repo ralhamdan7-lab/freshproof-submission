@@ -524,3 +524,85 @@ test("semantic relation prompt separates entry-into-force dates from later appli
   assert.match(systemPrompt, /entry into force, effective date, application date, enforcement date/i);
   assert.match(systemPrompt, /later application or enforcement dates, classify it as SUPPORTS/i);
 });
+
+test("exact legal milestone date is not marked mixed because later application dates differ", async () => {
+  const ai = { run: async () => ({ response: JSON.stringify({ assessments: [
+    { source_index: 0, relation: "MIXED", rationale: "The source also discusses later application deadlines." }
+  ] }) }) };
+  const claim = "The European Union AI Act entered into force on 1 August 2024.";
+  const sources = [{
+    url: "https://commission.europa.eu/example",
+    title: "AI Act timeline",
+    snippet: "The AI Act entered into force on 1 August 2024. Its provisions apply in stages, with later application deadlines for high-risk systems."
+  }];
+  const result = await adjudicateEvidenceWithModel(claim, sources, ai);
+  assert.equal(result.status, "COMPLETED_ADVISORY");
+  assert.equal(result.assessments[0].relation, "SUPPORTS");
+  assert.equal(result.assessments[0].method, "EXACT_MILESTONE_DATE_MATCH_ADVISORY");
+});
+
+test("correction candidate review rejects sibling subdomains as one publisher", async () => {
+  let calls = 0;
+  const samePublisher = [
+    { ...correctionReviewSources[0], url: "https://status.publisher.example/status" },
+    { ...correctionReviewSources[1], url: "https://docs.publisher.example/report" }
+  ];
+  const ai = { run: async () => { calls++; return { response: "{}" }; } };
+  const candidate = await assessCorrectionCandidateWithModel("The service is currently available.", "SUPERSEDED", samePublisher, ai);
+  assert.equal(candidate, null);
+  assert.equal(calls, 0);
+});
+
+test("exact milestone support does not override a source that negates the milestone", async () => {
+  const ai = { run: async () => ({ response: JSON.stringify({ assessments: [
+    { source_index: 0, relation: "MIXED", rationale: "The source negates the claimed milestone." }
+  ] }) }) };
+  const claim = "The European Union AI Act entered into force on 1 August 2024.";
+  const sources = [{
+    url: "https://commission.europa.eu/example",
+    title: "AI Act timeline",
+    snippet: "The European Union AI Act did not enter into force on 1 August 2024."
+  }];
+  const result = await adjudicateEvidenceWithModel(claim, sources, ai);
+  assert.equal(result.assessments[0].relation, "MIXED");
+  assert.equal(result.assessments[0].method, "MODEL_ADVISORY_NLI");
+});
+
+test("exact milestone support does not transfer across different named legal instruments", async () => {
+  const ai = { run: async () => ({ response: JSON.stringify({ assessments: [
+    { source_index: 0, relation: "MIXED", rationale: "The source concerns a different legal instrument." }
+  ] }) }) };
+  const claim = "The European Union AI Act entered into force on 1 August 2024.";
+  const sources = [{
+    url: "https://commission.europa.eu/example",
+    title: "Data Act timeline",
+    snippet: "The European Data Act entered into force on 1 August 2024."
+  }];
+  const result = await adjudicateEvidenceWithModel(claim, sources, ai);
+  assert.equal(result.assessments[0].relation, "MIXED");
+  assert.equal(result.assessments[0].method, "MODEL_ADVISORY_NLI");
+});
+
+test("exact milestone match refuses negated source statements", async () => {
+  const ai = { run: async () => ({ response: JSON.stringify({ assessments: [
+    { source_index: 0, relation: "MIXED", rationale: "The source explicitly negates the milestone." }
+  ] }) }) };
+  const result = await adjudicateEvidenceWithModel(
+    "The European Union AI Act entered into force on 1 August 2024.",
+    [{ url: "https://commission.europa.eu/example", snippet: "The European Union AI Act did not enter into force on 1 August 2024." }],
+    ai
+  );
+  assert.equal(result.assessments[0].relation, "MIXED");
+});
+
+test("exact milestone match refuses same date for a different named instrument", async () => {
+  const ai = { run: async () => ({ response: JSON.stringify({ assessments: [
+    { source_index: 0, relation: "MIXED", rationale: "The source refers to another instrument." }
+  ] }) }) };
+  const result = await adjudicateEvidenceWithModel(
+    "The European Union AI Act entered into force on 1 August 2024.",
+    [{ url: "https://commission.europa.eu/example", snippet: "The European Data Act entered into force on 1 August 2024." }],
+    ai
+  );
+  assert.equal(result.assessments[0].relation, "MIXED");
+});

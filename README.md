@@ -32,7 +32,7 @@ FreshProof checks claims in AI-generated answers individually, retrieves traceab
 
 `Browser UI → Cloudflare Worker → Tavily Search → source normalization → advisory relation assessment → conservative evidence adjudication → structured report`
 
-The Worker validates input, extracts claim candidates, performs bounded retrieval, normalizes source metadata, assesses evidence, and returns claim-level explanations and corrections. Independent corroboration is counted by registrable domain, not by subdomain, so multiple pages from one publisher cannot masquerade as independent sources.
+The Worker validates input, extracts claim candidates, performs bounded retrieval, normalizes source metadata, assesses evidence, and returns claim-level explanations and corrections. Independent corroboration is counted by registrable domain, not by subdomain, so multiple pages from one publisher cannot masquerade as independent sources. Legal entry-into-force dates are distinguished from later application and enforcement milestones, and exact milestone matching is guarded against negation and entity mismatch.
 
 ## Staging acceptance — 2026-11-12
 

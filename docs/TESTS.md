@@ -1,3 +1,14 @@
+## Final v0.2.47 Staging gate — 2026-11-12
+- Final code commit: `2c76535cadaa074cdd5e0bf3b2c7d504bdfa3536`.
+- Node verification: **210/210 PASS**; syntax checks and temporal smoke benchmark passed.
+- Staging deployment: [#43265374345](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265374345) **SUCCESS**. Cloudflare Worker version ID: `a81e386c-221f-4a06-95a2-4713a998db6b`.
+- Live randomized acceptance: [#43265496909](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265496909) **SUCCESS**, 16 cases spanning 12+ subject areas, including 4-claim and 5-claim mixed-domain inputs.
+- Confirmed deterministic regression contracts: independent corroboration by registrable domain; correction review also rejects sibling subdomains; exact legal milestone/date matches do not become MIXED solely due to later application dates; negation and named-instrument mismatch prevent the milestone override.
+- Live confirmed outcomes include: Python 2.7 SUPERSEDED with a claim-local official correction; obsolete US-president claim CONTRADICTED; TLS 1.0/1.1 deprecation CURRENT with two independent official sources; stable/historical claims can still abstain when evidence qualification is insufficient.
+- Remaining conservative abstentions: WHO PHEIC termination and current UK/EU membership returned NEEDS_REVIEW. WHO retrieval did not find a relevant primary WHO page; Brexit sources were semantically contradictory but failed the fresh/qualified independent-source gate. These are retrieval/qualification gaps, not evidence for lowering thresholds.
+- EU AI Act entry-into-force sources were all semantically SUPPORTS after milestone normalization, but final status remained NEEDS_REVIEW because only one independent official registrable domain qualified.
+- Staging v0.2.47 is verified. Production remains unchanged. No paid services, billing changes, secret modifications, or Production deployments.
+
 ## v0.2.47 source-independence regression — 2026-11-12
 - Node test suite completed **206/206 PASS** on commit `6d9dc2e611a95613706e69912189f59a557cb1cb`.
 - New tests prove sibling subdomains of one publisher cannot count as independent corroboration, while two independent registrable domains can satisfy the corroboration threshold.

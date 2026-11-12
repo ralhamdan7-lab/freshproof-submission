@@ -412,6 +412,10 @@ test("detects a narrowly scoped US president office-holder claim", async () => {
   const { detectOfficeHolderClaim, adjudicateOfficeHolderClaim } = await import("../worker/index.js");
   const claim = "As of 2026, the President of the United States is Joe Biden.";
   assert.equal(detectOfficeHolderClaim(claim).claimed_holder, "Joe Biden");
+  const personFirstCurrent = "Joe Biden is the current President of the United States.";
+  assert.equal(detectOfficeHolderClaim(personFirstCurrent).claimed_holder, "Joe Biden");
+  const personFirstUS = "Joe Biden is the current U.S. President.";
+  assert.equal(detectOfficeHolderClaim(personFirstUS).claimed_holder, "Joe Biden");
   const sources = [{ title: "President Donald J. Trump", url: "https://www.whitehouse.gov/administration/donald-j-trump/", snippet: "President Donald J. Trump is the 47th President of the United States.", published_date: "2026-11-08", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN" }];
   const result = adjudicateOfficeHolderClaim(claim, sources, Date.parse("2026-11-09T00:00:00Z"));
   assert.equal(result.status, "CONTRADICTED");

@@ -2,7 +2,8 @@
 - Independent corroboration now groups sources by registrable domain rather than raw hostname, preventing multiple subdomains of one publisher from being counted as independent evidence.
 - Added focused regression tests for registrable-domain independence and evidence-confidence behavior.
 - Expanded the curated first-party host registry for official technical documentation and standards publication domains (Microsoft Learn, Oracle Documentation, RFC Editor, and other official institutional roots); unlisted hosts remain UNASSESSED.
-- Refined advisory semantic triage instructions to distinguish legal entry-into-force dates from later application/enforcement milestones, avoiding false MIXED relations when a source supports the exact historical milestone.
+- Refined advisory semantic triage instructions to distinguish legal entry-into-force dates from later application/enforcement milestones. Exact milestone/date normalization is constrained by a matching named entity and does not override negated or different-instrument statements.
+- Correction-candidate eligibility now uses registrable publisher domains too; sibling subdomains cannot satisfy the two-independent-source requirement.
 - Staging acceptance now requires the TLS 1.0/1.1 deprecation case to produce a corroborated CURRENT result using independent official sources.
 - This is a verification-policy hardening change. It does not lower the two-independent-registrable-domain threshold, change Production, or enable paid services.
 

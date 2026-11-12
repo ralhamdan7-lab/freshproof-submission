@@ -67,3 +67,12 @@ Lexical relevance is not semantic entailment. LOW results are separated from adj
 - Multi-claim assertions verified independent claim outcomes, temporal classification per claim, and that a correction is attached only to its eligible claim. Recorded request duration was 8,897 ms; this is one run, not a performance benchmark.
 - The workflow's stable-control comment still contains legacy wording suggesting semantic analysis is disabled; the live response now reports `COMPLETED_ADVISORY`. The test assertions passed, but the stale explanatory comment should be aligned in a follow-up workflow-only edit.
 - Live acceptance is bounded integration evidence, not a representative accuracy evaluation. Synthetic fixtures and the 32-case benchmark remain regression diagnostics only.
+
+
+## Randomized QA and browser acceptance — 2026-11-12
+
+- Automated suite: **200/200 Node tests passed**; five seeded property tests cover 1,950 generated iterations for claim segmentation, temporal classification, adjudication invariants, malformed semantic assessments, and abstention.
+- Live Staging run [#43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed seven randomized-order cases plus two smoke controls: Arabic/English Python 2 lifecycle, person-first office-holder, Node.js v20 lifecycle, official pricing abstention, stable facts, and a three-claim mixed-timeframe answer.
+- Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed RTL/LTR, correction/quote rendering, safe links, inert HTML-like input, mobile overflow, keyboard submission, and live Worker integration.
+- Stable and historical claims remained `NEEDS_REVIEW / NOT_TIME_SENSITIVE` where evidence did not justify a factual verdict. This is intended abstention.
+- These are bounded regression and integration checks, not representative real-world accuracy, calibrated confidence, or performance benchmarks.

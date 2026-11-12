@@ -1,6 +1,6 @@
 # Verification Log — 2026-11-12 (v0.2.47 final Staging gate)
 - Commit: `2c76535cadaa074cdd5e0bf3b2c7d504bdfa3536`.
-- Unit/integration/regression tests: **210/210 PASS**.
+- Unit/integration/regression tests: **212/212 PASS** in private CI [#43266207547](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43266207547) and public submission CI [#43266369521](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43266369521).
 - Staging deploy workflow [#43265374345](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265374345): SUCCESS.
 - Cloudflare Staging Worker version ID: `a81e386c-221f-4a06-95a2-4713a998db6b`.
 - Live randomized acceptance [#43265496909](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265496909): SUCCESS, 16 cases across science, public health, technology, cybersecurity, economics, law, government, geopolitics, business, space, transport, sports and mixed-domain inputs.

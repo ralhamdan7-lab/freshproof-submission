@@ -1,3 +1,11 @@
+## v0.2.47 source-independence regression — 2026-11-12
+- Node test suite completed **206/206 PASS** on commit `6d9dc2e611a95613706e69912189f59a557cb1cb`.
+- New tests prove sibling subdomains of one publisher cannot count as independent corroboration, while two independent registrable domains can satisfy the corroboration threshold.
+- Official first-party source recognition expanded selectively for Microsoft Learn, Oracle Documentation, RFC Editor and additional official institutional roots; arbitrary hosts remain UNASSESSED.
+- Semantic prompt regression now distinguishes legal entry-into-force dates from later application/enforcement dates.
+- Staging deploy on the code commit was blocked by outdated synthetic test fixtures; fixtures were corrected to use independent registrable domains. A fresh Staging deployment and v0.2.47 live acceptance are still required before calling this version Staging-verified.
+- No threshold relaxation, Production deployment, paid-service activation, billing change, or secret change.
+
 ## Cross-domain English live acceptance — 2026-11-12 (v0.2.46)
 - Private source commit tested: `a2c069a9e06eae881c84be17bc74f7fe6ba42c0d`.
 - GitHub Actions live Staging run [#43261332019](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43261332019): **SUCCESS**.

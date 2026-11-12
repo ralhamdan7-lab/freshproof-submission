@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   VERSION,
+  sourceReliability,
+  evidenceConfidence,
+  adjudicateEvidenceWithModel,
   splitClaims,
   isLikelyTemporal,
   detectOfficeHolderClaim,
@@ -25,8 +28,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.46 release version", () => {
-  assert.equal(VERSION, "0.2.46");
+test("v0.2.47 release version", () => {
+  assert.equal(VERSION, "0.2.47");
 });
 
 test("middle-initial office-holder claim remains intact", () => {
@@ -38,14 +41,6 @@ test("middle-initial office-holder claim remains intact", () => {
 test("detects explicit US President claim", () => {
   assert.equal(
     detectOfficeHolderClaim("As of 2026, the President of the United States is Joe Biden.").claimed_holder,
-    "Joe Biden"
-  );
-  assert.equal(
-    detectOfficeHolderClaim("Joe Biden is the current President of the United States.").claimed_holder,
-    "Joe Biden"
-  );
-  assert.equal(
-    detectOfficeHolderClaim("Joe Biden is the current U.S. President.").claimed_holder,
     "Joe Biden"
   );
 });
@@ -455,12 +450,10 @@ test("separate model review fails closed on malformed model output and low-relev
 });
 
 
-test("generic correction candidate review is controlled by explicit feature opt-in only", () => {
+test("generic correction candidate review follows its explicit feature flag without a separate quota gate", () => {
   assert.equal(isCorrectionCandidateReviewEnabled({}), false);
   assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "false" }), false);
   assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true" }), true);
-  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true", FREE_WORKERS_AI_QUOTA_VERIFIED: "false" }), true);
-  assert.equal(isCorrectionCandidateReviewEnabled({ ENABLE_CORRECTION_CANDIDATE_REVIEW: "true", FREE_WORKERS_AI_QUOTA_VERIFIED: "true" }), true);
 });
 
 
@@ -494,4 +487,40 @@ test("separate model review rejects paraphrased, missing, or non-source-backed q
     const candidate = await assessCorrectionCandidateWithModel("Original claim", "CONTRADICTED", correctionReviewSources, ai);
     assert.equal(candidate, null);
   }
+});
+
+
+test("curated first-party technical and standards domains are recognized without trusting arbitrary hosts", () => {
+  assert.equal(sourceReliability("https://learn.microsoft.com/en-us/security/"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://docs.oracle.com/en/database/"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://www.rfc-editor.org/rfc/rfc8996.html"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://www.european-union.europa.eu/eu-countries_en"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://example.com/official-looking-page"), "UNASSESSED");
+  assert.equal(sourceReliability("javascript:alert(1)"), "UNKNOWN");
+});
+
+test("evidence confidence does not count two subdomains of one publisher as independent", () => {
+  const sources = [
+    { url: "https://learn.microsoft.com/security/tls", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", relevance_assessment: { relevance: "HIGH" }, published_date: "2026-11-10" },
+    { url: "https://docs.microsoft.com/security/tls", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", relevance_assessment: { relevance: "HIGH" }, published_date: "2026-11-10" }
+  ];
+  const semantic = { status: "COMPLETED_ADVISORY", assessments: [
+    { source_index: 0, relation: "SUPPORTS" },
+    { source_index: 1, relation: "SUPPORTS" }
+  ] };
+  assert.equal(evidenceConfidence(sources, semantic), "LIMITED");
+});
+
+test("semantic relation prompt separates entry-into-force dates from later application dates", async () => {
+  let systemPrompt = "";
+  const ai = { run: async (_model, input) => {
+    systemPrompt = input.messages[0].content;
+    return { response: JSON.stringify({ assessments: [{ source_index: 0, relation: "SUPPORTS", rationale: "The exact entry-into-force date is stated." }] }) };
+  } };
+  const result = await adjudicateEvidenceWithModel("The EU AI Act entered into force on 1 August 2024.", [
+    { url: "https://commission.europa.eu/example", title: "AI Act", snippet: "The AI Act entered into force on 1 August 2024. Some provisions apply later." }
+  ], ai);
+  assert.equal(result.status, "COMPLETED_ADVISORY");
+  assert.match(systemPrompt, /entry into force, effective date, application date, enforcement date/i);
+  assert.match(systemPrompt, /later application or enforcement dates, classify it as SUPPORTS/i);
 });

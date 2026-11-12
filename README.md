@@ -1,5 +1,7 @@
 # FreshProof — Evidence-First Verification for AI Answers
 
+*Designed to Evolve*
+
 FreshProof checks claims in AI-generated answers individually, retrieves traceable evidence, explains what the evidence supports or contradicts, and offers a correction only when a source-grounded replacement is justified.
 
 **Product pillars:** VERIFY · EXPLAIN · CORRECT

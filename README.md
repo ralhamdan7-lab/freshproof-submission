@@ -36,22 +36,22 @@ The Worker validates input, extracts claim candidates, performs bounded retrieva
 
 ## Staging acceptance — 2026-11-12
 
-The latest bounded live Staging workflow [#43241870828](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43241870828) completed **SUCCESS** on commit `890dc81362ca05828c843e1d36825d39c0ed94f4`.
+The current Staging Worker is **v0.2.47** (Cloudflare Version ID `a81e386c-221f-4a06-95a2-4713a998db6b`). Deployment [#43265374345](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265374345) and randomized live acceptance [#43265496909](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265496909) both completed **SUCCESS** on commit `2c76535cadaa074cdd5e0bf3b2c7d504bdfa3536`.
 
-It exercised:
-- A current office-holder claim contradicted by White House evidence.
-- An Arabic Python 2 support claim superseded with a first-party Python.org correction.
-- Node lifecycle verification, with correction withheld where the generic correction contract was not met.
-- Official pricing and historical/stable claims where the engine abstained.
-- A three-claim answer with independent outcomes, temporal assessments, and correction isolation.
+The live suite exercised 16 cases across 12+ areas, including science, public health, software lifecycle, cybersecurity, economics/pricing, law, government, geopolitics, business, space, transport, sports, and mixed-domain answers containing four and five independent claims. The 210-test automated suite passed with zero failures.
 
-The workflow passed its bounded assertions. Some claims correctly remained `NEEDS_REVIEW`; this is intended abstention, not a failure to force a verdict. These cases are not a representative accuracy evaluation.
+Verified examples include Python 2.7 `SUPERSEDED` with a first-party correction, an obsolete US-president claim `CONTRADICTED`, and TLS 1.0/1.1 deprecation `CURRENT` using two independent first-party technical sources. Independent corroboration is grouped by registrable publisher domain; correction review applies the same independence rule. Legal entry-into-force dates are distinguished from later application/enforcement dates, with safeguards against negation and entity mismatch.
+
+Some claims correctly remain `NEEDS_REVIEW`, including the WHO PHEIC history and current UK/EU membership cases where retrieval or fresh independent official evidence was insufficient. These are documented capability gaps, not evidence of a verified verdict. This bounded suite is not a representative accuracy evaluation and does not justify publishing Precision/Recall claims.
 
 ## Tests and evaluation
 
-The matching v0.2.46 source and regression suite passed 181/181 tests in the private development repository's verification workflow; the public source was synchronized from those exact tested files. The public repository itself has no independently observed CI result for this merge. The 32-case bilingual synthetic temporal benchmark is a hand-authored regression diagnostic only, not a real-world accuracy estimate. The latest live Staging workflow is linked above.
+- Private development repository: [210/210 tests passed](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43265374305).
+- Public submission repository: source, package version, regression tests, and QA documentation synchronized to v0.2.47.
+- The 32-case bilingual synthetic temporal benchmark remains a hand-authored regression diagnostic, not a real-world accuracy estimate.
+- UI browser acceptance previously passed; the v0.2.47 changes after that run were Worker-side only.
 
-**Source parity:** the sanitized application source, package version, regression tests, and security/test documentation have been synchronized to v0.2.46 and merged to the public default branch. Changed files were checked against the private verified source; a targeted secret-pattern scan found no credential matches. Environment-specific deployment secrets are excluded.
+**Source parity:** the submission repository mirrors the tested v0.2.47 Worker logic, registrable-domain adjudication, correction and milestone safeguards, package version, acceptance scripts, regression tests, and QA records. Environment-specific deployment secrets are excluded. Production has not been deployed.
 
 ## Run locally
 

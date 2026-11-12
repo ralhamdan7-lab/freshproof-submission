@@ -30,3 +30,10 @@ Retrieval limitation: direct retrieval of the Python.org page may return HTTP 40
 - Do not present the synthetic benchmark as real-world accuracy.
 - Do not claim calibrated confidence or general-purpose entailment accuracy.
 - Keep optional model inference disabled unless zero-cost eligibility, quota, and privacy have been verified.
+
+
+## Latest acceptance record — v0.2.46 (2026-11-12)
+- Live Staging workflow #43241870828 passed with three-claim isolation and the Arabic Python 2 correction.
+- Current office-holder contradiction and Python lifecycle supersession were observed; pricing, historical, and stable-claim cases abstained where evidence did not justify a stronger verdict.
+- The live workflow verifies the deployed API path. The prepared narrated video is a walkthrough assembled from genuine interface captures, not an uninterrupted live browser recording.
+- Before submission, ensure the hosted MP4 is playable from a clean logged-out browser. Do not use the previously rejected Catbox URL.

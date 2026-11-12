@@ -1,11 +1,15 @@
-# Security and privacy
+# Security and Privacy Notes
 
-- Keep the Tavily API key in Worker secrets; never place it in browser code, source control, screenshots, or logs.
-- Local `.dev.vars` and `.env` files are ignored by Git. Use `.dev.vars.example` only as a template.
-- Submitted answer text is processed in memory for the request; this prototype does not implement an application database or durable user-content storage.
-- Responses use no-store caching directives and browser-origin checks are exact-match and fail closed when not configured.
-- Retrieved pages, snippets, and search results are untrusted data. Render them as text; never interpret them as instructions or executable content.
-- Requests are bounded by input length, claim count, result count, upstream query count, timeouts, and direct-fetch limits.
-- The optional model-assisted evidence triage and correction review are disabled by default. Enable only after independently verifying provider privacy terms, account eligibility, free quota, and billing controls.
-- The included local Wrangler configuration is a development template, not a production deployment profile. Configure rate limiting, secrets, allowed origins, and provider limits before deploying.
-- This repository is a hackathon prototype, not a security certification or production-readiness claim.
+- Tavily key is accessed only from Worker environment secrets.
+- `.dev.vars`, `.env`, `node_modules`, and Wrangler state are excluded from Git.
+- The browser sends only submitted text to the Worker; the Worker forwards each temporal claim to Tavily.
+- No application database or user-content persistence is implemented.
+- API responses set `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+- CORS fails closed for browser origins unless `ALLOWED_ORIGIN` is set to the exact allowed origin; wildcard reflection is not used.
+- Search results and snippets are untrusted data. The UI renders them as text and source links; it does not execute retrieved content.
+- Resource controls: 12,000 characters, five claims, five results per claim, sequential queries, and a 10-second Tavily request timeout.
+- Native Cloudflare Rate Limiting binding is configured for 10 verification requests per 60 seconds per client IP, per Cloudflare edge location. It is approximate and can be exceeded during propagation; it is an abuse guard, not a strict global quota or billing meter.
+- If the rate-limit binding errors, verification fails closed with HTTP 503. Requests over the configured threshold receive HTTP 429.
+- Workers AI semantic triage is disabled unless `ENABLE_SEMANTIC_TRIAGE=true`; enable only after checking current Free daily quota and provider privacy terms.
+- No authentication or durable global rate limiter is implemented. The native limiter reduces casual abuse but is not a substitute for authentication or strict global quotas.
+- Before public deployment: verify provider data handling, free quotas, billing controls, exact CORS origin, secret configuration, and live Tavily integration. No public deployment is claimed.

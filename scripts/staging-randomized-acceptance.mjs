@@ -98,7 +98,17 @@ for (const item of shuffle(cases)) {
     if (officeHolder.domain_adapter !== "office_holder" || officeHolder.status !== "CONTRADICTED") {
       throw new Error("Current office-holder contradiction was not retained on its own claim.");
     }
-    if (water.correction.status !== "WITHHELD" || apollo.correction.status !== "WITHHELD") throw new Error("Correction leaked into unrelated stable/historical claims.");
+    console.log(JSON.stringify({case:item.id,claim_contracts:[
+      {kind:"water",status:water.status,correction_status:water.correction.status,correction_text_present:Boolean(water.correction.text),correction_refs:water.correction.evidence_refs?.length ?? 0},
+      {kind:"apollo",status:apollo.status,correction_status:apollo.correction.status,correction_text_present:Boolean(apollo.correction.text),correction_refs:apollo.correction.evidence_refs?.length ?? 0},
+      {kind:"python",status:python.status,correction_status:python.correction.status,correction_refs:python.correction.evidence_refs?.length ?? 0},
+      {kind:"office_holder",status:officeHolder.status,correction_status:officeHolder.correction.status,correction_refs:officeHolder.correction.evidence_refs?.length ?? 0}
+    ]}));
+    for (const [kind, claim] of [["water",water],["apollo",apollo]]) {
+      if (claim.correction.status === "PROVIDED" || claim.correction.text || (claim.correction.evidence_refs || []).length > 0) {
+        throw new Error("Correction/evidence leaked into unrelated " + kind + " claim.");
+      }
+    }
   }
   if (item.id === "node-lifecycle-en") {
     const claim = body.claims[0];

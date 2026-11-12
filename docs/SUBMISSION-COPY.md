@@ -22,7 +22,7 @@ NOT_TIME_SENSITIVE is a secondary temporal assessment, not a factual verdict. Fr
 ## Architecture
 Browser UI → Cloudflare Worker → Tavily Search → source normalization and conservative claim-level adjudication → structured report.
 
-The Worker enforces bounded requests and claim extraction. No database or user-account system is required. Optional Workers AI semantic analysis is disabled by default.
+The Worker enforces bounded requests and claim extraction. No database or user-account system is required. In the dedicated Staging environment, optional Workers AI semantic relation analysis is explicitly enabled as advisory evidence metadata; final verdicts remain evidence-gated and deterministic.
 
 ## Demonstrated behavior
 The live Staging acceptance suite covers:

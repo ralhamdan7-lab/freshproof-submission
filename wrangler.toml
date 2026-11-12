@@ -5,8 +5,11 @@ workers_dev = true
 
 [vars]
 ALLOWED_ORIGIN = "http://localhost:8787"
-ENABLE_CORRECTION_CANDIDATE_REVIEW = "false"
-FREE_WORKERS_AI_QUOTA_VERIFIED = "false"
+ENABLE_SEMANTIC_TRIAGE = "true"
+ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
+
+[ai]
+binding = "AI"
 
 [assets]
 directory = "./src"

@@ -6,7 +6,7 @@ Updated: 2026-11-12
 This sanitized submission repository contains the product source, regression tests, benchmark fixtures, and core technical documentation. The development repository remains private.
 
 ## Verified implementation snapshot
-- Staging runtime release: FreshProof v0.2.46. The public repository's implementation snapshot remains v0.2.45 until source synchronization and security review are completed.
+- Staging runtime release: FreshProof v0.2.46. The sanitized application source and regression tests have now been synchronized to v0.2.46 on the release branch. The branch must pass its own CI and secret/privacy scan before merge.
 - Automated Node regression suite: 181 passed, 0 failed.
 - Worker, adjudication, domain-adapter, and browser syntax checks passed.
 - 32-case bilingual synthetic temporal diagnostic passed its expected classifications; this is a regression diagnostic, not a real-world accuracy estimate.
@@ -39,7 +39,7 @@ Only the isolated Staging Worker was deployed. Production remains unapproved and
 - Staging explicitly enables advisory semantic relation analysis and evidence-gated correction-candidate review. The model cannot independently set the final verdict.
 - Live assertions passed for a current office-holder contradiction, Arabic Python 2 supersession/correction, Node lifecycle, pricing abstention, historical/stable claim abstention, and three-claim correction isolation.
 - Conservative `NEEDS_REVIEW` outcomes were retained when evidence was insufficient or conflicting.
-- **Important source parity gap:** the public repository's sanitized implementation files remain at v0.2.45; only the public documentation has been aligned to the v0.2.46 Staging evidence. This repo must not be described as an exact mirror of the deployed Staging source until synchronization and secret/privacy review are completed.
+- **Source synchronization:** the release branch updates the sanitized application source, package version, regression tests, and security/test documentation to v0.2.46. Its own CI and secret/privacy scan remain required before merge.
 
 ## Remaining before final submission
 1. Confirm current official portal fields and required acknowledgements directly in the organizer portal.

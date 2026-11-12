@@ -47,7 +47,7 @@ The workflow passed its bounded assertions. Some claims correctly remained `NEED
 
 ## Tests and evaluation
 
-The private development repository's latest recorded regression suite passed 181/181 tests before the v0.2.46 live acceptance changes. The 32-case bilingual synthetic temporal benchmark is a hand-authored regression diagnostic only, not a real-world accuracy estimate. The latest live Staging workflow is linked above.
+The matching v0.2.46 source and regression suite passed 181/181 tests in the private development repository's verification workflow; the public source was synchronized from those exact tested files. The public repository itself has no independently observed CI result for this merge. The 32-case bilingual synthetic temporal benchmark is a hand-authored regression diagnostic only, not a real-world accuracy estimate. The latest live Staging workflow is linked above.
 
 **Source parity:** the sanitized application source, package version, regression tests, and security/test documentation on the `release/v0.2.46-source-sync` branch have been synchronized to v0.2.46. This branch is awaiting its own CI and secret/privacy review before merge. Environment-specific deployment secrets are excluded.
 

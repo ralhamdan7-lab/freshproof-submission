@@ -15,10 +15,10 @@ const cases = [
   {id:"obsolete-office-holder",category:"government",text:"Joe Biden is the current President of the United States.",expectedClaims:1,expectedStatus:"CONTRADICTED"},
   {id:"node-lifecycle-en",category:"technology",text:"Node.js v20 remains actively supported under LTS.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
   {id:"openai-pricing-en",category:"economics-and-pricing",text:"ChatGPT Plus currently costs $20 per month in the United States.",expectedClaims:1,expectedStatus:"NEEDS_REVIEW"},
-  {id:"health-emergency-history",category:"public-health",text:"The World Health Organization ended COVID-19's status as a Public Health Emergency of International Concern on 5 May 2023.",expectedClaims:1},
-  {id:"law-regulation-eu-ai-act",category:"law-and-regulation",text:"The European Union AI Act entered into force on 1 August 2024.",expectedClaims:1},
-  {id:"cybersecurity-tls",category:"cybersecurity",text:"TLS 1.0 and TLS 1.1 are deprecated and should not be used for secure communications.",expectedClaims:1},
-  {id:"geopolitics-brexit",category:"geopolitics",text:"The United Kingdom is currently a member of the European Union.",expectedClaims:1},
+  {id:"health-emergency-history",category:"public-health",diagnostic:true,text:"The World Health Organization ended COVID-19's status as a Public Health Emergency of International Concern on 5 May 2023.",expectedClaims:1},
+  {id:"law-regulation-eu-ai-act",category:"law-and-regulation",diagnostic:true,text:"The European Union AI Act entered into force on 1 August 2024.",expectedClaims:1},
+  {id:"cybersecurity-tls",category:"cybersecurity",diagnostic:true,text:"TLS 1.0 and TLS 1.1 are deprecated and should not be used for secure communications.",expectedClaims:1},
+  {id:"geopolitics-brexit",category:"geopolitics",diagnostic:true,text:"The United Kingdom is currently a member of the European Union.",expectedClaims:1},
   {id:"corporate-leadership",category:"business",text:"Satya Nadella is the current Chief Executive Officer of Microsoft.",expectedClaims:1},
   {id:"space-history-jwst",category:"space",text:"The James Webb Space Telescope launched on 25 December 2021.",expectedClaims:1},
   {id:"transport-history-elizabeth-line",category:"transport",text:"The Elizabeth line opened to passengers in May 2022.",expectedClaims:1},
@@ -62,6 +62,14 @@ for (const item of shuffle(cases)) {
     if (!validTemporal.has(claim.temporal_assessment?.status)) throw new Error(item.id + ": invalid/missing temporal assessment");
     if (!Array.isArray(claim.sources) || !Array.isArray(claim.explanation_detail?.evidence_basis)) throw new Error(item.id + ": malformed evidence/explanation arrays");
     if (!claim.correction || !validCorrection.has(claim.correction.status)) throw new Error(item.id + ": invalid correction status");
+    const sourceUrlsForClaim = new Set(claim.sources.map(source => canonicalSourceUrl(source.url)));
+    for (const source of claim.sources) {
+      const parsed = new URL(source.url);
+      if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error(item.id + ": source URL is not safe HTTPS.");
+    }
+    for (const basis of claim.explanation_detail.evidence_basis) {
+      if (!basis.url || !sourceUrlsForClaim.has(canonicalSourceUrl(basis.url))) throw new Error(item.id + ": evidence basis references a source outside this claim's source set.");
+    }
     if (claim.correction.status === "PROVIDED") {
       if (!claim.correction.text || !Array.isArray(claim.correction.evidence_refs) || claim.correction.evidence_refs.length === 0) {
         throw new Error(item.id + ": correction PROVIDED without text/evidence references");
@@ -86,6 +94,27 @@ for (const item of shuffle(cases)) {
     if (claim.temporal_assessment.status !== "NOT_TIME_SENSITIVE") throw new Error("stable control lacks NOT_TIME_SENSITIVE secondary classification");
     if (!["NEEDS_REVIEW","UNVERIFIABLE"].includes(claim.status)) throw new Error("stable control must still pass factual verification and abstain when evidence is insufficient");
     if (claim.correction.status !== "WITHHELD") throw new Error("stable unresolved control must not receive a correction");
+  }
+  if (item.diagnostic) {
+    const claim = body.claims[0];
+    console.log(JSON.stringify({
+      diagnostic_case:item.id,
+      final_status:claim.status,
+      temporal_status:claim.temporal_assessment?.status,
+      adjudication:claim.adjudication?.adjudication_signals ?? null,
+      semantic_status:claim.semantic_assessment?.status ?? null,
+      semantic_relations:(claim.semantic_assessment?.assessments || []).map(x=>({source_index:x.source_index,relation:x.relation,rationale:String(x.rationale || "").slice(0,180)})),
+      sources:claim.sources.map(source=>({
+        host:new URL(source.url).hostname,
+        url:source.url,
+        reliability:source.source_reliability,
+        relevance:source.relevance_assessment?.relevance ?? null,
+        published_date:source.published_date ?? null,
+        event_date_candidate:source.event_date_candidate ?? null,
+        snippet:String(source.snippet || "").slice(0,220)
+      })),
+      evidence_basis:claim.explanation_detail.evidence_basis.map(x=>({host:new URL(x.url).hostname,url:x.url,relation:x.relation,publication_date:x.publication_date,event_date_candidate:x.event_date_candidate}))
+    }));
   }
   if (item.expectedStatus && body.claims[0].status !== item.expectedStatus) {
     throw new Error(item.id + ": expected " + item.expectedStatus + ", got " + body.claims[0].status);

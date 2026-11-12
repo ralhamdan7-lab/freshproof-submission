@@ -15,7 +15,7 @@ const cases = [
   {id:"obsolete-office-holder",text:"Joe Biden is the current President of the United States.",expectedClaims:1,expectedStatus:"CONTRADICTED"},
   {id:"node-lifecycle-en",text:"Node.js v20 remains actively supported under LTS.",expectedClaims:1,expectedStatus:"SUPERSEDED"},
   {id:"openai-pricing-en",text:"ChatGPT Plus currently costs $20 per month in the United States.",expectedClaims:1,expectedStatus:"NEEDS_REVIEW"},
-  {id:"multi-claim-mixed-time",text:"Apollo 11 landed on the Moon in 1969. Water is composed of hydrogen and oxygen. Python 2.7 is still officially supported.",expectedClaims:3,multi:true}
+  {id:"multi-claim-mixed-time",text:"Apollo 11 landed on the Moon in 1969. Water is composed of hydrogen and oxygen. Python 2.7 is still officially supported. Joe Biden is the current President of the United States.",expectedClaims:4,multi:true}
 ];
 const validStatuses = new Set(["CURRENT","SUPERSEDED","CONTRADICTED","NEEDS_REVIEW","UNVERIFIABLE"]);
 const validTemporal = new Set(["TIME_SENSITIVE","NOT_TIME_SENSITIVE","TEMPORAL_REVIEW_REQUIRED"]);
@@ -80,6 +80,25 @@ for (const item of shuffle(cases)) {
   }
   if (item.expectedStatus && body.claims[0].status !== item.expectedStatus) {
     throw new Error(item.id + ": expected " + item.expectedStatus + ", got " + body.claims[0].status);
+  }
+  if (item.multi) {
+    const byText = body.claims.map(c => ({ text: String(c.text || "").toLowerCase(), claim: c }));
+    const findClaim = needle => byText.find(x => x.text.includes(needle))?.claim;
+    const water = findClaim("water");
+    const apollo = findClaim("apollo 11");
+    const python = findClaim("python 2.7");
+    const officeHolder = findClaim("joe biden");
+    if (!water || !apollo || !python || !officeHolder) throw new Error("English multi-claim case lost or merged one of its four distinct claims.");
+    if (water.temporal_assessment.status !== "NOT_TIME_SENSITIVE" || apollo.temporal_assessment.status !== "NOT_TIME_SENSITIVE" || python.temporal_assessment.status !== "TEMPORAL_REVIEW_REQUIRED" || officeHolder.temporal_assessment.status !== "TEMPORAL_REVIEW_REQUIRED") {
+      throw new Error("English multi-claim case has incorrect claim-specific temporal classification.");
+    }
+    if (python.domain_adapter !== "python2_lifecycle" || python.status !== "SUPERSEDED" || python.correction.status !== "PROVIDED" || !(python.correction.evidence_refs || []).some(x => x.url === "https://www.python.org/doc/sunset-python-2/")) {
+      throw new Error("Python lifecycle evidence/correction was not retained on its own claim.");
+    }
+    if (officeHolder.domain_adapter !== "office_holder" || officeHolder.status !== "CONTRADICTED") {
+      throw new Error("Current office-holder contradiction was not retained on its own claim.");
+    }
+    if (water.correction.status !== "WITHHELD" || apollo.correction.status !== "WITHHELD") throw new Error("Correction leaked into unrelated stable/historical claims.");
   }
   if (item.id === "node-lifecycle-en") {
     const claim = body.claims[0];

@@ -58,3 +58,11 @@ No organizer submission is claimed by this status file.
 - Covered Arabic/English Python 2 lifecycle corrections, person-first US office-holder contradiction, Node.js v20 lifecycle supersession, official pricing abstention, stable factual claims, and multi-claim isolation.
 - Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed bilingual rendering, correction and source quote presentation, safe links, inert HTML-like input, mobile layout, keyboard submission, and live API integration.
 - No real-world precision/recall or production readiness is claimed. Production remains unchanged; organizer submission remains NOT SUBMITTED.
+
+
+
+## Public repository verification — 2026-11-12
+- Public CI [#43250280181](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280181): **200/200 tests passed**.
+- Public browser acceptance [#43250280219](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280219): **SUCCESS**.
+- Public live Staging acceptance [#43250280631](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280631): **SUCCESS**.
+- The public v0.2.46 Worker source, domain adapters, regression tests, randomized test script, and acceptance workflows were compared byte-for-byte with the private development repository after synchronization.

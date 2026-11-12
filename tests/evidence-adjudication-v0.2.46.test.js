@@ -12,7 +12,7 @@ const sources = [
     relevance_assessment: { relevance: "HIGH" }
   },
   {
-    url: "https://docs.python.org/3/whatsnew/",
+    url: "https://python-release-authority.example/releases/",
     title: "Python What's New",
     published_date: "2026-11-09",
     source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",

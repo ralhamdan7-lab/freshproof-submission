@@ -59,6 +59,13 @@ The semantic model is advisory. It cannot independently establish a claim or ove
 
 The public repository is a standalone submission snapshot. It does not expose private development workflows, internal evaluation corpora, audit records, or private deployment configuration. The public snapshot's version is the version of this repository; no claim of source parity with a separate private development repository is made.
 
+
+## Live demo (Staging)
+
+[Open the FreshProof demo](https://freshproof-staging.ralhamdan7.workers.dev/)
+
+This is a Staging preview, not a production service. Its health endpoint independently reported FreshProof `0.2.75` on 15 November 2026. The public source repository remains snapshot `0.2.47`; the demo is therefore not represented as running this repository's exact source commit. Evidence-search availability depends on free provider quota and is not guaranteed. Do not submit confidential or personal information.
+
 ## Run locally
 
 Requirements: Node.js 20+ and npm.

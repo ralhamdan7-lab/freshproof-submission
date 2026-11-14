@@ -4,7 +4,7 @@ compatibility_date = "2026-11-09"
 workers_dev = true
 
 [vars]
-ALLOWED_ORIGIN = "http://localhost:8787"
+ALLOWED_ORIGIN = "https://freshproof-submission-demo.ralhamdan7.workers.dev"
 ENABLE_SEMANTIC_TRIAGE = "true"
 ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
 

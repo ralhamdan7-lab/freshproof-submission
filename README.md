@@ -22,7 +22,7 @@ Evidence relations are assessed separately from final status: `SUPPORTS`, `CONTR
 
 ## Current implementation
 
-- Version: **0.2.47**.
+- Public repository snapshot version: **0.2.47**. This public source snapshot is not yet synchronized to the private v0.2.75 candidate; do not treat the two as source-parity equivalents.
 - Runtime: Cloudflare Worker with static browser UI.
 - Evidence provider: Tavily Basic Search; API key is held as a Worker secret and is never exposed to the browser.
 - Optional semantic relation analysis: Cloudflare Workers AI, enabled explicitly in the dedicated Staging configuration. Its output is advisory; it cannot independently set the final verdict.
@@ -35,10 +35,15 @@ Evidence relations are assessed separately from final status: `SUPPORTS`, `CONTR
 - Exact-origin CORS, request timeout, native rate limiting, bounded provider calls, safe external links, and text-only rendering of untrusted source content.
 - No database, user accounts, or analytics are required for the prototype.
 
-## Staging and deployment state (2026-11-12)
+## Staging and deployment state (2026-11-14)
 
 - Staging URL: https://freshproof-staging.ralhamdan7.workers.dev
-- Staging version: `0.2.46`.
+- Live Staging version: `0.2.75` (private development candidate; the public source snapshot above remains `0.2.47`).
+- Exact-head CI [#43643448239](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448239): **334/334 tests passed**, syntax checks, temporal smoke benchmark, and v1/v2 corpus integrity validators passed.
+- Staging deployment [#43643448251](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448251): **SUCCESS**, exact health response confirmed version `0.2.75`; Cloudflare Worker version 177, 100% traffic.
+- Browser acceptance [#43643497434](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643497434): **SUCCESS**, including real browser-to-Worker API integration and bilingual/mobile UI checks.
+- The above CI/deployment evidence belongs to the private v0.2.75 development repository commit `ba061baf02bcb4a6b2f8e592f4bee4024196eae9`; it does not establish public-source parity or public-repository CI for v0.2.75.
+- Randomized 26-claim and 54-case live held-out evaluations have not yet been run on v0.2.75 because current free Tavily quota could not be verified; no unverified live batch was dispatched.
 - Dedicated staging Worker: `freshproof-staging` in the FreshProof-only Cloudflare account.
 - Staging configuration has `ENABLE_SEMANTIC_TRIAGE=true` and `ENABLE_CORRECTION_CANDIDATE_REVIEW=true`; the AI binding is present. The semantic result remains advisory and fails closed when unavailable or malformed.
 - Live acceptance workflow run **#26** completed with **SUCCESS** on 2026-11-12 at 14:56:55 UTC, commit `890dc81362ca05828c843e1d36825d39c0ed94f4`. [Open the verified run](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43241870828).

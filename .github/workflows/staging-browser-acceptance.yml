@@ -5,12 +5,16 @@ on:
     branches: [main, release/public-0.2.76-sanitized]
     paths:
       - 'src/**'
+      - 'worker/**'
+      - 'wrangler.toml'
       - 'scripts/staging-browser-smoke.mjs'
       - '.github/workflows/staging-browser-acceptance.yml'
   pull_request:
     branches: [main]
     paths:
       - 'src/**'
+      - 'worker/**'
+      - 'wrangler.toml'
       - 'scripts/staging-browser-smoke.mjs'
       - '.github/workflows/staging-browser-acceptance.yml'
   workflow_dispatch:
@@ -29,11 +33,27 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Install browser test dependency
+      - name: Install dependencies
+        run: npm install --no-package-lock
+      - name: Install Playwright
         run: npm install --no-save --no-package-lock playwright
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Test public demo UI with deterministic API fixture
+      - name: Start isolated local Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler dev --ip 127.0.0.1 --port 8787 > /tmp/freshproof-wrangler.log 2>&1 &
+          echo $! > /tmp/freshproof-wrangler.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8787/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/freshproof-wrangler.log
+          exit 1
+      - name: Test isolated Worker UI with deterministic API fixture
         env:
-          FRESH_PROOF_BASE_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
+          FRESH_PROOF_BASE_URL: http://127.0.0.1:8787
         run: node scripts/staging-browser-smoke.mjs

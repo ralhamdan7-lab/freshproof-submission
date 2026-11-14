@@ -1,8 +1,8 @@
-name: FreshProof Staging Browser Acceptance
+name: FreshProof Public Demo Browser Acceptance
 
 on:
   push:
-    branches: [main]
+    branches: [main, release/public-0.2.76-sanitized]
     paths:
       - 'src/**'
       - 'scripts/staging-browser-smoke.mjs'
@@ -33,7 +33,7 @@ jobs:
         run: npm install --no-save --no-package-lock playwright
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Test live Staging UI with deterministic API fixture
+      - name: Test public demo UI with deterministic API fixture
         env:
-          FRESH_PROOF_BASE_URL: https://freshproof-staging.ralhamdan7.workers.dev
+          FRESH_PROOF_BASE_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
         run: node scripts/staging-browser-smoke.mjs

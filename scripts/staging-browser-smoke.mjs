@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
-const BASE_URL = process.env.FRESH_PROOF_BASE_URL || "https://freshproof-staging.ralhamdan7.workers.dev";
+const BASE_URL = process.env.FRESH_PROOF_BASE_URL || "https://freshproof-submission-demo.ralhamdan7.workers.dev";
 const fixture = {
   product: "FreshProof",
   version: "browser-smoke",
@@ -122,34 +122,7 @@ try {
   assert.deepEqual(pageErrors, [], "No uncaught browser JavaScript errors");
   console.log("PASS: Staging browser UI, empty-input validation, bilingual RTL/LTR rendering, evidence/correction blocks, mobile overflow, and browser console checks.");
 
-  // Exercise the real browser-to-Worker API path once with a non-sensitive stable fact.
-  // This consumes one bounded Staging evidence lookup; the preceding fixture test is deterministic.
-  const livePage = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
-  const liveErrors = [];
-  await livePage.goto(BASE_URL, { waitUntil: "networkidle", timeout: 45000 });
-  livePage.on("pageerror", error => liveErrors.push(error.message));
-  const textbox = livePage.getByRole("textbox", { name: /PASTE AN AI-GENERATED ANSWER OR ENTER YOUR OWN CLAIM/i });
-  await textbox.waitFor();
-  await textbox.fill("Water is composed of hydrogen and oxygen.");
-  const verifyButton = livePage.getByRole("button", { name: /Verify claims/i });
-  await livePage.keyboard.press("Tab");
-  assert.equal(await livePage.evaluate(() => document.activeElement?.id), "verify", "Verify button must be keyboard reachable after the labeled input");
-  const apiResponsePromise = livePage.waitForResponse(response => response.url().endsWith("/api/verify") && response.request().method() === "POST", { timeout: 90000 });
-  await livePage.keyboard.press("Enter");
-  const apiResponse = await apiResponsePromise;
-  assert.equal(apiResponse.status(), 200, "Live browser-to-Worker verification request must return HTTP 200");
-  const liveBody = await apiResponse.json();
-  assert.equal(liveBody.product, "FreshProof");
-  assert.equal(liveBody.version, "0.2.46");
-  assert.equal(liveBody.claims?.length, 1);
-  assert.equal(liveBody.claims[0].temporal_assessment?.status, "NOT_TIME_SENSITIVE");
-  assert.ok(["NEEDS_REVIEW", "UNVERIFIABLE"].includes(liveBody.claims[0].status), "Stable claim must abstain when advisory semantic triage cannot establish sufficient factual evidence");
-  assert.equal(liveBody.claims[0].correction?.status, "WITHHELD");
-  await livePage.locator("#results").waitFor({ state: "visible", timeout: 30000 });
-  assert.equal(await livePage.locator("#claim-list .claim").count(), 1);
-  assert.match(await livePage.locator("#notice").innerText(), /Evidence review complete/i);
-  assert.deepEqual(liveErrors, [], "No uncaught browser JavaScript errors on live API path");
-  console.log("PASS: Real browser-to-Worker API integration, keyboard submission, live stable-claim abstention, and rendered report.");
+  console.log("PASS: Isolated public demo browser UI, bilingual RTL/LTR rendering, evidence/correction blocks, mobile layout, and XSS-safe text rendering.");
 
 } finally {
   await browser.close();

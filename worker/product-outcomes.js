@@ -1,19 +1,22 @@
 const VALID_STATUSES = new Set(["CURRENT", "SUPERSEDED", "CONTRADICTED", "UNVERIFIABLE", "NEEDS_REVIEW", "NOT_TIME_SENSITIVE"]);
 const PYTHON_SUNSET_URL = "https://www.python.org/doc/sunset-python-2/";
-function canonicalPythonSunsetUrl(value) {
+const PYTHON_PEP373_URL = "https://peps.python.org/pep-0373/";
+function canonicalPythonLifecycleUrl(value) {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
     const path = url.pathname.replace(/\/+$/, "");
-    if (url.protocol !== "https:" || !["python.org", "www.python.org"].includes(host) || url.port || path !== "/doc/sunset-python-2") return null;
-    return PYTHON_SUNSET_URL;
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return null;
+    if (["python.org", "www.python.org"].includes(host) && path === "/doc/sunset-python-2") return PYTHON_SUNSET_URL;
+    if (host === "peps.python.org" && path === "/pep-0373") return PYTHON_PEP373_URL;
+    return null;
   } catch { return null; }
 }
 const isArabic = value => /[\u0600-\u06FF]/.test(String(value || ""));
 function safeSourceRef(source) {
   try {
     const url = new URL(source?.url);
-    if (!["https:", "http:"].includes(url.protocol)) return null;
+    if (url.protocol !== "https:") return null;
     return {
       title: String(source.title || url.hostname).slice(0, 240),
       url: url.href,
@@ -138,21 +141,21 @@ export function buildCorrection({ claim, status, domainAdapter, domainEvidence, 
   };
   const domainSource = domainEvidence?.source || null;
   const indexedOfficialSource = (Array.isArray(sources) ? sources : [])
-    .find(item => item?.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE" && canonicalPythonSunsetUrl(item.url));
-  const source = canonicalPythonSunsetUrl(domainSource?.url) ? domainSource : indexedOfficialSource;
-  const sourceUrl = canonicalPythonSunsetUrl(source?.url);
+    .find(item => item?.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE" && canonicalPythonLifecycleUrl(item.url));
+  const source = canonicalPythonLifecycleUrl(domainSource?.url) ? domainSource : indexedOfficialSource;
+  const sourceUrl = canonicalPythonLifecycleUrl(source?.url);
   const citedOfficialEvidence = (explanationDetail?.evidence_basis || [])
-    .some(item => canonicalPythonSunsetUrl(item.url) === PYTHON_SUNSET_URL);
+    .some(item => canonicalPythonLifecycleUrl(item.url) === sourceUrl);
   const pythonEvidenceEligible = domainAdapter === "python2_lifecycle"
     && normalizedStatus === "SUPERSEDED"
     && domainEvidence?.method === "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE"
     && domainEvidence?.event_date === "2020-01-01"
-    && sourceUrl === PYTHON_SUNSET_URL
+    && Boolean(sourceUrl)
     && citedOfficialEvidence;
   if (pythonEvidenceEligible) return {
     status: "PROVIDED",
     text: isArabic(claim) ? "لم يعد Python 2 مدعوماً؛ فقد انتهى دعمه في 1 يناير 2020." : "Python 2 is no longer supported; its support ended on January 1, 2020.",
-    evidence_refs: [{ url: PYTHON_SUNSET_URL, title: source.title || "Sunsetting Python 2 | Python.org", event_date: "2020-01-01" }],
+    evidence_refs: [{ url: sourceUrl, title: source.title || (sourceUrl === PYTHON_PEP373_URL ? "PEP 373 — Python 2.7 Release Schedule" : "Sunsetting Python 2 | Python.org"), event_date: "2020-01-01" }],
     limitations: uniqueStrings([domainEvidence.limitation, source.acquisition_limitation])
   };
   const genericCorrection = buildGenericEvidenceCorrection({ claim, status: normalizedStatus, correctionCandidate, sources });

@@ -1,65 +1,67 @@
 # FreshProof
 
-**FreshProof — Evidence-First Temporal Verification Engine**
+**Evidence-First Temporal Verification Engine**
 
-*Designed to Evolve*
+**Verify · Explain · Correct — with evidence, dates, and explicit uncertainty.**
 
-FreshProof is an evidence-first verification engine for AI-generated answers. It extracts claim candidates, retrieves bounded source evidence, assesses source-to-claim relationships, distinguishes publication dates from event dates, and returns conservative claim-level outcomes with traceable explanations. Temporal sensitivity is a secondary dimension: stable claims still pass through factual evidence verification.
+FreshProof evaluates claims in AI-generated answers individually. It extracts claim candidates, identifies potentially time-sensitive propositions, retrieves bounded source evidence, compares supporting and conflicting material, and returns conservative outcomes with traceable explanations.
 
-## Product contract: VERIFY · EXPLAIN · CORRECT
+A central design principle is that a recently published page is not necessarily evidence of a recent event. FreshProof keeps **event date, source publication date, source update date, and retrieval time** distinct wherever the source makes those distinctions available.
 
-- **VERIFY:** assess each claim independently and return a conservative status, or abstain.
-- **EXPLAIN:** show the evidence, source relationship, publication/event/retrieval date distinctions, and limitations.
-- **CORRECT:** provide a replacement only when it is supported by sufficiently strong, scope-matched evidence. Otherwise explicitly withhold correction.
+## What it does
 
-### Claim-level outcomes
+- **Claim-level analysis:** splits a submitted answer into bounded claim candidates while preserving the original wording.
+- **Temporal assessment:** identifies claims that may change over time without treating stable facts as exempt from factual verification.
+- **Evidence retrieval:** searches for relevant sources and records provenance, dates, and domain information.
+- **Evidence comparison:** distinguishes supporting, contradicting, mixed, irrelevant, and insufficient evidence.
+- **Conservative adjudication:** abstains when evidence is weak, conflicting, inaccessible, or insufficient.
+- **Explainable outcomes:** presents the claim, status, evidence, source context, and limitations.
+- **Evidence-gated correction:** offers a replacement only when the evidence supports it; otherwise it withholds correction.
+- **Arabic and English UI:** supports right-to-left and left-to-right presentation.
 
-`CURRENT`, `SUPERSEDED`, `CONTRADICTED`, `NEEDS_REVIEW`, and `UNVERIFIABLE`.
+## Claim outcomes
 
-Temporal assessment is separate: `TIME_SENSITIVE`, `NOT_TIME_SENSITIVE`, or `TEMPORAL_REVIEW_REQUIRED`. `NOT_TIME_SENSITIVE` is not a factual verdict and does not bypass verification.
+- `CURRENT`
+- `SUPERSEDED`
+- `CONTRADICTED`
+- `NEEDS_REVIEW`
+- `UNVERIFIABLE`
 
-Evidence relations are assessed separately from final status: `SUPPORTS`, `CONTRADICTS`, `MIXED`, `IRRELEVANT`, and `INSUFFICIENT`. Freshness, evidence confidence, source reliability, and verification status are distinct dimensions; independent corroboration is counted by registrable domain (not subdomain), and no uncalibrated truth probability is presented.
+Temporal classification is a separate dimension. `NOT_TIME_SENSITIVE` does not mean factually verified and does not bypass evidence assessment.
 
-## Current implementation
-
-- Public repository snapshot version: **0.2.47**. This public source snapshot is not yet synchronized to the private v0.2.75 candidate; do not treat the two as source-parity equivalents.
-- Runtime: Cloudflare Worker with static browser UI.
-- Evidence provider: Tavily Basic Search; API key is held as a Worker secret and is never exposed to the browser.
-- Optional semantic relation analysis: Cloudflare Workers AI, enabled explicitly in the dedicated Staging configuration. Its output is advisory; it cannot independently set the final verdict.
-- Correction-candidate review: explicitly enabled in Staging; candidate review is separate from final adjudication and remains evidence-gated.
-- Bounded request handling: 12,000-character input, up to five claim candidates, five search queries, five results per claim, eight direct fetches, and bounded semantic/correction review.
-- Arabic and English claim processing, including Arabic sentence punctuation and common temporal indicators.
-- Source records retain URL, snippet, publication date, possible event-date candidate, retrieval timestamp, and source-domain profile as distinct fields.
-- Source relevance screening separates low-relevance results from adjudication. Lexical alignment is triage, not proof of entailment.
-- Primary/official and institutional evidence is preferred. Independent-host corroboration is required for generic high-confidence verdicts; conflicting or insufficient evidence triggers abstention.
-- Exact-origin CORS, request timeout, native rate limiting, bounded provider calls, safe external links, and text-only rendering of untrusted source content.
-- No database, user accounts, or analytics are required for the prototype.
-
-## Staging and deployment state (2026-11-14)
-
-- Staging URL: https://freshproof-staging.ralhamdan7.workers.dev
-- Live Staging version: `0.2.75` (private development candidate; the public source snapshot above remains `0.2.47`).
-- Exact-head CI [#43643448239](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448239): **334/334 tests passed**, syntax checks, temporal smoke benchmark, and v1/v2 corpus integrity validators passed.
-- Staging deployment [#43643448251](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448251): **SUCCESS**, exact health response confirmed version `0.2.75`; Cloudflare Worker version 177, 100% traffic.
-- Browser acceptance [#43643497434](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643497434): **SUCCESS**, including real browser-to-Worker API integration and bilingual/mobile UI checks.
-- The above CI/deployment evidence belongs to the private v0.2.75 development repository commit `ba061baf02bcb4a6b2f8e592f4bee4024196eae9`; it does not establish public-source parity or public-repository CI for v0.2.75.
-- Randomized 26-claim and 54-case live held-out evaluations have not yet been run on v0.2.75 because current free Tavily quota could not be verified; no unverified live batch was dispatched.
-- Dedicated staging Worker: `freshproof-staging` in the FreshProof-only Cloudflare account.
-- Staging configuration has `ENABLE_SEMANTIC_TRIAGE=true` and `ENABLE_CORRECTION_CANDIDATE_REVIEW=true`; the AI binding is present. The semantic result remains advisory and fails closed when unavailable or malformed.
-- Live acceptance workflow run **#26** completed with **SUCCESS** on 2026-11-12 at 14:56:55 UTC, commit `890dc81362ca05828c843e1d36825d39c0ed94f4`. [Open the verified run](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43241870828).
-- The bounded live matrix exercised a stable control, a current office-holder contradiction, Arabic Python 2 lifecycle supersession with a first-party correction, Node lifecycle, official pricing retrieval/abstention, a historical fact, and a three-claim input. The run passed its assertions, including claim-specific temporal classification and correction isolation.
-- Some live cases correctly abstained (`NEEDS_REVIEW`) where evidence was mixed, weak, or insufficient. This is intended fail-safe behavior, not a forced-success verdict.
-- Production Worker was not modified by this staging acceptance work. No production release or hackathon submission is claimed.
+Evidence relation labels (`SUPPORTS`, `CONTRADICTS`, `MIXED`, `IRRELEVANT`, `INSUFFICIENT`) are not final verdicts. Freshness, evidence confidence, source reliability, and verification status are kept conceptually distinct; the prototype does not present an uncalibrated probability of truth.
 
 ## Architecture
 
-`Browser UI → Worker API/Core → Evidence Provider Adapter (Tavily) → Source normalization → Semantic relation assessment (advisory) → Evidence adjudication → Explanation/correction contract`
+```text
+Browser UI
+   │
+   ▼
+Cloudflare Worker API
+   ├── Input validation and bounded claim extraction
+   ├── Temporal triage and query planning
+   ├── Evidence retrieval (Tavily)
+   ├── Source normalization and provenance
+   ├── Optional advisory semantic assessment (Cloudflare Workers AI)
+   ├── Evidence adjudication and abstention
+   └── Explanation and evidence-gated correction
+```
 
-The core owns validation, claim segmentation, temporal triage, bounded retrieval, source normalization, adjudication, abstention, and output safety. Domain-specific adapters are constrained helpers; they cannot bypass request-wide limits or independently override generic verdict policy.
+The semantic model is advisory. It cannot independently establish a claim or override the evidence adjudication policy.
 
-## Local development
+## Public prototype
 
-Requires Node.js 20+ and npm.
+- **Public source snapshot:** `0.2.47`.
+- **Runtime:** Cloudflare Worker and static browser application.
+- **Evidence search:** Tavily; configure its API credential as a Worker secret.
+- **Optional semantic analysis:** Cloudflare Workers AI binding.
+- **No application database or user account system is required** for this prototype.
+
+The public repository is a standalone submission snapshot. It does not expose private development workflows, internal evaluation corpora, audit records, or private deployment configuration. The public snapshot's version is the version of this repository; no claim of source parity with a separate private development repository is made.
+
+## Run locally
+
+Requirements: Node.js 20+ and npm.
 
 ```bash
 npm install
@@ -68,60 +70,36 @@ npm run benchmark:temporal
 npm run dev
 ```
 
-Create `.dev.vars` locally and never commit it:
+Create a local `.dev.vars` file (never commit it):
 
 ```env
 TAVILY_API_KEY=your_key
 ALLOWED_ORIGIN=http://localhost:8787
-# Optional local AI binding/configuration depends on the Wrangler environment.
 ```
 
-## Verification and evaluation
+The optional Workers AI binding is configured by Wrangler. Do not add provider keys to browser code, source files, screenshots, or logs.
 
-- Automated regression tests cover claim segmentation, evidence adjudication, source relevance, date handling, abstention, correction eligibility, API contracts, and UI safety.
-- The 32-case bilingual temporal benchmark is hand-authored and synthetic. Its expected-label result is a regression diagnostic only; it is not a held-out evaluation and must not be presented as real-world precision, recall, or accuracy.
-- Live Staging acceptance is a bounded integration test, not a representative accuracy study.
-- No real-world precision/recall, false-positive rate, citation correctness, latency distribution, or cost-per-claim claim is made without a documented held-out dataset and reproducible measurement.
-- Conservative abstention is deliberate. Evidence thresholds must not be lowered merely to increase the number of definitive outputs.
+## Limits and evaluation
+
+The Worker applies bounded input, claim, search, result, and source-fetch limits. The current prototype is intended for demonstration and review, not as a guarantee that every claim can be conclusively verified.
+
+Automated tests and the synthetic temporal regression benchmark are engineering diagnostics. They are **not** a representative real-world accuracy study. No general precision, recall, false-positive rate, citation correctness, latency distribution, or cost-per-claim figure is claimed here. A live integration test is likewise not a substitute for a held-out evaluation with audited labels.
+
+A `NEEDS_REVIEW` or `UNVERIFIABLE` result is an intentional safe outcome when the evidence does not justify a stronger conclusion.
 
 ## Security and privacy
 
-- Provider credentials are Worker secrets, not client-side values.
-- User text is processed in the request flow; the prototype does not require a persistent user-content database.
-- Input, claim, query, source, and direct-fetch limits are enforced.
-- Retrieved pages/snippets are untrusted data, never instructions.
-- CORS is restricted to the configured exact origin; rate limiting is applied at the edge.
-- Do not deploy publicly or expose secrets until the release security/privacy review is complete.
+- Provider credentials belong in server-side Worker secrets only.
+- Submitted text is processed in the request flow; the prototype does not require durable storage of user submissions.
+- Retrieved content is untrusted evidence, never executable instructions.
+- Input and provider operations are bounded.
+- Configure an exact allowed browser origin; CORS is not authentication.
+- Do not deploy a fork with real credentials until its configuration and secret handling have been reviewed.
 
-## Hackathon materials
+## Hackathon submission
 
-- [Public submission repository](https://github.com/ralhamdan7-lab/freshproof-submission)
-- Demo walkthrough and pitch materials are maintained as a separate media pack; only use a demo URL after confirming that it is playable from a clean, logged-out browser on both mobile and desktop.
-- The owner must personally complete and submit the official hackathon form. This repository update does not submit the project.
+This repository contains the public source snapshot for review. The official submission form must be completed by the project owner. A repository publication or passing CI run is not proof that a hackathon submission has been received.
 
-## Ownership and provenance
+## License and ownership
 
-See [OWNERSHIP.md](OWNERSHIP.md) and [docs/PROVENANCE.md](docs/PROVENANCE.md). These are project records and an owner declaration, not a formal government IP registration or legal determination.
-
-## Key documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [API contract](docs/API.md)
-- [Security](docs/SECURITY.md)
-- [Test record](docs/TESTS.md)
-- [Verification log](docs/VERIFICATION-LOG.md)
-- [Release readiness](docs/RELEASE-READINESS.md)
-- [Hackathon rules and checklist](docs/HACKATHON-RULES.md)
-- [Demo script](docs/DEMO-SCRIPT.md)
-
-## License and status
-
-This repository is the private development source. Do not redistribute project source or deployment secrets. Public-facing submission material is maintained in the separate submission repository.
-
-
-## Randomized QA and browser acceptance (2026-11-12)
-
-- **200/200** automated Node tests passed; five seeded property tests cover 1,950 generated iterations across claim segmentation, temporal classification, evidence adjudication, malformed semantic assessments, and abstention invariants.
-- [Randomized live Staging acceptance #43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed seven randomized-order live cases plus two smoke controls: Arabic/English Python 2 lifecycle, person-first US office-holder, Node.js v20 lifecycle, official pricing, stable facts, and a three-claim mixed-timeframe answer.
-- [Browser acceptance #43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed RTL/LTR rendering, validated correction and quote display, safe source links, inert HTML-like input, mobile layout, keyboard submission, and live Worker integration.
-- Conservative `NEEDS_REVIEW` results remain where evidence is insufficient; these live cases do not establish general accuracy or performance metrics.
+No open-source license is granted by this repository unless a separate license file explicitly states otherwise. All rights are reserved by the project owner. See [OWNERSHIP.md](OWNERSHIP.md) for the project ownership and provenance declaration.

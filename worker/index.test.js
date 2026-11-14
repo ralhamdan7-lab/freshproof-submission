@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import {
   VERSION,
   sourceReliability,
+  sourceDomainHints,
   evidenceConfidence,
   adjudicateEvidenceWithModel,
+  decomposeClaimForAssessment,
   splitClaims,
+  extractClaimCandidates,
   isLikelyTemporal,
   detectOfficeHolderClaim,
   adjudicateOfficeHolderClaim,
@@ -16,8 +19,11 @@ import {
   fetchPython2SunsetEvidence,
   fetchWhiteHouseXIdentityEvidence,
   assessCorrectionCandidateWithModel,
-  isCorrectionCandidateReviewEnabled
+  isCorrectionCandidateReviewEnabled,
+  assessNodeReleaseLifecycle,
+  assessDatedHistoricalTextAnchors
 } from "./index.js";
+import { resolveDomainAdapter } from "./domain-adapters.js";
 
 const now = Date.parse("2026-11-09T00:00:00Z");
 const officialDirectory = {
@@ -28,8 +34,54 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.47 release version", () => {
-  assert.equal(VERSION, "0.2.47");
+test("v0.2.75 release version", () => {
+  assert.equal(VERSION, "0.2.75");
+});
+
+test("conditional and exception clauses remain attached to their governing proposition", () => {
+  const cases = [
+    "The service is available unless the regulator suspends it.",
+    "The rule applies provided that the agency publishes the notice.",
+    "The policy remains active except when an emergency order is issued.",
+    "The claim is true although one implementation is temporarily unavailable.",
+    "The service is available; unless the regulator suspends it, access remains open.",
+    "تظل الخدمة متاحة؛ ما لم تصدر الجهة قراراً بإيقافها، يستمر الوصول.",
+    "تظل الخدمة متاحة ما لم تصدر الجهة قراراً بإيقافها.",
+    "يسري القرار بشرط أن يُنشر رسمياً."
+  ];
+  for (const claim of cases) {
+    const result = decomposeClaimForAssessment(claim);
+    assert.equal(result.original_claim, claim);
+    assert.equal(result.integrity, "FULL_ORIGINAL_PRESERVED");
+    assert.equal(result.components.length, 1, claim);
+    assert.equal(result.components[0].text, claim);
+  }
+});
+
+test("curated institutional and official source profiles are classified without trusting arbitrary domains", () => {
+  assert.equal(sourceReliability("https://www.nasa.gov/history/apollo-11/"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://support.apple.com/en-ie/108044"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://developer.apple.com/news"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://european-union.europa.eu/principles-countries-history/facts-and-figures-european-union_en"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://docs.oracle.com/security"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://www.australian.museum/learn/"), "INSTITUTIONAL");
+  assert.equal(sourceReliability("https://www.britannica.com/topic/example"), "SECONDARY_REPUTABLE");
+  assert.equal(sourceReliability("https://www.ebsco.com/research-starters/history/example"), "SECONDARY_REPUTABLE");
+  assert.equal(sourceReliability("https://attacker-britannica.com.example/article"), "UNASSESSED");
+  assert.equal(sourceReliability("https://airandspace.si.edu/collection/"), "PRIMARY_OR_OFFICIAL_DOMAIN");
+  assert.equal(sourceReliability("https://apple.com.attacker.example/article"), "UNASSESSED");
+  assert.equal(sourceReliability("https://notapple.com/article"), "UNASSESSED");
+  assert.equal(sourceReliability("https://example-random-blog.invalid/article"), "UNASSESSED");
+});
+
+test("stable historical claims receive targeted authoritative retrieval hints", () => {
+  assert.deepEqual(sourceDomainHints("Apollo 11 landed on the Moon in 1969."), ["nasa.gov", "si.edu", "archives.gov"]);
+  assert.deepEqual(sourceDomainHints("The European Central Bank was established in 1998."), ["ecb.europa.eu", "europa.eu", "britannica.com", "bruegel.org"]);
+  assert.deepEqual(sourceDomainHints("Mount Everest is the highest mountain above sea level."), ["nationalgeographic.com", "britannica.com", "education.nationalgeographic.com"]);
+  assert.deepEqual(sourceDomainHints("Water is composed of hydrogen and oxygen."), ["usgs.gov", "rsc.org", "nist.gov"]);
+  assert.deepEqual(sourceDomainHints("The first network email was sent in 1971."), ["computerhistory.org", "internetsociety.org", "rfc-editor.org"]);
+  assert.deepEqual(sourceDomainHints("The European Union currently has 27 member states."), ["european-union.europa.eu", "eur-lex.europa.eu", "consilium.europa.eu", "europa.eu"]);
+  assert.deepEqual(sourceDomainHints("An unrelated statement about something unknown."), []);
 });
 
 test("middle-initial office-holder claim remains intact", () => {
@@ -234,7 +286,16 @@ test("official Python.org sunset notice is retrieved and validated as first-part
   const { resolveDomainAdapter } = await import("./domain-adapters.js");
   const adapter = resolveDomainAdapter("Python 2.7 reached end of life on January 1, 2020.");
   assert.equal(adapter?.id, "python2_lifecycle");
-  assert.equal(adapter.adjudicate(sources).status, "SUPERSEDED");
+  const historicalFact = adapter.adjudicate(sources);
+  assert.equal(historicalFact.status, "CURRENT");
+  assert.equal(historicalFact.evidence.claim_relation, "SUPPORTS");
+
+  const staleSupportClaim = resolveDomainAdapter("Python 2.7 is still officially supported.");
+  assert.equal(staleSupportClaim.adjudicate(sources).status, "SUPERSEDED");
+  const arabicHistoricalFact = resolveDomainAdapter("انتهى الدعم الرسمي عن Python 2.7 في 1 يناير 2020.");
+  assert.equal(arabicHistoricalFact.adjudicate(sources).status, "CURRENT");
+  const arabicStaleSupportClaim = resolveDomainAdapter("لا يزال Python 2.7 مدعوماً رسمياً.");
+  assert.equal(arabicStaleSupportClaim.adjudicate(sources).status, "SUPERSEDED");
 });
 test("Python.org adapter fails closed when official source does not confirm sunset", async () => {
   const sources = await fetchPython2SunsetEvidence(async () => ({ ok: true, url: "https://www.python.org/doc/sunset-python-2/", headers: new Headers({"content-type":"text/html"}), text: async () => "<html><body>Python 2 documentation</body></html>" }), Date.parse("2026-11-11T12:00:00Z"));
@@ -274,19 +335,23 @@ test("Python.org direct evidence parser accepts the canonical current page wordi
   assert.equal(result.diagnostics[0].status, "VALIDATED");
 });
 
-test("Python.org adapter uses the core-injected fetch and exposes failed retrieval without issuing a verdict", async () => {
+test("Python.org and PEP 373 first-party fetches fail closed without a validated lifecycle source", async () => {
   const { resolveDomainAdapter } = await import("./domain-adapters.js");
   const adapter = resolveDomainAdapter("Python 2.7 is still officially supported.");
-  let requestedUrl = "";
+  const requestedUrls = [];
   const result = await adapter.additionalEvidence({
     fetch: async (url) => {
-      requestedUrl = String(url);
+      requestedUrls.push(String(url));
       return { ok: false, status: 503, headers: new Headers(), text: async () => "" };
     }
   });
-  assert.equal(requestedUrl, "https://www.python.org/doc/sunset-python-2/");
+  assert.deepEqual(requestedUrls, [
+    "https://www.python.org/doc/sunset-python-2/",
+    "https://peps.python.org/pep-0373/"
+  ]);
   assert.equal(result.sources.length, 0);
   assert.equal(result.diagnostics[0].status, "HTTP_ERROR");
+  assert.equal(result.diagnostics[1].status, "HTTP_ERROR");
   const adjudication = adapter.adjudicate([], { retrievalDiagnostics: result.diagnostics });
   assert.equal(adjudication.status, "NEEDS_REVIEW");
   assert.equal(adjudication.evidence.retrieval_status, "HTTP_ERROR");
@@ -313,6 +378,38 @@ test("official HTML evidence fetch rejects redirects, wrong content types, and o
 });
 
 
+test("Python.org HTTP 403 falls back to a directly fetched and validated PEP 373 source before search-index use", async () => {
+  const { fetchPython2SunsetEvidenceDetailed } = await import("./domain-adapters.js");
+  const pepHtml = `<html><body><h1>PEP 373 - Python 2.7 Release Schedule</h1>
+    <p>Python 2.7 is the end of the Python 2.x series.</p>
+    <p>The End Of Life date (EOL, sunset date) for Python 2.7 has been moved to 2020.</p>
+    <p>Support officially stopped January 1 2020.</p>
+  </body></html>`;
+  const urls = [];
+  const result = await fetchPython2SunsetEvidenceDetailed(async url => {
+    urls.push(String(url));
+    if (String(url) === "https://www.python.org/doc/sunset-python-2/") {
+      return { ok: false, status: 403, url: String(url), headers: new Headers({ "content-type": "text/html" }), text: async () => "" };
+    }
+    return {
+      ok: true, status: 200, url: "https://peps.python.org/pep-0373/",
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      text: async () => pepHtml
+    };
+  }, Date.parse("2026-11-14T12:00:00Z"));
+  assert.deepEqual(urls, [
+    "https://www.python.org/doc/sunset-python-2/",
+    "https://peps.python.org/pep-0373/"
+  ]);
+  assert.equal(result.sources.length, 1);
+  assert.equal(result.sources[0].url, "https://peps.python.org/pep-0373/");
+  assert.equal(result.sources[0].event_date_candidate, "2020-01-01");
+  assert.equal(result.sources[0].event_date_basis, "PEP_373_END_OF_LIFE_DATE");
+  assert.equal(result.sources[0].acquisition_method, "DIRECT_FIRST_PARTY_PEP");
+  assert.equal(result.diagnostics[0].status, "HTTP_ERROR");
+  assert.equal(result.diagnostics[1].status, "VALIDATED");
+});
+
 test("Python.org HTTP 403 falls back only to a validated first-party search-index excerpt", async () => {
   const { resolveDomainAdapter } = await import("./domain-adapters.js");
   const adapter = resolveDomainAdapter("Python 2.7 is still officially supported.");
@@ -324,7 +421,7 @@ test("Python.org HTTP 403 falls back only to a validated first-party search-inde
     }),
     search: async (query, domains, options) => {
       searchCalls++;
-      assert.deepEqual(domains, ["python.org"]);
+      assert.deepEqual(domains, ["python.org", "peps.python.org", "docs.python.org"]);
       assert.equal(options.timeRange, null);
       return [{
         title: "Sunsetting Python 2 | Python.org",
@@ -340,7 +437,7 @@ test("Python.org HTTP 403 falls back only to a validated first-party search-inde
   assert.equal(result.sources[0].published_date, null);
   assert.equal(result.sources[0].acquisition_method, "TAVILY_INDEXED_FIRST_PARTY_PAGE");
   assert.equal(result.diagnostics[0].status, "HTTP_ERROR");
-  assert.equal(result.diagnostics[1].status, "VALIDATED_FIRST_PARTY_EXCERPT");
+  assert.equal(result.diagnostics.at(-1).status, "VALIDATED_FIRST_PARTY_EXCERPT");
   const verdict = adapter.adjudicate(result.sources, { retrievalDiagnostics: result.diagnostics });
   assert.equal(verdict.status, "SUPERSEDED");
   assert.equal(verdict.evidence.source.acquisition_method, "TAVILY_INDEXED_FIRST_PARTY_PAGE");
@@ -605,4 +702,296 @@ test("exact milestone match refuses same date for a different named instrument",
     ai
   );
   assert.equal(result.assessments[0].relation, "MIXED");
+});
+
+test("sentence ending in an uppercase acronym does not merge the next claim", () => {
+  const claims = splitClaims("Node.js v20 remains actively supported under LTS. ChatGPT Plus currently costs $20 per month in the United States.");
+  assert.equal(claims.length, 2);
+  assert.match(claims[0], /Node\.js v20 remains actively supported under LTS\./);
+  assert.match(claims[1], /ChatGPT Plus currently costs \$20 per month/);
+});
+
+test("acronym and middle-initial punctuation remain compatible with claim boundaries", () => {
+  const claims = splitClaims("The U.S. President is Donald J. Trump. Node.js v20 remains actively supported under LTS. The European Central Bank was established in 1998.");
+  assert.equal(claims.length, 3);
+  assert.match(claims[0], /Donald J\. Trump\./);
+  assert.match(claims[1], /Node\.js v20/);
+  assert.match(claims[2], /European Central Bank/);
+});
+
+test("completed historical product release is not time-sensitive", () => {
+  assert.equal(isLikelyTemporal("The first iPhone was released in 2007."), false);
+});
+
+test("completed historical space launch is not time-sensitive", () => {
+  assert.equal(isLikelyTemporal("The Hubble Space Telescope was launched in 1990."), false);
+});
+
+test("future scheduled release remains time-sensitive", () => {
+  assert.equal(isLikelyTemporal("The next iPhone will be released in 2027."), true);
+});
+
+test("current software support lifecycle remains time-sensitive", () => {
+  assert.equal(isLikelyTemporal("Node.js v20 remains actively supported under LTS."), true);
+});
+
+test("semantic relation assessment retries one malformed response and then completes", async () => {
+  let calls = 0;
+  const ai = { run: async () => {
+    calls++;
+    if (calls === 1) return { response: "not-json" };
+    return { response: JSON.stringify({ assessments: [
+      { source_index: 0, relation: "SUPPORTS", rationale: "The source supports the exact claim." }
+    ] }) };
+  } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(calls, 2);
+  assert.equal(result.status, "COMPLETED_ADVISORY");
+  assert.equal(result.attempts, 2);
+  assert.equal(result.assessments[0].relation, "SUPPORTS");
+});
+
+test("semantic relation assessment does not retry explicit provider quota rejection", async () => {
+  let calls = 0;
+  const ai = { run: async () => { calls++; throw new Error("429 rate limit exceeded"); } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(calls, 1);
+  assert.equal(result.status, "FAILED_CLOSED");
+  assert.equal(result.attempts, 1);
+  assert.equal(result.failure_code, "PROVIDER_LIMIT_OR_QUOTA");
+});
+
+test("Workers AI free-allocation exhaustion is classified and never retried", async () => {
+  let calls = 0;
+  const ai = { run: async () => { calls++; throw new Error("AiError: 3036: used up daily free allocation"); } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(calls, 1);
+  assert.equal(result.status, "FAILED_CLOSED");
+  assert.equal(result.attempts, 1);
+  assert.equal(result.failure_code, "PROVIDER_LIMIT_OR_QUOTA");
+});
+
+test("Workers AI temporary capacity rejection receives one delayed bounded retry", async () => {
+  let calls = 0;
+  const ai = { run: async () => {
+    calls++;
+    if (calls === 1) throw new Error("AiError: 3040: Capacity temporarily exceeded, please try again.");
+    return { response: JSON.stringify({ assessments: [
+      { source_index: 0, relation: "SUPPORTS", rationale: "The source supports the exact claim." }
+    ] }) };
+  } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(calls, 2);
+  assert.equal(result.status, "COMPLETED_ADVISORY");
+  assert.equal(result.attempts, 2);
+});
+
+test("Workers AI failure details expose only sanitized provider diagnostics", async () => {
+  const ai = { run: async () => { throw Object.assign(new Error("AiError: 5007: No such model"), { status: 400 }); } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(result.status, "FAILED_CLOSED");
+  assert.equal(result.failure_code, "MODEL_OR_ACCOUNT_ACCESS");
+  assert.equal(result.failure_details.provider_message_code, "5007");
+  assert.equal(result.failure_details.http_status, 400);
+  assert.equal(Object.hasOwn(result.failure_details, "message"), false);
+});
+
+test("Workers AI safe failure excerpt redacts URLs and credential-like values", async () => {
+  const ai = { run: async () => { throw new Error("AiError: 5018 account not allowed token=secret-value https://api.example.test/run"); } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(result.failure_code, "MODEL_OR_ACCOUNT_ACCESS");
+  assert.match(result.failure_details.safe_message, /5018/);
+  assert.doesNotMatch(result.failure_details.safe_message, /secret-value|api\\.example\\.test/);
+});
+
+test("Workers AI 4006 daily neuron allocation exhaustion is classified without retry", async () => {
+  let calls = 0;
+  const ai = { run: async () => { calls++; throw new Error("AiError: 4006: you have used up your daily free allocation of 10,000 neurons"); } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(calls, 1);
+  assert.equal(result.status, "FAILED_CLOSED");
+  assert.equal(result.failure_code, "PROVIDER_LIMIT_OR_QUOTA");
+  assert.equal(result.failure_details.provider_message_code, "4006");
+  assert.match(result.failure_details.safe_message, /daily free allocation/);
+});
+
+
+test("Node.js supported release-line claims use the official schedule without requiring LTS wording", async () => {
+  const { resolveDomainAdapter } = await import("./domain-adapters.js");
+  const schedule = {
+    v18: { start: "2022-04-19", lts: "2022-10-25", maintenance: "2023-10-18", end: "2025-03-27" },
+    v22: { start: "2024-04-24", lts: "2024-10-29", maintenance: "2025-10-21", end: "2027-04-30" }
+  };
+  const source = {
+    title: "Node.js Release Working Group — schedule.json",
+    url: "https://raw.githubusercontent.com/nodejs/Release/0123456789abcdef0123456789abcdef01234567/schedule.json",
+    content: JSON.stringify(schedule),
+    published_date: "2026-11-11",
+    evidence_kind: "IMMUTABLE_OFFICIAL_RELEASE_SCHEDULE"
+  };
+  const oldLine = "Node.js 18 is currently a supported release line.";
+  const currentLine = "Node.js 22 is currently a supported release line.";
+  assert.equal(resolveDomainAdapter(oldLine)?.id, "software_release");
+  assert.equal(assessNodeReleaseLifecycle(oldLine, [source], Date.parse("2026-11-13T00:00:00Z")).status, "SUPERSEDED");
+  assert.equal(assessNodeReleaseLifecycle(currentLine, [source], Date.parse("2026-11-13T00:00:00Z")).status, "CURRENT");
+});
+
+test("claim extraction reports all candidates separately from the bounded processing slice", () => {
+  const input = [
+    "The first independently testable statement is sufficiently long.",
+    "The second independently testable statement is sufficiently long.",
+    "The third independently testable statement is sufficiently long.",
+    "The fourth independently testable statement is sufficiently long.",
+    "The fifth independently testable statement is sufficiently long.",
+    "The sixth independently testable statement is sufficiently long."
+  ].join(" ");
+  const candidates = extractClaimCandidates(input);
+  const processed = splitClaims(input);
+  assert.equal(candidates.length, 6);
+  assert.equal(processed.length, 5);
+  assert.deepEqual(processed, candidates.slice(0, 5));
+});
+
+
+test("Node.js adapter gives HIGH relevance only to fetched and parsed official lifecycle data", () => {
+  const adapter = resolveDomainAdapter("Node.js v20 remains actively supported under LTS.");
+  const schedule = {
+    v20: { start: "2023-04-18", lts: "2023-10-24", maintenance: "2024-10-22", end: "2026-04-30" },
+    v22: { start: "2024-04-24", lts: "2024-10-29", maintenance: "2025-10-21", end: "2027-04-30" }
+  };
+  const structured = {
+    title: "Node.js Release Working Group — schedule.json",
+    url: "https://raw.githubusercontent.com/nodejs/Release/0123456789abcdef0123456789abcdef01234567/schedule.json",
+    snippet: JSON.stringify(schedule),
+    content: JSON.stringify(schedule),
+    published_date: "2026-11-11",
+    source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
+    evidence_kind: "IMMUTABLE_OFFICIAL_RELEASE_SCHEDULE"
+  };
+  const indexedLead = {
+    title: "Node.js — Official Previous Releases",
+    url: "https://nodejs.org/en/about/previous-releases",
+    snippet: "Node.js v20 release LTS schedule",
+    source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
+  };
+  assert.equal(adapter.rankSource(structured, { relevance: "LOW" }).relevance, "HIGH");
+  assert.equal(adapter.rankSource(indexedLead, { relevance: "LOW" }).relevance, "MEDIUM");
+  assert.equal(adapter.rankSource({ ...structured, published_date: null, evidence_kind: "SEARCH_RESULT" }, { relevance: "LOW" }).relevance, "MEDIUM");
+});
+
+
+test("semantic relation parser accepts fenced and preambled JSON without weakening schema checks", async () => {
+  const responses = [
+    'Here is the requested JSON:\n\x60\x60\x60json\n{"assessments":[{"source_index":0,"relation":"SUPPORTS","rationale":"The source contains a quoted brace { and supports the claim."}]}\n\x60\x60\x60',
+    JSON.stringify({ response: JSON.stringify({ assessments: [
+      { source_index: 0, relation: "SUPPORTS", rationale: "Nested provider response." }
+    ] }) })
+  ];
+  for (const response of responses) {
+    const ai = { run: async () => ({ response }) };
+    const result = await adjudicateEvidenceWithModel("A test claim.", [
+      { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+    ], ai);
+    assert.equal(result.status, "COMPLETED_ADVISORY");
+    assert.equal(result.assessments.length, 1);
+    assert.equal(result.assessments[0].relation, "SUPPORTS");
+  }
+});
+
+test("semantic relation parser does not repair truncated or incomplete JSON", async () => {
+  let calls = 0;
+  const ai = { run: async () => {
+    calls++;
+    return { response: '{"assessments":[{"source_index":0,"relation":"SUPPORTS"' };
+  } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(calls, 2);
+  assert.equal(result.status, "FAILED_CLOSED");
+  assert.equal(result.failure_code, "INVALID_RESPONSE_SCHEMA");
+});
+
+
+test("semantic malformed-output retry uses a compact schema prompt and larger bounded output budget", async () => {
+  const calls = [];
+  const ai = { run: async (model, input) => {
+    calls.push(input);
+    if (calls.length === 1) return { response: "not-json" };
+    return { response: JSON.stringify({ assessments: [
+      { source_index: 0, relation: "SUPPORTS" }
+    ] }) };
+  } };
+  const result = await adjudicateEvidenceWithModel("A test claim.", [
+    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+  ], ai);
+  assert.equal(result.status, "COMPLETED_ADVISORY");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].max_tokens, 1200);
+  assert.equal(calls[1].max_tokens, 1400);
+  assert.match(calls[1].messages[0].content, /valid JSON object only/);
+  assert.match(calls[1].messages[0].content, /required rationale string/);
+});
+
+
+test("offline historical matcher requires entity, exact year, and matching event action", () => {
+  const claim = "Apollo 11 landed on the Moon in 1969.";
+  const sources = [
+    { title: "Apollo 11 mission", snippet: "Apollo 11 landed on the Moon in 1969." },
+    { title: "Apollo program", snippet: "Apollo 11 mission launched in 1969." }
+  ];
+  const result = assessDatedHistoricalTextAnchors(claim, sources);
+  assert.equal(result.status, "COMPLETED_ADVISORY");
+  assert.equal(result.provider, "LOCAL_RULES");
+  assert.deepEqual(result.assessments.map(item => item.relation), ["SUPPORTS", "INSUFFICIENT"]);
+  assert.equal(result.claim_assessment, null);
+});
+
+test("offline historical matcher refuses dynamic, high-impact, missing-date, and negated claims", () => {
+  assert.equal(assessDatedHistoricalTextAnchors("The current President was elected in 2024.", [
+    { snippet: "The current President was elected in 2024." }
+  ]), null);
+  assert.equal(assessDatedHistoricalTextAnchors("A medical treatment was performed in 2020.", [
+    { snippet: "A medical treatment was performed in 2020." }
+  ]), null);
+  assert.equal(assessDatedHistoricalTextAnchors("Apollo 11 landed on the Moon.", [
+    { snippet: "Apollo 11 landed on the Moon in 1969." }
+  ]), null);
+  assert.equal(assessDatedHistoricalTextAnchors("Apollo 11 landed on the Moon in 1969.", [
+    { snippet: "Apollo 11 did not land on the Moon in 1969." }
+  ]), null);
+});
+
+test("semantic claim decomposition preserves the full original text and explicit conditions", () => {
+  const claim = "The regulator approved Product A in 2024; the approval applies only to adults, unless the later safety notice suspends it.";
+  const result = decomposeClaimForAssessment(claim);
+  assert.equal(result.original_claim, claim);
+  assert.equal(result.original_character_count, claim.length);
+  assert.equal(result.integrity, "FULL_ORIGINAL_PRESERVED");
+  assert.ok(result.components.length >= 2);
+  assert.equal(result.components[0].text, "The regulator approved Product A in 2024;");
+  assert.match(result.components.map(item => item.text).join(" "), /unless the later safety notice suspends it/);
+});
+
+test("semantic claim decomposition keeps long atomic claims intact without silent truncation", () => {
+  const claim = "A".repeat(2400) + " was published by the official authority.";
+  const result = decomposeClaimForAssessment(claim);
+  assert.equal(result.original_claim, claim);
+  assert.equal(result.original_character_count, claim.length);
+  assert.equal(result.components.length, 1);
+  assert.equal(result.components[0].text, claim);
 });

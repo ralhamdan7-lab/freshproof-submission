@@ -1,7 +1,36 @@
 import { detectTextDirection } from "../src/text-direction.js";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTemporalSearchQuery, splitClaims, isLikelyTemporal, sourceReliability, alignSourceToClaim, assessClaimRelation, compareEvidenceSet, adjudicateEvidenceWithModel, SEMANTIC_MODEL, LIMITS, VERSION, DOMAIN_ADAPTERS } from "../worker/index.js";
+import { buildTemporalSearchQuery, sourceDomainHints, assessPublisherDiversityNeed, splitClaims, isLikelyTemporal, sourceReliability, isLowSignalSourceHost, alignSourceToClaim, assessClaimRelation, compareEvidenceSet, adjudicateEvidenceWithModel, applyHistoricalSourceGate, resolveSafeHistoricalRedirect, searchTimeRangeForClaim, SEMANTIC_MODEL, LIMITS, VERSION, DOMAIN_ADAPTERS } from "../worker/index.js";
+
+test("publisher diversity fallback counts qualified high-relevance domains, not raw URL domains", () => {
+  const claim = "Water is composed of hydrogen and oxygen.";
+  const weak = [
+    { url: "https://example.com/water", title: "Water facts", snippet: "Water facts and information." },
+    { url: "https://another.example.org/water", title: "Water overview", snippet: "General water overview." }
+  ];
+  const weakNeed = assessPublisherDiversityNeed(claim, weak, []);
+  assert.equal(weakNeed.qualified_domain_count, 0);
+  assert.equal(weakNeed.needs_diversity, true);
+  const oneQualified = [
+    { url: "https://www.usgs.gov/special-topics/water-science-school", title: claim, snippet: claim }
+  ];
+  assert.equal(assessPublisherDiversityNeed(claim, oneQualified, []).needs_diversity, true);
+  const twoQualified = [
+    { url: "https://www.usgs.gov/special-topics/water-science-school", title: claim, snippet: claim },
+    { url: "https://www.rsc.org/periodic-table/element/8/oxygen", title: claim, snippet: claim }
+  ];
+  const sufficient = assessPublisherDiversityNeed(claim, twoQualified, []);
+  assert.equal(sufficient.qualified_domain_count, 2);
+  assert.equal(sufficient.needs_diversity, false);
+});
+test("publisher diversity fallback drops already represented hinted domains", () => {
+  const result = assessPublisherDiversityNeed("Water is composed of hydrogen and oxygen.", [
+    { url: "https://www.usgs.gov/water", title: "Water is composed of hydrogen and oxygen", snippet: "Water is composed of hydrogen and oxygen" }
+  ], ["usgs.gov", "rsc.org", "nist.gov"]);
+  assert.deepEqual(result.alternate_domains, ["rsc.org", "nist.gov"]);
+  assert.equal(result.needs_diversity, true);
+});
 
 test("splits an answer into bounded independent sentence candidates", () => {
   assert.equal(splitClaims("The capital city is Riyadh. The current population estimate is 7 million.").length, 2);
@@ -64,6 +93,60 @@ test("classifies known official domains separately from unassessed sources", () 
   assert.equal(sourceReliability("https://example.com/news"), "UNASSESSED");
   assert.equal(sourceReliability("not a url"), "UNKNOWN");
 });
+test("uses broad primary-source retrieval hints for previously unmatched domains", () => {
+  assert.deepEqual(sourceDomainHints("The parliament passed a new regulation."), ["gov.uk", "congress.gov", "eur-lex.europa.eu", "un.org"]);
+  assert.deepEqual(sourceDomainHints("The vaccine reduced infection rates."), ["who.int", "cdc.gov", "nih.gov", "nhs.uk"]);
+  assert.deepEqual(sourceDomainHints("Inflation and unemployment increased in 2025."), ["imf.org", "worldbank.org", "oecd.org", "bls.gov"]);
+  assert.deepEqual(sourceDomainHints("Global temperatures and carbon emissions increased."), ["noaa.gov", "usgs.gov", "ipcc.ch", "unep.org"]);
+  assert.deepEqual(sourceDomainHints("A newly disclosed cybersecurity vulnerability affects the browser."), ["nist.gov", "ietf.org", "rfc-editor.org", "developer.mozilla.org"]);
+  assert.deepEqual(sourceDomainHints("The company announced a merger and quarterly earnings."), ["sec.gov", "companieshouse.gov.uk", "investor.gov", "oecd.org"]);
+  assert.deepEqual(sourceDomainHints("A satellite mission launched a new telescope."), ["nasa.gov", "esa.int", "iau.org", "noirlab.edu"]);
+  assert.deepEqual(sourceDomainHints("The football championship final is scheduled."), ["fifa.com", "olympics.com", "uefa.com", "worldathletics.org"]);
+  assert.deepEqual(sourceDomainHints("أعلنت الحكومة قانوناً جديداً."), ["gov.uk", "congress.gov", "eur-lex.europa.eu", "un.org"]);
+  assert.deepEqual(sourceDomainHints("لا توجد كلمات مفتاحية تخصصية في هذا الادعاء."), []);
+  // Existing claim-specific routing must remain higher priority than broad categories.
+  assert.deepEqual(sourceDomainHints("The Node.js LTS release is no longer supported."), ["nodejs.org"]);
+});
+
+test("allows only same-host same-path HTTPS historical redirects", () => {
+  const source = "https://www.example.org/archive/record";
+  assert.equal(resolveSafeHistoricalRedirect(source, "/archive/record?view=full", "www.example.org"), "https://www.example.org/archive/record?view=full");
+  assert.equal(resolveSafeHistoricalRedirect(source, "https://attacker.example/archive/record", "www.example.org"), null);
+  assert.equal(resolveSafeHistoricalRedirect(source, "http://www.example.org/archive/record", "www.example.org"), null);
+  assert.equal(resolveSafeHistoricalRedirect(source, "https://www.example.org/other-page", "www.example.org"), null);
+  assert.equal(resolveSafeHistoricalRedirect(source, "https://user@www.example.org/archive/record", "www.example.org"), null);
+  assert.equal(resolveSafeHistoricalRedirect(source, "https://www.example.org:8443/archive/record", "www.example.org"), null);
+  assert.equal(resolveSafeHistoricalRedirect(source, "//attacker.example/archive/record", "www.example.org"), null);
+});
+
+test("uses unrestricted retrieval for stable facts and a recent window for temporal claims", () => {
+  assert.equal(searchTimeRangeForClaim("Apollo 11 landed on the Moon in 1969."), null);
+  assert.equal(searchTimeRangeForClaim("The current CEO was appointed in 2025."), "year");
+});
+
+test("historical claims cannot receive CURRENT without two validated direct institutional sources", () => {
+  const adjudication = { status: "CURRENT", rationale: "broad search support" };
+  const plan = { id: "FIRST_IPHONE" };
+  const oneValidated = applyHistoricalSourceGate(adjudication, plan, [
+    { stage: "DIRECT_HISTORICAL_SOURCE", status: "VALIDATED" },
+    { stage: "DIRECT_HISTORICAL_SOURCE", status: "FETCH_UNAVAILABLE" }
+  ]);
+  assert.equal(oneValidated.status, "NEEDS_REVIEW");
+  assert.equal(oneValidated.historical_source_gate.validated_direct_sources, 1);
+  assert.equal(oneValidated.correction_candidate, null);
+
+  const twoValidated = applyHistoricalSourceGate(adjudication, plan, [
+    { stage: "DIRECT_HISTORICAL_SOURCE", status: "VALIDATED" },
+    { stage: "DIRECT_HISTORICAL_SOURCE", status: "VALIDATED" }
+  ]);
+  assert.equal(twoValidated.status, "CURRENT");
+});
+
+test("historical source gate does not alter non-historical claims", () => {
+  const adjudication = { status: "CURRENT", rationale: "supported" };
+  assert.equal(applyHistoricalSourceGate(adjudication, null, []), adjudication);
+});
+
 test("does not treat non-http links as valid source URLs", () => {
   assert.equal(sourceReliability("javascript:alert(1)"), "UNKNOWN");
 });
@@ -290,8 +373,11 @@ test("retries an empty Node.js official-domain search with one bounded broad que
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(requests.length, 2);
-    assert.deepEqual(requests[0].include_domains, ["nodejs.org"]);
-    assert.equal(requests[1].include_domains, undefined);
+    assert.equal(requests[0].query, "The latest stable Node.js release is Node.js 20.");
+    assert.equal(Object.hasOwn(requests[0], "include_domains"), false,
+      "the universal baseline must search the original claim without a publisher allowlist");
+    assert.deepEqual(requests[1].include_domains, ["nodejs.org"],
+      "the Node.js specialist retry may add a bounded first-party search");
     assert.equal(body.methodology.search_budget.used, 2);
     assert.equal(body.claims[0].sources.length, 1);
     assert.equal(body.claims[0].sources[0].url, "https://nodejs.org/en/blog/release/v26.13.0");
@@ -424,9 +510,10 @@ test("detects a narrowly scoped US president office-holder claim", async () => {
 
 test("preserves office-holder context when Tavily places it beyond the 900-character display snippet", async () => {
   const originalFetch = globalThis.fetch;
+  const queries = [];
   globalThis.fetch = async (_url, init) => {
     const requestBody = JSON.parse(init.body);
-    assert.match(requestBody.query, /current President of the United States/);
+    queries.push(requestBody.query);
     return new Response(JSON.stringify({ results: [{
       title: "Executive Orders – The White House",
       url: "https://www.whitehouse.gov/administration/",
@@ -445,6 +532,7 @@ test("preserves office-holder context when Tavily places it beyond the 900-chara
     const result = await response.json();
     assert.equal(response.status, 200);
     assert.equal(result.version, VERSION);
+    assert.ok(queries.some(query => /current President of the United States/.test(query)), "specialist search must supplement the generic baseline");
     assert.equal(result.claims[0].status, "CONTRADICTED");
     assert.equal(result.claims[0].officeholder_evidence.reported_current_holder, "Donald J. Trump");
     assert.equal(result.claims[0].officeholder_evidence.supporting_sources[0].published_date, "2026-09-29");
@@ -461,9 +549,10 @@ test("does not split a person's middle initial from the surname during claim ext
 
 test("preserves a matching full office-holder name through the complete verification pipeline", async () => {
   const originalFetch = globalThis.fetch;
+  const queries = [];
   globalThis.fetch = async (_url, init) => {
     const requestBody = JSON.parse(init.body);
-    assert.match(requestBody.query, /current President of the United States/);
+    queries.push(requestBody.query);
     return new Response(JSON.stringify({ results: [{
       title: "Executive Orders – The White House",
       url: "https://www.whitehouse.gov/administration/",
@@ -484,6 +573,7 @@ test("preserves a matching full office-holder name through the complete verifica
     assert.equal(result.version, VERSION);
     assert.equal(result.claims.length, 1);
     assert.equal(result.claims[0].text, "As of 2026, the President of the United States is Donald J. Trump.");
+    assert.ok(queries.some(query => /current President of the United States/.test(query)), "specialist search must supplement the generic baseline");
     assert.notEqual(result.claims[0].status, "CONTRADICTED");
     assert.equal(result.claims[0].status, "NEEDS_REVIEW", "matching evidence should not be overclaimed as verified current");
   } finally { globalThis.fetch = originalFetch; }
@@ -658,7 +748,7 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.47");
+    assert.equal(body.version, "0.2.75");
     assert.equal(body.claims.length, 2);
     assert.equal(body.claims[1].text, "its official brand name has not changed.");
     assert.equal(body.claims[1].resolved_context.resolved_claim, "Twitter's official brand name has not changed.");
@@ -799,13 +889,16 @@ test("software and pricing adapters apply official-domain restrictions to Tavily
     return new Response(JSON.stringify({ results: [] }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    for (const text of ["The latest stable Node.js version is 22.0.0.", "The official US price of ChatGPT Plus is $20 per month."]) {
+    for (const [text, expectedDomain] of [
+      ["The latest stable Node.js version is 22.0.0.", "nodejs.org"],
+      ["The official US price of ChatGPT Plus is $20 per month.", "help.openai.com"]
+    ]) {
+      const start = requests.length;
       const response = await worker.fetch(new Request("https://freshproof.test/api/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
       assert.equal(response.status, 200);
+      const claimRequests = requests.slice(start);
+      assert.ok(claimRequests.some(request => (request.include_domains || []).includes(expectedDomain)), `specialist query for ${expectedDomain} should be bounded additive enrichment`);
     }
-    assert.deepEqual(requests[0].include_domains, ["nodejs.org"]);
-    assert.equal(requests[1].include_domains, undefined);
-    assert.deepEqual(requests[2].include_domains, ["help.openai.com"]);
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -1041,7 +1134,7 @@ import { adjudicateEvidence } from "../worker/evidence-adjudication.js";
 test("Evidence Adjudication requires two independent recent primary sources for CURRENT",()=>{const sources=["a.gov","b.gov"].map(h=>({url:"https://"+h+"/fact",title:"Official fact",published_date:"2026-11-09",source_reliability:"PRIMARY_OR_OFFICIAL_DOMAIN",relevance_assessment:{relevance:"HIGH"}}));const r=adjudicateEvidence({claim:"The policy is currently active.",sources,semanticAssessment:{status:"COMPLETED_ADVISORY",assessments:[{source_index:0,relation:"SUPPORTS"},{source_index:1,relation:"SUPPORTS"}]},now:Date.parse("2026-11-10T00:00:00Z")});assert.equal(r.status,"CURRENT");});
 test("Evidence Adjudication requires two independent primary contradictions",()=>{const sources=["a.gov","b.gov"].map(h=>({url:"https://"+h+"/fact",published_date:"2026-11-09",source_reliability:"PRIMARY_OR_OFFICIAL_DOMAIN",relevance_assessment:{relevance:"HIGH"}}));const r=adjudicateEvidence({claim:"The policy is active.",sources,semanticAssessment:{status:"COMPLETED_ADVISORY",assessments:[{source_index:0,relation:"CONTRADICTS"},{source_index:1,relation:"CONTRADICTS"}]},now:Date.parse("2026-11-10T00:00:00Z")});assert.equal(r.status,"CONTRADICTED");});
 test("Evidence Adjudication abstains on stale, undated, and mixed evidence",()=>{const b={url:"https://agency.gov/fact",source_reliability:"PRIMARY_OR_OFFICIAL_DOMAIN",relevance_assessment:{relevance:"HIGH"}};const stale=adjudicateEvidence({sources:[{...b,published_date:"2024-01-01"}],semanticAssessment:{assessments:[{source_index:0,relation:"SUPPORTS"}]},now:Date.parse("2026-11-10T00:00:00Z")});const undated=adjudicateEvidence({sources:[b],semanticAssessment:{assessments:[{source_index:0,relation:"SUPPORTS"}]},now:Date.parse("2026-11-10T00:00:00Z")});const mixed=adjudicateEvidence({sources:[{...b,published_date:"2026-11-09"},{...b,url:"https://other.gov/fact",published_date:"2026-11-09"}],semanticAssessment:{assessments:[{source_index:0,relation:"SUPPORTS"},{source_index:1,relation:"MIXED"}]},now:Date.parse("2026-11-10T00:00:00Z")});assert.equal(stale.status,"NEEDS_REVIEW");assert.equal(undated.status,"NEEDS_REVIEW");assert.equal(mixed.status,"NEEDS_REVIEW");});
-test("domain-specific lifecycle adjudication takes precedence without semantic override",()=>{const r=adjudicateEvidence({sources:[],domainResult:{status:"CURRENT",evidence:{method:"OFFICIAL_NODEJS_RELEASE_SCHEDULE_JSON"}}});assert.equal(r.status,"CURRENT");assert.equal(r.method,"DOMAIN_SPECIFIC_RULE");});
+test("domain-specific lifecycle verdict is withheld without evidence bound to eligible sources",()=>{const r=adjudicateEvidence({sources:[],domainResult:{status:"CURRENT",evidence:{method:"OFFICIAL_NODEJS_RELEASE_SCHEDULE_JSON"}}});assert.equal(r.status,"NEEDS_REVIEW");assert.equal(r.method,"DOMAIN_ADAPTER_EVIDENCE_GATE");});
 
 
 test("Node.js lifecycle adapter uses immutable schedule via Atom when REST is unavailable and exposes EOL date", async () => {
@@ -1124,7 +1217,7 @@ test("temporal retrieval failures are surfaced as diagnostics and never converte
     if (String(url).startsWith("https://api.tavily.com/search")) {
       return new Response("search unavailable", { status: 503 });
     }
-    if (String(url) === "https://www.python.org/doc/sunset-python-2/") {
+    if (String(url) === "https://www.python.org/doc/sunset-python-2/" || String(url) === "https://peps.python.org/pep-0373/") {
       return new Response("official source unavailable", { status: 503 });
     }
     throw new Error("Unexpected URL: " + String(url));
@@ -1142,9 +1235,24 @@ test("temporal retrieval failures are surfaced as diagnostics and never converte
     assert.equal(claim.domain_evidence.retrieval_status, "HTTP_ERROR");
     assert.equal(claim.retrieval_diagnostics.some(item => item.provider === "TAVILY" && item.status === "UPSTREAM_FAILED"), true);
     assert.equal(claim.retrieval_diagnostics.some(item => item.provider === "PYTHON_ORG" && item.status === "HTTP_ERROR"), true);
-    assert.equal(body.methodology.search_budget.used, 2);
-    assert.equal(body.methodology.direct_fetch_budget.used, 1);
+    assert.equal(claim.retrieval_diagnostics.some(item => item.provider === "PYTHON_PEP_0373" && item.status === "HTTP_ERROR"), true);
+    assert.equal(body.methodology.search_budget.used, 1);
+    assert.equal(claim.retrieval_diagnostics.some(item => item.provider === "TAVILY" && item.status === "CIRCUIT_OPEN"), true);
+    assert.equal(body.methodology.direct_fetch_budget.used, 2);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("social, marketplace, and search-provider pages are excluded from factual evidence", () => {
+  for (const url of [
+    "https://www.facebook.com/example",
+    "https://www.youtube.com/watch?v=123",
+    "https://www.linkedin.com/in/example",
+    "https://www.amazon.com/product/example",
+    "https://www.tavily.com/"
+  ]) assert.equal(isLowSignalSourceHost(url), true, url);
+  assert.equal(isLowSignalSourceHost("https://www.nasa.gov/history"), false);
+  assert.equal(isLowSignalSourceHost("https://www.britannica.com/science/water"), false);
+});
+

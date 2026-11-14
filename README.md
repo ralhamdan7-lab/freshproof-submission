@@ -60,11 +60,9 @@ The semantic model is advisory. It cannot independently establish a claim or ove
 The public repository is an independently configured release candidate. It contains the general-purpose claim extraction, temporal retrieval, evidence adjudication, and explanation improvements reviewed from the private development line. It intentionally excludes Groq integration, private configuration, internal evaluation corpora, and audit records. The public build uses its own Worker name, allowed origin, and deployment configuration.
 
 
-## Live demo (Staging)
+## Public demo deployment
 
-[Open the FreshProof public demo](https://freshproof-submission-demo.ralhamdan7.workers.dev/)
-
-This is an isolated public demonstration deployment, separate from the private development Staging Worker. The deployment is a release candidate until the health endpoint, browser flow, and bounded evidence-search path have been verified. Evidence-search availability depends on the free provider quota and is not guaranteed. Do not submit confidential or personal information.
+The isolated public demo is being prepared under the dedicated Worker name `freshproof-submission-demo`. It is not published as a working demo URL until deployment and health, browser, and API checks pass. The private development Staging Worker is not used as a substitute. Evidence-search availability will depend on the verified free provider quota. Do not submit confidential or personal information.
 
 ## Run locally
 

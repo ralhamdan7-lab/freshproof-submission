@@ -66,3 +66,14 @@ No organizer submission is claimed by this status file.
 - Public browser acceptance [#43250280219](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280219): **SUCCESS**.
 - Public live Staging acceptance [#43250280631](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280631): **SUCCESS**.
 - The public v0.2.46 Worker source, domain adapters, regression tests, randomized test script, and acceptance workflows were compared byte-for-byte with the private development repository after synchronization.
+
+
+## 2026-11-14 — latest private Staging verification and public-source boundary
+
+- Private development candidate **0.2.75** is deployed to the isolated Staging Worker and exact health verification passed. Cloudflare confirms Worker version 177, version ID `45e97bb1-9a54-4bc2-824e-8a9eec04c145`, deployment ID `83ef6446-8915-4e6f-9ff5-9417915a5066`, 100% traffic.
+- Private main CI [#43643448239](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448239): **334/334 tests passed**; syntax, temporal smoke, and v1/v2 corpus integrity checks passed.
+- Private Staging deployment [#43643448251](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448251): **SUCCESS**; exact health response confirmed 0.2.75.
+- Browser acceptance [#43643497434](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643497434): **SUCCESS**, including real browser-to-Worker API integration, keyboard submission, bilingual RTL/LTR rendering, evidence/correction rendering, and mobile checks.
+- **Public source boundary:** this repository remains a sanitized **0.2.47** source snapshot. It has not been synchronized or independently tested against private v0.2.75. The private CI results above must not be represented as public-repository CI or public source parity.
+- **Not run on v0.2.75:** randomized 26-claim live acceptance and 54-case held-out live evaluation. The workflows require confirmed free Workers AI and Tavily quota availability; Tavily quota is not accessible through the connected account tools, so the live batches were not dispatched.
+- Production remains unchanged. This repository update does not submit the project to the organizer. The owner must complete the official portal and retain its receipt.

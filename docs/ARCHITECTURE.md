@@ -1,3 +1,11 @@
+## v0.2.81 — universal retrieval and claim-graph integrity
+
+- The immutable original proposition is the universal retrieval baseline for every claim. The generic core does not rewrite queries based on entity/topic keywords and does not infer a publisher allowlist.
+- Generic diversity enrichment is bounded, publisher-agnostic, and subject to the request-wide search budget. Topic-specific retrieval is allowed only inside an explicitly matched specialist adapter.
+- Specialist adapters may contribute additive retrieval and scoped evidence context; they cannot independently force a generic whole-claim verdict or bypass core adjudication.
+- Claim decomposition preserves exact source text and source spans. Conditions, exceptions, concessions, and contrasts remain attached to the governing proposition; independent semicolon-separated propositions receive explicit unresolved relations rather than invented logical links.
+- Commas and conjunction-linked clauses remain intact for semantic assessment rather than being prematurely split into apparently independent claims.
+
 # Architecture — FreshProof v0.2.25 adapter refactor
 
 ## Core and extension boundary

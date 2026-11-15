@@ -1,7 +1,7 @@
 import { detectTextDirection } from "../src/text-direction.js";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTemporalSearchQuery, sourceDomainHints, assessPublisherDiversityNeed, splitClaims, isLikelyTemporal, sourceReliability, isLowSignalSourceHost, alignSourceToClaim, assessClaimRelation, compareEvidenceSet, adjudicateEvidenceWithModel, applyHistoricalSourceGate, resolveSafeHistoricalRedirect, searchTimeRangeForClaim, SEMANTIC_MODEL, LIMITS, VERSION, DOMAIN_ADAPTERS } from "../worker/index.js";
+import { buildTemporalSearchQuery, sourceDomainHints, assessPublisherDiversityNeed, splitClaims, isLikelyTemporal, sourceReliability, isLowSignalSourceHost, alignSourceToClaim, assessClaimRelation, compareEvidenceSet, adjudicateEvidenceWithModel, resolveHistoricalSourceAdapter, resolveSafeHistoricalRedirect, searchTimeRangeForClaim, SEMANTIC_MODEL, LIMITS, VERSION, DOMAIN_ADAPTERS } from "../worker/index.js";
 
 test("publisher diversity fallback counts qualified high-relevance domains, not raw URL domains", () => {
   const claim = "Water is composed of hydrogen and oxygen.";
@@ -24,11 +24,19 @@ test("publisher diversity fallback counts qualified high-relevance domains, not 
   assert.equal(sufficient.qualified_domain_count, 2);
   assert.equal(sufficient.needs_diversity, false);
 });
-test("publisher diversity fallback drops already represented hinted domains", () => {
+test("generic publisher diversity never infers alternate domains from claim keywords", () => {
+  const claims = [
+    "Water is composed of hydrogen and oxygen.",
+    "The parliament passed a new regulation.",
+    "A newly disclosed cybersecurity vulnerability affects the browser.",
+    "The European Union currently has 27 member states.",
+    "أعلنت الحكومة قانوناً جديداً."
+  ];
+  for (const claim of claims) assert.deepEqual(sourceDomainHints(claim), [], claim);
   const result = assessPublisherDiversityNeed("Water is composed of hydrogen and oxygen.", [
     { url: "https://www.usgs.gov/water", title: "Water is composed of hydrogen and oxygen", snippet: "Water is composed of hydrogen and oxygen" }
-  ], ["usgs.gov", "rsc.org", "nist.gov"]);
-  assert.deepEqual(result.alternate_domains, ["rsc.org", "nist.gov"]);
+  ]);
+  assert.deepEqual(result.alternate_domains, []);
   assert.equal(result.needs_diversity, true);
 });
 
@@ -93,19 +101,20 @@ test("classifies known official domains separately from unassessed sources", () 
   assert.equal(sourceReliability("https://example.com/news"), "UNASSESSED");
   assert.equal(sourceReliability("not a url"), "UNKNOWN");
 });
-test("uses broad primary-source retrieval hints for previously unmatched domains", () => {
-  assert.deepEqual(sourceDomainHints("The parliament passed a new regulation."), ["gov.uk", "congress.gov", "eur-lex.europa.eu", "un.org"]);
-  assert.deepEqual(sourceDomainHints("The vaccine reduced infection rates."), ["who.int", "cdc.gov", "nih.gov", "nhs.uk"]);
-  assert.deepEqual(sourceDomainHints("Inflation and unemployment increased in 2025."), ["imf.org", "worldbank.org", "oecd.org", "bls.gov"]);
-  assert.deepEqual(sourceDomainHints("Global temperatures and carbon emissions increased."), ["noaa.gov", "usgs.gov", "ipcc.ch", "unep.org"]);
-  assert.deepEqual(sourceDomainHints("A newly disclosed cybersecurity vulnerability affects the browser."), ["nist.gov", "ietf.org", "rfc-editor.org", "developer.mozilla.org"]);
-  assert.deepEqual(sourceDomainHints("The company announced a merger and quarterly earnings."), ["sec.gov", "companieshouse.gov.uk", "investor.gov", "oecd.org"]);
-  assert.deepEqual(sourceDomainHints("A satellite mission launched a new telescope."), ["nasa.gov", "esa.int", "iau.org", "noirlab.edu"]);
-  assert.deepEqual(sourceDomainHints("The football championship final is scheduled."), ["fifa.com", "olympics.com", "uefa.com", "worldathletics.org"]);
-  assert.deepEqual(sourceDomainHints("أعلنت الحكومة قانوناً جديداً."), ["gov.uk", "congress.gov", "eur-lex.europa.eu", "un.org"]);
-  assert.deepEqual(sourceDomainHints("لا توجد كلمات مفتاحية تخصصية في هذا الادعاء."), []);
-  // Existing claim-specific routing must remain higher priority than broad categories.
-  assert.deepEqual(sourceDomainHints("The Node.js LTS release is no longer supported."), ["nodejs.org"]);
+test("generic publisher hints remain empty across registered and unseen subjects", () => {
+  const claims = [
+    "The parliament passed a new regulation.",
+    "The vaccine reduced infection rates.",
+    "Inflation and unemployment increased in 2025.",
+    "Global temperatures and carbon emissions increased.",
+    "A newly disclosed cybersecurity vulnerability affects the browser.",
+    "The company announced a merger and quarterly earnings.",
+    "A satellite mission launched a new telescope.",
+    "The football championship final is scheduled.",
+    "أعلنت الحكومة قانوناً جديداً.",
+    "The Node.js LTS release is no longer supported."
+  ];
+  for (const claim of claims) assert.deepEqual(sourceDomainHints(claim), [], claim);
 });
 
 test("allows only same-host same-path HTTPS historical redirects", () => {
@@ -124,27 +133,13 @@ test("uses unrestricted retrieval for stable facts and a recent window for tempo
   assert.equal(searchTimeRangeForClaim("The current CEO was appointed in 2025."), "year");
 });
 
-test("historical claims cannot receive CURRENT without two validated direct institutional sources", () => {
-  const adjudication = { status: "CURRENT", rationale: "broad search support" };
-  const plan = { id: "FIRST_IPHONE" };
-  const oneValidated = applyHistoricalSourceGate(adjudication, plan, [
-    { stage: "DIRECT_HISTORICAL_SOURCE", status: "VALIDATED" },
-    { stage: "DIRECT_HISTORICAL_SOURCE", status: "FETCH_UNAVAILABLE" }
-  ]);
-  assert.equal(oneValidated.status, "NEEDS_REVIEW");
-  assert.equal(oneValidated.historical_source_gate.validated_direct_sources, 1);
-  assert.equal(oneValidated.correction_candidate, null);
-
-  const twoValidated = applyHistoricalSourceGate(adjudication, plan, [
-    { stage: "DIRECT_HISTORICAL_SOURCE", status: "VALIDATED" },
-    { stage: "DIRECT_HISTORICAL_SOURCE", status: "VALIDATED" }
-  ]);
-  assert.equal(twoValidated.status, "CURRENT");
-});
-
-test("historical source gate does not alter non-historical claims", () => {
-  const adjudication = { status: "CURRENT", rationale: "supported" };
-  assert.equal(applyHistoricalSourceGate(adjudication, null, []), adjudication);
+test("historical specialist adapters provide evidence plans but no verdict override", () => {
+  const adapter = resolveHistoricalSourceAdapter("The first iPhone was released in 2007.");
+  assert.equal(adapter.id, "FIRST_IPHONE");
+  assert.equal(typeof adapter.query, "string");
+  assert.ok(adapter.directSources.length >= 2);
+  assert.equal(Object.hasOwn(adapter, "adjudicate"), false);
+  assert.deepEqual(sourceDomainHints("The first iPhone was released in 2007."), []);
 });
 
 test("does not treat non-http links as valid source URLs", () => {
@@ -740,7 +735,7 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     ] }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    const answer = "Twitter is currently known as Twitter, and its official brand name has not changed.";
+    const answer = "Twitter is currently known as Twitter. Its official brand name has not changed.";
     const response = await handler.fetch(new Request("https://worker.example/api/verify", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -750,7 +745,7 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     assert.equal(response.status, 200);
     assert.equal(body.version, "0.2.77");
     assert.equal(body.claims.length, 2);
-    assert.equal(body.claims[1].text, "its official brand name has not changed.");
+    assert.equal(body.claims[1].text, "Its official brand name has not changed.");
     assert.equal(body.claims[1].resolved_context.resolved_claim, "Twitter's official brand name has not changed.");
     assert.match(queries[1], /Twitter/);
     assert.equal(queries.filter(query => query.includes("official platform name rebrand")).length, 1);

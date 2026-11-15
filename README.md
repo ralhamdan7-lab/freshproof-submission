@@ -53,7 +53,7 @@ The semantic model is advisory; it cannot independently establish truth or overr
 - **Evidence retrieval:** Tavily, server-side credential only
 - **Optional semantic assessment:** Cloudflare Workers AI, advisory and fail-closed
 - **Storage:** no application database or durable user-submission storage is required
-- **Public release scope:** excludes Groq integration, private configuration, internal evaluation corpora, and internal audit records
+- **Public release scope:** independently configured for public review; provider credentials remain server-side and no private user data is included
 
 The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
 
@@ -65,7 +65,7 @@ The public repository is an independently configured submission build. It includ
 - Public live API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): the deployed health endpoint reported exact version `0.2.81`; one bounded `POST /api/verify` returned HTTP 200 and processed one claim.
 - Demonstrated claim: “Node.js 20.x remains actively supported under LTS.” The API returned `SUPERSEDED` using the official Node.js release/lifecycle table. Six evidence records were returned, two Tavily searches were used, Freshness was `FRESH`, and Evidence Confidence was `LIMITED`.
 - This is one specialist software-lifecycle scenario, not a general-domain accuracy study. No general precision, recall, false-positive rate, citation correctness, or cost-per-claim figure is claimed.
-- The 54-case held-out v2 evaluation is separate and remains pending final execution and review.
+
 
 ## Run locally
 
@@ -91,7 +91,7 @@ The optional Workers AI binding is configured by Wrangler. Never place provider 
 
 The prototype applies bounded input, claim, search, result, and source-fetch limits. It is intended for demonstration and review, not as a guarantee that every claim can be conclusively verified.
 
-Automated tests and synthetic temporal benchmarks are engineering diagnostics, not representative real-world accuracy studies. A single live integration test is not a substitute for a held-out evaluation with audited labels. Abstention is an intentional safe outcome.
+Automated tests and synthetic temporal benchmarks are engineering diagnostics, not representative real-world accuracy studies. A single live integration test is not a substitute for a representative, independently reviewed accuracy evaluation. Abstention is an intentional safe outcome.
 
 ## Security and privacy
 

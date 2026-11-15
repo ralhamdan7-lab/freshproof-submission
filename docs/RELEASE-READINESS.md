@@ -28,8 +28,9 @@ This document describes only the public submission candidate in this repository.
 4. Browser acceptance passes against an isolated local Worker with deterministic API fixtures.
 5. Secret and private-resource scan passes.
 6. Independent public demo deployment health check passes.
-7. Bounded live retrieval is tested only after the free provider quota and secret binding are verified.
-8. Cloudflare Workers Builds linkage is verified: merging to `main` automatically invokes `npx wrangler deploy` for the public demo Worker. Merge is therefore a public release action and must occur only after all live acceptance gates pass.
+7. Deployed Worker configuration is checked for the required rate-limit binding, semantic triage flag, AI binding, and server-side provider secret binding; configuration inspection is not a substitute for live enforcement tests.
+8. Bounded live retrieval is tested only after the free provider quota is verified; the server-side Tavily secret binding is present.
+9. Cloudflare Workers Builds linkage is verified: merging to `main` automatically invokes `npx wrangler deploy` for the public demo Worker. Merge is therefore a public release action and must occur only after all live acceptance gates pass.
 
 ## Current limitations
 - No general accuracy metrics are claimed without an audited held-out evaluation.

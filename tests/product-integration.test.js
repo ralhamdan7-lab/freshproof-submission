@@ -63,6 +63,10 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
     const url = typeof input === "string" ? input : input.url;
     assert.equal(url, "https://api.tavily.com/search");
     assert.equal(init.method, "POST");
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get("authorization"), "Bearer synthetic-test-key");
+    const tavilyBody = JSON.parse(init.body);
+    assert.equal(Object.hasOwn(tavilyBody, "api_key"), false);
     return new Response(JSON.stringify({
       results: sourceSet.map(source => ({
         title: source.title,

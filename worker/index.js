@@ -964,7 +964,7 @@ export function normalizeSource(item) {
 }
 
 async function searchTavily(query, env, includeDomains = [], options = {}, onRejectedUrl = null) {
-  const response = await fetch("https://api.tavily.com/search", { method: "POST", signal: AbortSignal.timeout(10000), headers: { "content-type": "application/json" }, body: JSON.stringify({ api_key: env.TAVILY_API_KEY, query, topic: "general", search_depth: "basic", max_results: LIMITS.maxResultsPerClaim, include_answer: false, include_raw_content: false, include_published_date: true, ...(options.timeRange === null ? {} : { time_range: options.timeRange || "year" }), filter_by_published_date: false, ...(includeDomains.length ? { include_domains: includeDomains } : {}) }) });
+  const response = await fetch("https://api.tavily.com/search", { method: "POST", signal: AbortSignal.timeout(10000), headers: { "content-type": "application/json", authorization: `Bearer ${env.TAVILY_API_KEY}` }, body: JSON.stringify({ query, topic: "general", search_depth: "basic", max_results: LIMITS.maxResultsPerClaim, include_answer: false, include_raw_content: false, include_published_date: true, ...(options.timeRange === null ? {} : { time_range: options.timeRange || "year" }), filter_by_published_date: false, ...(includeDomains.length ? { include_domains: includeDomains } : {}) }) });
   if (!response.ok) throw new Error(`Evidence provider returned ${response.status}`);
   const data = await response.json();
   const normalized = [];

@@ -35,16 +35,16 @@ Evidence relation labels (`SUPPORTS`, `CONTRADICTS`, `MIXED`, `IRRELEVANT`, `INS
 
 ```text
 Browser UI
-   │
-   ▼
+   |
+   v
 Cloudflare Worker API
-   ├── Input validation and bounded claim extraction
-   ├── Temporal triage and query planning
-   ├── Evidence retrieval (Tavily)
-   ├── Source normalization and provenance
-   ├── Optional advisory semantic assessment (Cloudflare Workers AI)
-   ├── Evidence adjudication and abstention
-   └── Explanation and evidence-gated correction
+   |- Input validation and bounded claim extraction
+   |- Temporal triage and query planning
+   |- Evidence retrieval (Tavily)
+   |- Source normalization and provenance
+   |- Optional advisory semantic assessment (Cloudflare Workers AI)
+   |- Evidence adjudication and abstention
+   '- Explanation and evidence-gated correction
 ```
 
 The semantic model is advisory. It cannot independently establish a claim or override the evidence adjudication policy.
@@ -103,6 +103,8 @@ A `NEEDS_REVIEW` or `UNVERIFIABLE` result is an intentional safe outcome when th
 - Retrieved content is untrusted evidence, never executable instructions.
 - Input and provider operations are bounded.
 - Configure an exact allowed browser origin; CORS is not authentication.
+- Native Cloudflare rate limiting is an approximate per-edge abuse guard, not a strict global quota.
+- Optional model-assisted correction review is disabled in the public configuration; semantic triage remains advisory.
 - Do not deploy a fork with real credentials until its configuration and secret handling have been reviewed.
 
 ## Hackathon submission
@@ -111,4 +113,4 @@ This repository contains the public source snapshot for review. The official sub
 
 ## License and ownership
 
-No open-source license is granted by this repository unless a separate license file explicitly states otherwise. All rights are reserved by the project owner. See [OWNERSHIP.md](OWNERSHIP.md) for the project ownership and provenance declaration.
+No open-source license is granted by this repository unless a separate license file explicitly states otherwise. All rights are reserved by the project owner. Ownership and provenance information is not included as a separate file in this public snapshot.

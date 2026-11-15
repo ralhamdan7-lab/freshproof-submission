@@ -39,19 +39,19 @@ jobs:
         run: npm install --no-save --no-package-lock playwright
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Start isolated local Worker
+      - name: Serve isolated static UI for deterministic browser test
         shell: bash
         run: |
           set -euo pipefail
-          npx wrangler dev --ip 127.0.0.1 --port 8787 > /tmp/freshproof-wrangler.log 2>&1 &
-          echo $! > /tmp/freshproof-wrangler.pid
-          for attempt in $(seq 1 30); do
+          python3 -m http.server 8787 --bind 127.0.0.1 --directory src > /tmp/freshproof-http.log 2>&1 &
+          echo $! > /tmp/freshproof-http.pid
+          for attempt in $(seq 1 15); do
             if curl --fail --silent http://127.0.0.1:8787/ >/dev/null; then
               exit 0
             fi
-            sleep 2
+            sleep 1
           done
-          cat /tmp/freshproof-wrangler.log
+          cat /tmp/freshproof-http.log
           exit 1
       - name: Test isolated Worker UI with deterministic API fixture
         env:

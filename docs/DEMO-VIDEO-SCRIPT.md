@@ -41,6 +41,6 @@ Target duration: 2:30–3:00. Record the actual deployed public application. Use
 - Capture the actual public UI and current live result; never substitute a mock for a live claim.
 - Confirm the live Worker health version is 0.2.81 immediately before recording.
 - Keep the official Node.js source URL visible and clickable.
-- Do not show internal Staging, held-out data, credentials, or unrelated projects.
+- Do not show non-public infrastructure, credentials, or personal information.
 - If editing out waiting time, disclose that the footage was edited.
 - Keep the final video within 2–4 minutes and test playback in a logged-out browser if hosted.

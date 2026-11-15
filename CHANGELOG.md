@@ -1,3 +1,24 @@
+# v0.2.84 — claim frames, execution status, live issuer records and validated supersession (2026-11-16)
+
+- **Claim frames.** Each claim gets a deterministic frame (dated event, current state, past state, scheduled or future, stable fact, attributed finding, opinion). Only current-state claims require recent evidence.
+- **Execution status.** `NOT_ASSESSED` and per-stage execution status (`COMPLETED / PARTIAL / PROVIDER_LIMITED / FAILED`) are separate from the factual verdict. An outage is never presented as a finding.
+- **Research plan.** A bounded plan adds a value-masked query, so a wrong value in the claim does not bias retrieval, and, for current-state claims, a change query. All searches share one budget.
+- **Extraction.** Sentences led by a pronoun, a relative time ("two years later", «في العام التالي») or a contrast marker stay bound to the statement they depend on, so no orphan claims are extracted.
+- **Semantic assessment.** Scope means what a source discusses, not whether it agrees: a different value for the same attribute is a contradiction.
+- **Current-state rules.**
+  - A current-state claim can be settled by the authority's own current record (a register, membership list or directory) when it is fetched during the check, is direct and exact, and nothing conflicts with it.
+  - **Supersession** needs one validated change notice from a primary or institutional source, with verbatim quotes and a validated event date, plus independent corroboration. Any later qualified support blocks it.
+- **Event dates.** Transition verbs, month-year dates and Arabic dates (including Levantine month names and Arabic-Indic digits) are recognised as event dates.
+- **Dated events.** A deterministic dated-event frame can qualify a single originating authority, unless the claim is rated high risk.
+- **Publisher identity.** A page's declared publisher (JSON-LD organisation, site name) is recorded and can confirm a first-party page. A self-declared identity alone never confers authority.
+- **UI.**
+  - Claim type, recency policy and time anchors are shown.
+  - An execution note appears when a run was incomplete.
+  - Sources are grouped by how the verdict used them, with plain-language exclusion reasons.
+  - Arabic claims get Arabic explanations.
+- Retired the public-only test `universal-adjudication-acceptance` (the older `TEMPORAL_TRANSITION_CORROBORATION` rule). It is superseded by the frame-aware current-state and supersession rules above, which carry their own tests.
+- 484 tests in UTC and Asia/Riyadh. No evidence threshold was lowered and no publisher allowlist was added.
+
 # v0.2.81 — claim dependency preservation and publisher-agnostic retrieval (2026-11-15)
 
 - Preserve dependent condition, exception, concession, and contrast clauses across semicolon boundaries; do not emit dependent fragments as standalone claims.

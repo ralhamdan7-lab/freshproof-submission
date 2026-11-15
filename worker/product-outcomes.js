@@ -1,4 +1,4 @@
-const VALID_STATUSES = new Set(["CURRENT", "SUPERSEDED", "CONTRADICTED", "UNVERIFIABLE", "NEEDS_REVIEW", "NOT_TIME_SENSITIVE"]);
+const VALID_STATUSES = new Set(["CURRENT", "SUPERSEDED", "CONTRADICTED", "UNVERIFIABLE", "NEEDS_REVIEW", "NOT_ASSESSED"]);
 const PYTHON_SUNSET_URL = "https://www.python.org/doc/sunset-python-2/";
 const PYTHON_PEP373_URL = "https://peps.python.org/pep-0373/";
 function canonicalPythonLifecycleUrl(value) {
@@ -31,6 +31,34 @@ function safeSourceRef(source) {
 function uniqueStrings(values) {
   return [...new Set(values.filter(value => typeof value === "string" && value.trim()).map(value => value.trim()))];
 }
+// v0.2.84: Arabic rendering of the adjudicator's rationale, keyed by method.
+// The English rationale is retained verbatim in reason_original for audit.
+const ARABIC_RATIONALE = {
+  CONSERVATIVE_EVIDENCE_ADJUDICATION: () => "لم تستوفِ الأدلة عتبة الكفاية الخاصة بهذا الادعاء، أو تضمنت علاقات دلالية متباينة. صلة نتائج البحث وتعارضاتها اللفظية ليست دليلاً بحد ذاتها.",
+  SINGLE_AUTHORITATIVE_PRIMARY_EVIDENCE: status => status === "CONTRADICTED"
+    ? "مصدر أولي واحد مؤهل وذو صلة عالية يناقض النطاق الدقيق لادعاء محدود ومنخفض المخاطر. لا ينطبق هذا الاستثناء على الادعاءات الواسعة أو الخلافية أو المركبة أو الراهنة."
+    : "مصدر أولي واحد مؤهل وذو صلة عالية يتناول النطاق الدقيق لادعاء محدود ومنخفض المخاطر. لا ينطبق هذا الاستثناء على الادعاءات الواسعة أو الخلافية أو المركبة أو الراهنة.",
+  CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE: status => status === "CONTRADICTED"
+    ? "نطاقان مستقلان على الأقل من المصادر الأولية أو المؤسسية المؤهلة قُيّما بأنهما يناقضان الادعاء بدقة."
+    : "نطاقان مستقلان على الأقل من المصادر الأولية أو المؤسسية المؤهلة قُيّما بأنهما يدعمان الادعاء بدقة.",
+  CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE: () => "ناشران ثانويان مستقلان موثوقان يطابقان النطاق الدقيق لادعاء تاريخي أو سجلي محدود ومنخفض المخاطر.",
+  CORROBORATED_TEMPORAL_CHANGE_EVENT: () => "تُثبت مصادر مستقلة مؤهلة حدوث تغيير مؤرخ لاحق تجاوز الحالة التي يذكرها الادعاء.",
+  ISSUER_CHANGE_NOTICE_WITH_CORROBORATION: () => "يوثّق مصدر أولي أو مؤسسي تغييراً مؤرخاً حلّ محل الحالة الواردة في الادعاء، ويؤكد مصدر مستقل مؤهل أن الادعاء لم يعد قائماً.",
+  LIVE_ISSUER_RECORD: status => status === "CONTRADICTED"
+    ? "السجل الحالي للجهة المُصدِرة نفسها، المسترجع أثناء هذا التحقق، يذكر حالة راهنة مختلفة، ولا يدعم الادعاءَ أي مصدر مقيَّم."
+    : "السجل الحالي للجهة المُصدِرة نفسها، المسترجع أثناء هذا التحقق، يذكر الحالة الراهنة كما وردت، ولا يتعارض معه أي مصدر مقيَّم.",
+  CLAIM_FRAME_REQUIRES_REVIEW: () => "الإطار الزمني للادعاء غامض أو غير محدد، لذلك يلزم مراجعة قبل إصدار حكم.",
+  DETERMINISTIC_EVENT_ANCHOR_MATCH: () => "يطابق تاريخ الحدث في الأدلة المؤهلة المرجع الزمني الوارد في الادعاء.",
+  SEMANTIC_COMPONENT_COVERAGE_GATE: () => "لم تغطِّ الأدلة جميع أجزاء الادعاء المركّب؛ لذلك لم يصدر حكم.",
+  SEMANTIC_COMPONENT_DECOMPOSITION_GATE: () => "تعذّر تقسيم الادعاء المركّب إلى أجزاء قابلة للتحقق بثقة؛ لذلك لم يصدر حكم.",
+  SEMANTIC_PROVIDER_UNAVAILABLE: () => "نموذج تقييم علاقة الأدلة غير متاح؛ لذلك لم يُستنتج حكم.",
+  DOMAIN_ADAPTER_EVIDENCE_GATE: () => "لم تستوفِ أدلة القاعدة المتخصصة شروط الأدلة الأساسية."
+};
+function arabicRationale(adjudication, status) {
+  const render = ARABIC_RATIONALE[adjudication?.method];
+  return render ? render(status) : null;
+}
+
 export function buildExplanationDetail({ claim, status, adjudication = null, sources = [], domainEvidence = null, retrievalDiagnostics = [] } = {}) {
   const normalizedStatus = VALID_STATUSES.has(status) ? status : "NEEDS_REVIEW";
   const arabic = isArabic(claim);
@@ -64,16 +92,19 @@ export function buildExplanationDetail({ claim, status, adjudication = null, sou
   const limitations = uniqueStrings([
     domainEvidence?.limitation,
     ...(retrievalDiagnostics.length && !evidenceBasis.length ? [arabic ? "تعذر الحصول على دليل صالح؛ تفاصيل الاسترجاع تشخيصية وليست دليلاً." : "No usable evidence was obtained; retrieval diagnostics are not evidence."] : []),
-    ...(normalizedStatus === "NOT_TIME_SENSITIVE" ? [arabic ? "عدم اكتشاف مؤشر زمني لا يثبت صحة الادعاء." : "No temporal trigger does not establish that the claim is true."] : []),
+    ...(normalizedStatus === "NOT_ASSESSED" ? [arabic ? "لم تكتمل عملية جمع الأدلة أو تقييمها؛ هذه ليست نتيجة عن صحة الادعاء." : "The evidence process did not complete; this is not a finding about the claim."] : []),
     ...(normalizedStatus === "NEEDS_REVIEW" ? [arabic ? "الأدلة لا تبرر حكماً قاطعاً." : "Available evidence does not justify a definitive verdict."] : []),
     ...(normalizedStatus === "UNVERIFIABLE" ? [arabic ? "لم تتوفر أدلة قابلة للاستخدام." : "No usable evidence was available."] : [])
   ]);
   const summaryMap = arabic
-    ? { CURRENT: "الأدلة تدعم الادعاء ضمن النطاق المحدد.", SUPERSEDED: "تجاوزت التطورات اللاحقة الادعاء الأصلي.", CONTRADICTED: "تتعارض الأدلة المقبولة مع الادعاء.", UNVERIFIABLE: "تعذر التحقق من الادعاء بالأدلة المتاحة.", NEEDS_REVIEW: "الأدلة غير كافية لحسم الادعاء.", NOT_TIME_SENSITIVE: "لم يُكتشف مؤشر زمني يستدعي التحقق الزمني." }
-    : { CURRENT: "Evidence supports the claim within the reviewed scope.", SUPERSEDED: "A documented change has overtaken the original claim.", CONTRADICTED: "Accepted evidence conflicts with the claim.", UNVERIFIABLE: "The claim could not be verified from available evidence.", NEEDS_REVIEW: "Available evidence is insufficient to resolve the claim.", NOT_TIME_SENSITIVE: "No temporal trigger was detected for time-sensitive review." };
+    ? { CURRENT: "الأدلة تدعم الادعاء ضمن النطاق المحدد.", SUPERSEDED: "تجاوزت التطورات اللاحقة الادعاء الأصلي.", CONTRADICTED: "تتعارض الأدلة المقبولة مع الادعاء.", UNVERIFIABLE: "تعذر التحقق من الادعاء بالأدلة المتاحة.", NEEDS_REVIEW: "الأدلة غير كافية لحسم الادعاء.", NOT_ASSESSED: "لم يُقيَّم الادعاء بسبب تعذر تشغيلي، وليس بسبب الأدلة." }
+    : { CURRENT: "Evidence supports the claim within the reviewed scope.", SUPERSEDED: "A documented change has overtaken the original claim.", CONTRADICTED: "Accepted evidence conflicts with the claim.", UNVERIFIABLE: "The claim could not be verified from available evidence.", NEEDS_REVIEW: "Available evidence is insufficient to resolve the claim.", NOT_ASSESSED: "The claim was not assessed because of an operational limit or error, not because of the evidence." };
   return {
     summary: summaryMap[normalizedStatus],
-    reason: rationale || (arabic ? "لم يقدم المحرك تعليلاً تفصيلياً إضافياً." : "No additional adjudication rationale was supplied."),
+    reason: arabic
+      ? (arabicRationale(adjudication, normalizedStatus) || (rationale ? "التعليل التفصيلي متاح بلغته الأصلية في سجل التدقيق." : "لم يقدم المحرك تعليلاً تفصيلياً إضافياً."))
+      : (rationale || "No additional adjudication rationale was supplied."),
+    ...(arabic && rationale ? { reason_original: rationale } : {}),
     evidence_basis: evidenceBasis,
     date_interpretation: { event_date: eventDate, publication_date: publicationDate, retrieved_at: retrievedAt, note: arabic ? "تواريخ الحدث والنشر والاسترجاع حقول مستقلة ولا يجوز الخلط بينها." : "Event, publication, and retrieval dates are distinct fields and must not be conflated." },
     limitations
@@ -134,7 +165,7 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
 export function buildCorrection({ claim, status, domainAdapter, domainEvidence, explanationDetail, sources = [], correctionCandidate = null } = {}) {
   const normalizedStatus = VALID_STATUSES.has(status) ? status : "NEEDS_REVIEW";
   if (normalizedStatus === "CURRENT") return { status: "NOT_NEEDED", text: null, evidence_refs: [], limitations: [] };
-  if (normalizedStatus === "NOT_TIME_SENSITIVE") return { status: "NOT_APPLICABLE", text: null, evidence_refs: [], limitations: [isArabic(claim) ? "لم يُفعّل التحقق الزمني؛ وهذه الحالة لا تمثل حكماً على صحة الادعاء." : "Temporal review was not triggered; this is not a truth verdict."] };
+  if (normalizedStatus === "NOT_ASSESSED") return { status: "NOT_APPLICABLE", text: null, evidence_refs: [], limitations: [isArabic(claim) ? "لم يُقيَّم الادعاء؛ لا يمكن اقتراح تصحيح دون تقييم الأدلة." : "The claim was not assessed; no correction can be proposed without evaluated evidence."] };
   if (normalizedStatus === "NEEDS_REVIEW" || normalizedStatus === "UNVERIFIABLE") return {
     status: "WITHHELD", text: null, evidence_refs: [],
     limitations: [isArabic(claim) ? "حُجب التصحيح لأن الأدلة غير كافية؛ لا ينبغي تخمين المعلومة البديلة." : "Correction withheld because the evidence is insufficient; a replacement must not be guessed."]

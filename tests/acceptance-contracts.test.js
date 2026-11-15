@@ -90,7 +90,8 @@ test("Python 2 adapter prefers validated direct official HTML and skips indexed 
   });
 
   assert.equal(result.sources.length, 1);
-  assert.equal(result.sources[0].acquisition_method, undefined);
+  assert.equal(result.sources[0].acquisition_method, "DIRECT_FIRST_PARTY_FETCH");
+  assert.equal(result.sources[0].historical_record_semantics, "AUTHORITATIVE_HISTORICAL_EVENT_RECORD");
   assert.equal(result.sources[0].publication_date_semantics, "NOT_PROVIDED");
   assert.equal(searchCalls, 0);
   assert.equal(adapter.adjudicate(result.sources).status, "SUPERSEDED");
@@ -139,14 +140,19 @@ test("generic outdated findings do not invent a replacement without an independe
   assert.match(correction.limitations.join(" "), /withheld/i);
 });
 
-test("NOT_TIME_SENSITIVE is explicitly not a factual truth verdict", () => {
-  const correction = buildCorrection({
-    claim: "Water is composed of hydrogen and oxygen atoms.",
-    status: "NOT_TIME_SENSITIVE"
-  });
+test("NOT_TIME_SENSITIVE is a temporal classification only and is never accepted as a factual status", () => {
+  // v0.2.84: an unknown factual status is normalised to NEEDS_REVIEW, so a
+  // temporal label can never produce a correction or a verdict.
+  const correction = buildCorrection({ claim: "Water is composed of hydrogen and oxygen atoms.", status: "NOT_TIME_SENSITIVE" });
+  assert.equal(correction.status, "WITHHELD");
+  assert.equal(correction.text, null);
+});
+
+test("NOT_ASSESSED execution failures never receive a correction", () => {
+  const correction = buildCorrection({ claim: "Water is composed of hydrogen and oxygen atoms.", status: "NOT_ASSESSED" });
   assert.equal(correction.status, "NOT_APPLICABLE");
   assert.equal(correction.text, null);
-  assert.match(correction.limitations.join(" "), /not a truth verdict/i);
+  assert.match(correction.limitations.join(" "), /not assessed/i);
 });
 
 test("Arabic Python 2 correction is direct and preserves the event date", () => {

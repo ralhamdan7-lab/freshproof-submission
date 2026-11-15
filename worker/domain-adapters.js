@@ -5,6 +5,30 @@
 const MAX_RESULTS_PER_CLAIM = 5;
 
 function safeHost(rawUrl) { try { const host = new URL(rawUrl).hostname.toLowerCase(); return host.startsWith("www.") ? host.slice(4) : host; } catch { return ""; } }
+function isWhiteHouseAdministrationUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    const path = url.pathname.toLowerCase();
+    return url.protocol === "https:" && safeHost(rawUrl) === "whitehouse.gov" && !url.username && !url.password && !url.port
+      && (path === "/administration" || path.startsWith("/administration/"));
+  } catch { return false; }
+}
+function isWhiteHouseHomepageUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === "https:" && safeHost(rawUrl) === "whitehouse.gov" && !url.username && !url.password && !url.port && url.pathname === "/";
+  } catch { return false; }
+}
+function hasValidatedWhiteHouseXLink(source) {
+  if (source?.evidence_kind !== "FIRST_PARTY_OFFICIAL_SOCIAL_ACCOUNT_LINK"
+    || source?.observation_validation !== "WHITE_HOUSE_FIRST_PARTY_X_LINK_V1"
+    || source?.observation_semantics !== "LIVE_STRUCTURED_OBSERVATION"
+    || source?.evidence_origin !== "SPECIALIST_DIRECT_ACQUISITION"
+    || source?.source_reliability !== "PRIMARY_OR_OFFICIAL_DOMAIN"
+    || source?.linked_account !== "https://x.com/whitehouse"
+    || !isWhiteHouseHomepageUrl(source?.url)) return false;
+  return /https:\/\/x\.com\/whitehouse\/?(?:[\s"'<>?#]|$)/i.test(String(source.content || "") + " " + String(source.snippet || ""));
+}
 function responseMatchesExpectedSource(response, requestedUrl, expectedHost, pathPrefix) {
   try {
     const finalUrl = response?.url || requestedUrl;
@@ -23,7 +47,11 @@ async function fetchOfficialHtml(fetchImpl, url, expectedHost, maxChars = 500000
     if (!response?.ok) return { ok: false, diagnostic: { status: "HTTP_ERROR", http_status: Number(response?.status) || null } };
     if (!/text\/html/i.test(response.headers?.get?.("content-type") || "")) return { ok: false, diagnostic: { status: "UNEXPECTED_CONTENT_TYPE" } };
     const finalUrl = response.url || url;
-    if (safeHost(finalUrl) !== expectedHost) return { ok: false, diagnostic: { status: "REDIRECT_HOST_REJECTED" } };
+    let parsedFinal;
+    try { parsedFinal = new URL(finalUrl); } catch { return { ok: false, diagnostic: { status: "REDIRECT_URL_REJECTED" } }; }
+    if (parsedFinal.protocol !== "https:" || parsedFinal.username || parsedFinal.password || parsedFinal.port || safeHost(finalUrl) !== expectedHost) {
+      return { ok: false, diagnostic: { status: "REDIRECT_HOST_REJECTED" } };
+    }
     const declaredLength = Number(response.headers?.get?.("content-length") || 0);
     if (declaredLength > maxChars) return { ok: false, diagnostic: { status: "RESPONSE_TOO_LARGE" } };
     const html = await response.text();
@@ -59,12 +87,14 @@ export function parseWhiteHouseAdministrationHtml(html, retrievedAt = new Date()
 export async function fetchWhiteHouseAdministrationEvidenceDetailed(fetchImpl = fetch, now = Date.now()) {
   const fetched = await fetchOfficialHtml(fetchImpl, WHITE_HOUSE_ADMIN_URL, "whitehouse.gov", 1000000);
   if (!fetched.ok) return { sources: [], diagnostics: [{ provider: "WHITE_HOUSE", ...fetched.diagnostic }] };
-  if (!new URL(fetched.finalUrl).pathname.toLowerCase().startsWith("/administration")) {
-    return { sources: [], diagnostics: [{ provider: "WHITE_HOUSE", status: "PATH_REJECTED" }] };
-  }
+  if (!isWhiteHouseAdministrationUrl(fetched.finalUrl)) return { sources: [], diagnostics: [{ provider: "WHITE_HOUSE", status: "PATH_REJECTED" }] };
   const source = parseWhiteHouseAdministrationHtml(fetched.html, new Date(now).toISOString());
   source.url = fetched.finalUrl;
-  const eligible = extractCurrentOfficeHolder(source) ? [source] : [];
+  source.evidence_origin = "SPECIALIST_DIRECT_ACQUISITION";
+  source.observation_semantics = "LIVE_STRUCTURED_OBSERVATION";
+  const validatedHolder = extractCurrentOfficeHolder(source);
+  if (validatedHolder) source.observation_validation = "WHITE_HOUSE_ADMINISTRATION_DIRECTORY_PARSE_V1";
+  const eligible = validatedHolder ? [source] : [];
   return { sources: eligible, diagnostics: [{ provider: "WHITE_HOUSE", status: eligible.length ? "VALIDATED" : "CONTENT_NOT_VALIDATED", evidence_count: eligible.length }] };
 }
 export async function fetchWhiteHouseAdministrationEvidence(fetchImpl = fetch, now = Date.now()) {
@@ -74,8 +104,11 @@ export async function fetchWhiteHouseAdministrationEvidence(fetchImpl = fetch, n
 function hasFreshLiveAdministrationDirectory(source, now) {
   const retrieved = Date.parse(source.retrieved_at || "");
   return source.evidence_kind === "OFFICIAL_LIVE_ADMINISTRATION_DIRECTORY"
+    && source.observation_validation === "WHITE_HOUSE_ADMINISTRATION_DIRECTORY_PARSE_V1"
+    && source.observation_semantics === "LIVE_STRUCTURED_OBSERVATION"
+    && source.evidence_origin === "SPECIALIST_DIRECT_ACQUISITION"
     && source.source_reliability === "PRIMARY_OR_OFFICIAL_DOMAIN"
-    && safeHost(source.url) === "whitehouse.gov"
+    && isWhiteHouseAdministrationUrl(source.url)
     && Number.isFinite(retrieved) && retrieved <= now + 60000 && now - retrieved <= 15 * 60000
     && Boolean(extractCurrentOfficeHolder(source));
 }
@@ -298,8 +331,6 @@ export function assessNodeReleaseLifecycle(claim, sources, now = Date.now()) {
       const updatedAt = Date.parse(candidate.source.published_date || "");
       return Number.isFinite(updatedAt) ? updatedAt : 0;
     }
-    const retrievedAt = Date.parse(candidate.source.retrieved_at || "");
-    if (Number.isFinite(retrievedAt)) return retrievedAt;
     const dates = candidate.rows.map(row => Date.parse(row.last_updated || "")).filter(Number.isFinite);
     return dates.length ? Math.max(...dates) : 0;
   };
@@ -316,7 +347,7 @@ export function assessNodeReleaseLifecycle(claim, sources, now = Date.now()) {
   if (!best) return { status: null, evidence: null };
   if (best.kind === "SCHEDULE_JSON") {
     const updatedAt = Date.parse(best.source.published_date || "");
-    if (!Number.isFinite(updatedAt) || updatedAt > now + 86400000 || (now - updatedAt) / 86400000 > 365) return { status: null, evidence: null };
+    if (!Number.isFinite(updatedAt) || updatedAt > now || (now - updatedAt) / 86400000 > 365) return { status: null, evidence: null };
     const row = best.rows.find(item => item.major === claimedMajor);
     if (!row || !row.lts || !row.end) return { status: null, evidence: null };
     const ltsAt = Date.parse(row.lts + "T00:00:00Z");
@@ -346,11 +377,11 @@ export function assessNodeReleaseLifecycle(claim, sources, now = Date.now()) {
   const claimedRow = best.rows.find(row => row.major === claimedMajor);
   if (assertsOngoingSupport) {
     if (!claimedRow) return { status: null, evidence: null };
-    const updatedAt = Date.parse(best.source.retrieved_at || claimedRow.last_updated || "");
-    if (!Number.isFinite(updatedAt) || updatedAt > now + 86400000 || (now - updatedAt) / 86400000 > 365) return { status: null, evidence: null };
+    const updatedAt = Date.parse(claimedRow.last_updated || "");
+    if (!Number.isFinite(updatedAt) || updatedAt > now || (now - updatedAt) / 86400000 > 365) return { status: null, evidence: null };
     if (claimedRow.status === "LTS" || claimedRow.status === "EOL") return {
       status: claimedRow.status === "LTS" ? "CURRENT" : "SUPERSEDED",
-      evidence: { method: "OFFICIAL_NODEJS_RELEASE_TABLE_STATUS", claimed_major: claimedMajor, support_status: claimedRow.status, last_updated: claimedRow.last_updated, latest_lts_major: latestLtsMajor, is_latest_lts_major: claimedMajor === latestLtsMajor, source: { title: best.source.title, url: best.source.url, published_date: best.source.published_date || null, retrieved_at: best.source.retrieved_at || null }, limitation: "Official release table status; last_updated is the release row's update date, not its EOL date. Retrieval time is reported separately; this does not assess patch-level currency." }
+      evidence: { method: "OFFICIAL_NODEJS_RELEASE_TABLE_STATUS", claimed_major: claimedMajor, support_status: claimedRow.status, last_updated: claimedRow.last_updated, latest_lts_major: latestLtsMajor, is_latest_lts_major: claimedMajor === latestLtsMajor, source: { title: best.source.title, url: best.source.url, published_date: best.source.published_date || null, retrieved_at: best.source.retrieved_at || null, structured_record_update_date: claimedRow.last_updated, structured_record_update_kind: "NODE_RELEASE_ROW_LAST_UPDATED" }, limitation: "Official release table status; last_updated is the claimed release row's explicit update date, not its EOL date or retrieval time. This does not assess patch-level currency." }
     };
     return { status: null, evidence: null };
   }
@@ -406,6 +437,13 @@ function validatesPython2OfficialExcerpt(url, value) {
 }
 function isValidatedPython2OfficialEvidence(source) {
   return source?.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE"
+    && source?.historical_record_semantics === "AUTHORITATIVE_HISTORICAL_EVENT_RECORD"
+    && source?.historical_record_validation === "PYTHON2_SUNSET_VALIDATED_CONTENT_V1"
+    && source?.event_date_candidate === "2020-01-01"
+    && ["OFFICIAL_SUNSET_STATEMENT", "PEP_373_END_OF_LIFE_DATE"].includes(source?.event_date_basis)
+    && ["DIRECT_FIRST_PARTY_FETCH", "DIRECT_FIRST_PARTY_PEP", "TAVILY_INDEXED_FIRST_PARTY_PAGE"].includes(source?.acquisition_method)
+    && ((source.acquisition_method === "TAVILY_INDEXED_FIRST_PARTY_PAGE" && source.evidence_origin === "SPECIALIST_SEARCH_INDEX")
+      || (source.acquisition_method !== "TAVILY_INDEXED_FIRST_PARTY_PAGE" && source.evidence_origin === "SPECIALIST_DIRECT_ACQUISITION"))
     && validatesPython2OfficialExcerpt(source.url, source.content || source.snippet || "");
 }
 export async function fetchPython2SunsetEvidenceDetailed(fetchImpl = fetch, now = Date.now()) {
@@ -424,8 +462,12 @@ export async function fetchPython2SunsetEvidenceDetailed(fetchImpl = fetch, now 
             snippet: text.slice(0, 1800), content: text, published_date: null,
             retrieved_at: retrievedAt, source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
             evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
+            historical_record_semantics: "AUTHORITATIVE_HISTORICAL_EVENT_RECORD",
+            historical_record_validation: "PYTHON2_SUNSET_VALIDATED_CONTENT_V1",
+            evidence_origin: "SPECIALIST_DIRECT_ACQUISITION",
             event_date_candidate: "2020-01-01", event_date_basis: "OFFICIAL_SUNSET_STATEMENT",
-            publication_date_semantics: "NOT_PROVIDED"
+            publication_date_semantics: "NOT_PROVIDED",
+            acquisition_method: "DIRECT_FIRST_PARTY_FETCH"
           }],
           diagnostics: [{ provider: "PYTHON_ORG", status: "VALIDATED", evidence_count: 1 }]
         };
@@ -452,6 +494,9 @@ export async function fetchPython2SunsetEvidenceDetailed(fetchImpl = fetch, now 
           snippet: text.slice(0, 1800), content: text, published_date: null,
           retrieved_at: retrievedAt, source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
           evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
+          historical_record_semantics: "AUTHORITATIVE_HISTORICAL_EVENT_RECORD",
+          historical_record_validation: "PYTHON2_SUNSET_VALIDATED_CONTENT_V1",
+          evidence_origin: "SPECIALIST_DIRECT_ACQUISITION",
           event_date_candidate: "2020-01-01", event_date_basis: "PEP_373_END_OF_LIFE_DATE",
           publication_date_semantics: "NOT_PROVIDED",
           acquisition_method: "DIRECT_FIRST_PARTY_PEP"
@@ -495,7 +540,8 @@ const WHITE_HOUSE_SOCIAL_URL = "https://www.whitehouse.gov/";
 export async function fetchWhiteHouseXIdentityEvidenceDetailed(fetchImpl = fetch, now = Date.now()) {
   const fetched = await fetchOfficialHtml(fetchImpl, WHITE_HOUSE_SOCIAL_URL, "whitehouse.gov", 1000000);
   if (!fetched.ok) return { sources: [], diagnostics: [{ provider: "WHITE_HOUSE", ...fetched.diagnostic }] };
-  const links = [...fetched.html.matchAll(/href=["'](https?:\/\/(?:www\.)?x\.com\/whitehouse\/?(?:[?#][^"']*)?)["']/gi)].map(m => m[1]);
+  if (!isWhiteHouseHomepageUrl(fetched.finalUrl)) return { sources: [], diagnostics: [{ provider: "WHITE_HOUSE", status: "PATH_REJECTED" }] };
+  const links = [...fetched.html.matchAll(/href=["'](https:\/\/(?:www\.)?x\.com\/whitehouse\/?(?:[?#][^"']*)?)["']/gi)].map(m => m[1]);
   if (!links.length) return { sources: [], diagnostics: [{ provider: "WHITE_HOUSE", status: "CLAIMED_HANDLE_LINK_NOT_FOUND" }] };
   const retrievedAt = new Date(now).toISOString();
   return {
@@ -505,6 +551,8 @@ export async function fetchWhiteHouseXIdentityEvidenceDetailed(fetchImpl = fetch
       content: "First-party link on whitehouse.gov: https://x.com/whitehouse", published_date: null,
       retrieved_at: retrievedAt, source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
       evidence_kind: "FIRST_PARTY_OFFICIAL_SOCIAL_ACCOUNT_LINK",
+      observation_validation: "WHITE_HOUSE_FIRST_PARTY_X_LINK_V1",
+      evidence_origin: "SPECIALIST_DIRECT_ACQUISITION", observation_semantics: "LIVE_STRUCTURED_OBSERVATION",
       linked_account: "https://x.com/whitehouse", publication_date_semantics: "NOT_PROVIDED"
     }],
     diagnostics: [{ provider: "WHITE_HOUSE", status: "VALIDATED", evidence_count: 1 }]
@@ -561,9 +609,12 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
               retrieved_at: retrievedAt,
               source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
               evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
+              historical_record_semantics: "AUTHORITATIVE_HISTORICAL_EVENT_RECORD",
+              historical_record_validation: "PYTHON2_SUNSET_VALIDATED_CONTENT_V1",
               event_date_candidate: "2020-01-01",
               event_date_basis: "OFFICIAL_SUNSET_STATEMENT",
               publication_date_semantics: "NOT_PROVIDED",
+              evidence_origin: "SPECIALIST_SEARCH_INDEX",
               acquisition_method: "TAVILY_INDEXED_FIRST_PARTY_PAGE",
               acquisition_limitation: "Python.org direct retrieval was denied; the official page URL and its date/support wording were validated from a domain-restricted search-index excerpt. The page itself was not fetched."
             }],
@@ -588,7 +639,7 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
               : claimPolarity === "SUPPORT_ENDED" ? "CURRENT" : "NEEDS_REVIEW";
             const claimRelation = claimPolarity === "ONGOING_SUPPORT" ? "CONTRADICTS"
               : claimPolarity === "SUPPORT_ENDED" ? "SUPPORTS" : "INSUFFICIENT";
-            return { status, evidence: { method: "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE", claim_polarity: claimPolarity, claim_relation: claimRelation, event_date: "2020-01-01", source: { title: official.title, url: official.url, publication_date: null, retrieved_at: official.retrieved_at, acquisition_method: official.acquisition_method || "DIRECT_FIRST_PARTY_FETCH" }, limitation: official.acquisition_limitation || "Python.org explicitly states that Python 2 was sunset on January 1, 2020 and is no longer supported. The source publication date is not provided; retrieval time is recorded separately." } };
+            return { status, evidence: { method: "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE", claim_polarity: claimPolarity, claim_relation: claimRelation, historical_record_semantics: "AUTHORITATIVE_HISTORICAL_EVENT_RECORD", historical_record_validation: official.historical_record_validation, event_date: "2020-01-01", event_date_basis: official.event_date_basis, source: { title: official.title, url: official.url, publication_date: null, retrieved_at: official.retrieved_at, evidence_kind: official.evidence_kind, historical_record_semantics: official.historical_record_semantics, historical_record_validation: official.historical_record_validation, event_date_candidate: official.event_date_candidate, event_date_basis: official.event_date_basis, acquisition_method: official.acquisition_method }, limitation: official.acquisition_limitation || "The official Python source records the Python 2 sunset on January 1, 2020. This is historical-event evidence, not a recently published source; retrieval time is recorded separately and is not treated as freshness." } };
           }
           const retrievalStatus = context.retrievalDiagnostics?.find(item => item.provider === "PYTHON_ORG")?.status || "NOT_RECORDED";
           return { status: "NEEDS_REVIEW", evidence: { method: "OFFICIAL_SOURCE_NOT_OBTAINED", retrieval_status: retrievalStatus, limitation: `The official Python.org notice was not validated (retrieval status: ${retrievalStatus}); no lifecycle verdict is inferred.` } };
@@ -610,12 +661,12 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
         primaryDomains: ["whitehouse.gov"],
         additionalEvidence: async ({ fetch: fetchImpl }) => fetchWhiteHouseXIdentityEvidenceDetailed(fetchImpl),
         strictSourceEligibility: true,
-        rankSource: source => source.evidence_kind === "FIRST_PARTY_OFFICIAL_SOCIAL_ACCOUNT_LINK" && safeHost(source.url) === "whitehouse.gov"
+        rankSource: source => hasValidatedWhiteHouseXLink(source)
           ? { relevance: "HIGH", matched_terms: ["white house", "x", "whitehouse"], unmatched_terms: [], matched_term_count: 3, claim_term_count: 3, lexical_coverage: null, method: "FIRST_PARTY_OFFICIAL_SOCIAL_LINK" }
           : null,
-        priority: source => source.evidence_kind === "FIRST_PARTY_OFFICIAL_SOCIAL_ACCOUNT_LINK" ? 5 : 0,
+        priority: source => hasValidatedWhiteHouseXLink(source) ? 5 : 0,
         adjudicate: (sources, context = {}) => {
-          const official = sources.find(source => source.evidence_kind === "FIRST_PARTY_OFFICIAL_SOCIAL_ACCOUNT_LINK" && safeHost(source.url) === "whitehouse.gov" && source.linked_account === "https://x.com/whitehouse");
+          const official = sources.find(hasValidatedWhiteHouseXLink);
           if (official) return { status: "CURRENT", evidence: { method: "FIRST_PARTY_OFFICIAL_WEBSITE_LINK", linked_account: official.linked_account, source: { title: official.title, url: official.url, retrieved_at: official.retrieved_at }, limitation: "The official White House website directly links to this X account. This verifies the institutional link, not the authenticity of every post or account security state." } };
           const retrievalStatus = context.retrievalDiagnostics?.find(item => item.provider === "WHITE_HOUSE")?.status || "NOT_RECORDED";
           return { status: "NEEDS_REVIEW", evidence: { method: "FIRST_PARTY_LINK_NOT_OBTAINED", retrieval_status: retrievalStatus, limitation: `No direct first-party White House link was validated (retrieval status: ${retrievalStatus}).` } };
@@ -790,6 +841,7 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
               retrieved_at: new Date().toISOString(),
               published_date: null,
               source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
+              evidence_origin: "SPECIALIST_DIRECT_ACQUISITION",
               evidence_kind: "OFFICIAL_NODEJS_RELEASE_TABLE"
             }];
           } catch {
@@ -823,16 +875,29 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
             ? parseNodeReleaseRows(source.content || source.snippet)
             : [];
           const publishedAt = Date.parse(source.published_date || "");
-          const retrievedAt = Date.parse(source.retrieved_at || "");
-          const scheduleIsRecent = Number.isFinite(publishedAt) && publishedAt <= Date.now() + 86400000 && Date.now() - publishedAt <= 365 * 86400000;
-          const tableIsRecent = Number.isFinite(retrievedAt) && retrievedAt <= Date.now() + 86400000 && Date.now() - retrievedAt <= 365 * 86400000;
-          const structuredOfficialEvidence = (scheduleRows.length > 0 && scheduleIsRecent) || (releaseRows.length > 0 && tableIsRecent);
+          const now = Date.now();
+          const scheduleIsRecent = Number.isFinite(publishedAt) && publishedAt <= now && now - publishedAt <= 365 * 86400000;
+          const claimedMajor = Number(text.match(/\bnode\.?js\s+v?(\d+)/i)?.[1] || 0);
+          const claimedRow = releaseRows.find(row => row.major === claimedMajor);
+          const recordUpdatedAt = Date.parse(claimedRow?.last_updated || "");
+          const tableIsRecent = Boolean(claimedRow)
+            && Number.isFinite(recordUpdatedAt)
+            && recordUpdatedAt <= now
+            && now - recordUpdatedAt <= 365 * 86400000;
+          const directlyFetchedTable = source.evidence_kind === "OFFICIAL_NODEJS_RELEASE_TABLE"
+            && source.evidence_origin === "SPECIALIST_DIRECT_ACQUISITION";
+          const structuredOfficialEvidence = (scheduleRows.length > 0 && scheduleIsRecent) || (directlyFetchedTable && tableIsRecent);
           return {
             ...relevance,
+            ...(directlyFetchedTable && tableIsRecent ? {
+              structured_record_update_date: claimedRow.last_updated,
+              structured_record_update_kind: "NODE_RELEASE_ROW_LAST_UPDATED",
+              structured_record_update_verified: true
+            } : {}),
             relevance: structuredOfficialEvidence ? "HIGH" : (relevance.relevance === "LOW" ? "MEDIUM" : relevance.relevance),
             method: structuredOfficialEvidence ? "VALIDATED_OFFICIAL_SOFTWARE_LIFECYCLE_DATA" : "OFFICIAL_SOFTWARE_RELEASE_SOURCE",
             limitation: structuredOfficialEvidence
-              ? "First-party lifecycle data was fetched and structurally parsed; the exact source URL, date basis, and release-channel semantics remain attached."
+              ? "First-party lifecycle data was fetched and structurally parsed; the exact source URL, row-level update date, and release-channel semantics remain attached."
               : "Official project search lead only; snippets do not establish release channel or lifecycle status."
           };
         },

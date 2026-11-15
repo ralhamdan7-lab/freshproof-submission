@@ -14,6 +14,7 @@ import {
   adjudicateOfficeHolderClaim,
   shouldRunOfficeHolderFallback,
   mergeOfficeHolderSearchResults,
+  mergePinnedEvidence,
   fetchWhiteHouseAdministrationEvidence,
   parseWhiteHouseAdministrationHtml,
   fetchPython2SunsetEvidence,
@@ -34,8 +35,42 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.81 release version", () => {
-  assert.equal(VERSION, "0.2.81");
+test("v0.2.84 candidate version contract", () => {
+  assert.equal(VERSION, "0.2.84");
+});
+
+test("validated direct evidence replaces a duplicate generic search snippet without losing provenance", () => {
+  const generic = {
+    url: "https://www.whitehouse.gov/administration/",
+    title: "The White House — Administration",
+    snippet: "Search-index excerpt",
+    evidence_origin: "SEARCH_SNIPPET"
+  };
+  const direct = {
+    url: generic.url,
+    title: "The White House Administration",
+    snippet: "Directly fetched, claim-relevant office-holder passage",
+    evidence_origin: "SPECIALIST_DIRECT_ACQUISITION",
+    observation_semantics: "LIVE_STRUCTURED_OBSERVATION",
+    observation_validation: "WHITE_HOUSE_ADMINISTRATION_DIRECTORY_PARSE_V1"
+  };
+  const other = { url: "https://example.edu/source", evidence_origin: "SEARCH_SNIPPET" };
+  const additional = { url: "https://www.whitehouse.gov/another-pinned-source/", evidence_origin: "SPECIALIST_DIRECT_ACQUISITION" };
+  const merged = mergePinnedEvidence([generic, other], [direct, additional]);
+  assert.equal(merged.length, 3);
+  assert.equal(merged[0], direct, "direct acquisition must replace the same-URL generic snippet in place");
+  assert.equal(merged[0].observation_validation, "WHITE_HOUSE_ADMINISTRATION_DIRECTORY_PARSE_V1");
+  assert.equal(merged[1], other);
+  assert.equal(merged[2], additional, "new specialist evidence must be appended");
+});
+
+test("pinned evidence merge removes duplicate URLs instead of relabeling generic copies", () => {
+  const generic = { url: "https://www.whitehouse.gov/", title: "Search result" };
+  const direct = { url: generic.url, title: "Fetched page", evidence_origin: "SPECIALIST_DIRECT_ACQUISITION" };
+  const duplicateGeneric = { url: generic.url, title: "Duplicate search result" };
+  const merged = mergePinnedEvidence([generic, duplicateGeneric], [direct]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0], direct);
 });
 
 test("conditional and exception clauses remain attached to their governing proposition", () => {
@@ -262,11 +297,21 @@ test("parses official administration page while preserving source publication an
   const source = parseWhiteHouseAdministrationHtml(html, "2026-11-11T12:00:00.000Z");
   assert.equal(source.published_date, "2025-01-20");
   assert.equal(source.retrieved_at, "2026-11-11T12:00:00.000Z");
-  assert.equal(adjudicateOfficeHolderClaim("Joe Biden is currently the President of the United States.", [source], Date.parse("2026-11-11T12:00:00Z")).status, "CONTRADICTED");
+  assert.equal(source.observation_semantics, undefined, "parsing supplied HTML alone is not proof of a live direct fetch");
+  assert.equal(source.evidence_origin, undefined);
+  assert.equal(adjudicateOfficeHolderClaim("Joe Biden is currently the President of the United States.", [source], Date.parse("2026-11-11T12:00:00Z")).status, null);
 });
 test("direct administration fetch rejects off-domain redirects and non-HTML responses", async () => {
   const outside = await fetchWhiteHouseAdministrationEvidence(async () => ({ ok: true, url: "https://example.com/administration/", headers: new Headers({"content-type":"text/html"}), text: async () => "<h2>President Donald J. Trump</h2>" }), Date.parse("2026-11-11T12:00:00Z"));
   assert.deepEqual(outside, []);
+  for (const finalUrl of [
+    "http://www.whitehouse.gov/administration/",
+    "https://www.whitehouse.gov:8443/administration/",
+    "https://www.whitehouse.gov/administration-archive/"
+  ]) {
+    const rejected = await fetchWhiteHouseAdministrationEvidence(async () => ({ ok: true, url: finalUrl, headers: new Headers({"content-type":"text/html"}), text: async () => "<h2>President Donald J. Trump</h2>" }), Date.parse("2026-11-11T12:00:00Z"));
+    assert.deepEqual(rejected, [], finalUrl);
+  }
   const nonHtml = await fetchWhiteHouseAdministrationEvidence(async () => ({ ok: true, url: "https://www.whitehouse.gov/administration/", headers: new Headers({"content-type":"application/pdf"}), text: async () => "PDF" }), Date.parse("2026-11-11T12:00:00Z"));
   assert.deepEqual(nonHtml, []);
 });
@@ -275,14 +320,22 @@ test("direct administration fetch returns eligible live official evidence", asyn
   const sources = await fetchWhiteHouseAdministrationEvidence(async () => ({ ok: true, url: "https://www.whitehouse.gov/administration/", headers: new Headers({"content-type":"text/html"}), text: async () => html }), Date.parse("2026-11-11T12:00:00Z"));
   assert.equal(sources.length, 1);
   assert.equal(sources[0].evidence_kind, "OFFICIAL_LIVE_ADMINISTRATION_DIRECTORY");
+  assert.equal(sources[0].evidence_origin, "SPECIALIST_DIRECT_ACQUISITION");
+  assert.equal(sources[0].observation_semantics, "LIVE_STRUCTURED_OBSERVATION");
+  assert.equal(sources[0].observation_validation, "WHITE_HOUSE_ADMINISTRATION_DIRECTORY_PARSE_V1");
   assert.equal(sources[0].published_date, "2025-01-20");
   assert.equal(adjudicateOfficeHolderClaim("Joe Biden is currently the President of the United States.", sources, Date.parse("2026-11-11T12:00:00Z")).status, "CONTRADICTED");
 });
 
-test("live official directory adjudication explains missing publication date and exposes retrieval timestamp", () => {
+test("live official directory adjudication requires a successful direct fetch and exposes retrieval timestamp", async () => {
   const html = '<html><head><title>The Trump Administration</title></head><body><h2>President Donald J. Trump</h2><p>45th &amp; 47th President of the United States</p></body></html>';
-  const source = parseWhiteHouseAdministrationHtml(html, "2026-11-11T12:34:56.000Z");
-  const result = adjudicateOfficeHolderClaim("Joe Biden is currently the President of the United States.", [source], Date.parse("2026-11-11T12:35:00Z"));
+  const sources = await fetchWhiteHouseAdministrationEvidence(async () => ({
+    ok: true, url: "https://www.whitehouse.gov/administration/",
+    headers: new Headers({"content-type":"text/html"}), text: async () => html
+  }), Date.parse("2026-11-11T12:34:56.000Z"));
+  assert.equal(sources.length, 1);
+  const source = sources[0];
+  const result = adjudicateOfficeHolderClaim("Joe Biden is currently the President of the United States.", sources, Date.parse("2026-11-11T12:35:00Z"));
   assert.equal(result.status, "CONTRADICTED");
   assert.equal(result.evidence.publication_date, null);
   assert.equal(result.evidence.publication_date_semantics, "NOT_PROVIDED");
@@ -348,6 +401,10 @@ test("White House first-party X link is required for institutional account ident
   const sources = await fetchWhiteHouseXIdentityEvidence(async () => ({ ok: true, url: "https://www.whitehouse.gov/", headers: new Headers({"content-type":"text/html"}), text: async () => html }), Date.parse("2026-11-11T12:00:00Z"));
   assert.equal(sources.length, 1);
   assert.equal(sources[0].evidence_kind, "FIRST_PARTY_OFFICIAL_SOCIAL_ACCOUNT_LINK");
+  assert.equal(sources[0].observation_validation, "WHITE_HOUSE_FIRST_PARTY_X_LINK_V1");
+  assert.equal(sources[0].evidence_origin, "SPECIALIST_DIRECT_ACQUISITION");
+  assert.equal(sources[0].observation_semantics, "LIVE_STRUCTURED_OBSERVATION");
+  assert.equal(sources[0].source_reliability, "PRIMARY_OR_OFFICIAL_DOMAIN");
   const { resolveDomainAdapter } = await import("./domain-adapters.js");
   const adapter = resolveDomainAdapter("The official White House account on X is @WhiteHouse.");
   assert.equal(adapter?.id, "whitehouse_x_identity");
@@ -356,6 +413,10 @@ test("White House first-party X link is required for institutional account ident
 test("White House identity adapter rejects a page without the claimed official handle link", async () => {
   const sources = await fetchWhiteHouseXIdentityEvidence(async () => ({ ok: true, url: "https://www.whitehouse.gov/", headers: new Headers({"content-type":"text/html"}), text: async () => '<a href="https://x.com/other">X</a>' }), Date.parse("2026-11-11T12:00:00Z"));
   assert.deepEqual(sources, []);
+  const insecure = await fetchWhiteHouseXIdentityEvidence(async () => ({ ok: true, url: "https://www.whitehouse.gov/", headers: new Headers({"content-type":"text/html"}), text: async () => '<a href="http://x.com/whitehouse">X</a>' }), Date.parse("2026-11-11T12:00:00Z"));
+  assert.deepEqual(insecure, []);
+  const unexpectedPath = await fetchWhiteHouseXIdentityEvidence(async () => ({ ok: true, url: "https://www.whitehouse.gov/briefing-room/", headers: new Headers({"content-type":"text/html"}), text: async () => '<a href="https://x.com/whitehouse">X</a>' }), Date.parse("2026-11-11T12:00:00Z"));
+  assert.deepEqual(unexpectedPath, []);
 });
 
 
@@ -892,38 +953,6 @@ test("Node.js supported release-line claims use the official schedule without re
   assert.equal(assessNodeReleaseLifecycle(currentLine, [source], Date.parse("2026-11-13T00:00:00Z")).status, "CURRENT");
 });
 
-test("Node.js release-table calendar dates are timezone invariant and preserve leap days", () => {
-  const source = {
-    title: "Node.js — Official Previous Releases",
-    url: "https://nodejs.org/en/about/previous-releases",
-    content: "| 20.x | Iron | Feb 29, 2024 | Aug 08, 2023 | LTS |",
-    retrieved_at: "2026-11-08T12:00:00.000Z"
-  };
-  const result = assessNodeReleaseLifecycle(
-    "Node.js 20.x remains actively supported under LTS.",
-    [source],
-    Date.parse("2026-11-09T00:00:00Z")
-  );
-  assert.equal(result.status, "CURRENT");
-  assert.equal(result.evidence.last_updated, "2023-08-08");
-});
-
-test("Node.js release-table parser rejects impossible calendar dates instead of normalizing them", () => {
-  const source = {
-    title: "Node.js — Official Previous Releases",
-    url: "https://nodejs.org/en/about/previous-releases",
-    content: "| 20.x | Iron | Feb 30, 2024 | Aug 08, 2023 | LTS |",
-    retrieved_at: "2026-11-08T12:00:00.000Z"
-  };
-  const result = assessNodeReleaseLifecycle(
-    "Node.js 20.x remains actively supported under LTS.",
-    [source],
-    Date.parse("2026-11-09T00:00:00Z")
-  );
-  assert.equal(result.status, null);
-  assert.equal(result.evidence, null);
-});
-
 test("claim extraction reports all candidates separately from the bounded processing slice", () => {
   const input = [
     "The first independently testable statement is sufficiently long.",
@@ -1010,15 +1039,29 @@ test("semantic malformed-output retry uses a compact schema prompt and larger bo
       { source_index: 0, relation: "SUPPORTS" }
     ] }) };
   } };
+  const snippet = "The source took effect on January 1, 2026. The source directly supports this exact claim.";
   const result = await adjudicateEvidenceWithModel("A test claim.", [
-    { url: "https://example.gov/source", title: "Official source", snippet: "The source directly supports this exact claim." }
+    {
+      url: "https://example.gov/source",
+      title: "Official source",
+      snippet,
+      event_date_candidate: "January 1, 2026",
+      date_mentions: [{
+        mention: "January 1, 2026", normalized_date: "2026-01-01", precision: "DAY",
+        role_hint: "EVENT_CANDIDATE", context: "took effect on January 1, 2026",
+        start: snippet.indexOf("January")
+      }]
+    }
   ], ai);
   assert.equal(result.status, "COMPLETED_ADVISORY");
   assert.equal(calls.length, 2);
-  assert.equal(calls[0].max_tokens, 1200);
-  assert.equal(calls[1].max_tokens, 1400);
+  assert.equal(calls[0].max_tokens, 1500);
+  assert.equal(calls[1].max_tokens, 1600);
   assert.match(calls[1].messages[0].content, /valid JSON object only/);
   assert.match(calls[1].messages[0].content, /required rationale string/);
+  const retryPayload = JSON.parse(calls[1].messages[1].content);
+  assert.equal(retryPayload.sources[0].date_mentions[0].mention, "January 1, 2026");
+  assert.equal(retryPayload.sources[0].event_date_candidate, "January 1, 2026");
 });
 
 

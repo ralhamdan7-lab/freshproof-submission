@@ -21,11 +21,14 @@ A recent publication date is not proof of a recent event. FreshProof distinguish
 
 ## Verification outcomes
 
-- `CURRENT`
-- `SUPERSEDED`
-- `CONTRADICTED`
-- `NEEDS_REVIEW`
-- `UNVERIFIABLE`
+- `CURRENT`: supported as stated within the reviewed scope
+- `SUPERSEDED`: was true, but a documented, dated change has overtaken it
+- `CONTRADICTED`: qualified evidence conflicts with it
+- `NEEDS_REVIEW`: the evidence cannot settle it, so FreshProof abstains
+- `UNVERIFIABLE`: no usable evidence
+- `NOT_ASSESSED`: an operational limit or error stopped the run. This is not a statement about the claim.
+
+Each claim also carries a **claim frame**, such as dated past event, current state, state at a past time, scheduled or future, stable fact, attributed finding or opinion. Only current-state claims require recent evidence. A dated historical event can be settled by an older authoritative record, and an authority's own current register can settle a current state.
 
 `NOT_TIME_SENSITIVE` is a temporal classification, not a factual verdict. Evidence relation labels are not final verdicts. Freshness, evidence confidence, source reliability, and verification status are separate dimensions. The prototype does not claim calibrated probabilities of truth.
 
@@ -34,19 +37,21 @@ A recent publication date is not proof of a recent event. FreshProof distinguish
 ```text
 Browser UI
   -> Cloudflare Worker API
-      -> bounded claim extraction and temporal triage
-      -> claim-specific Tavily evidence retrieval
-      -> source normalization and date/provenance handling
-      -> optional advisory Cloudflare Workers AI assessment
-      -> evidence adjudication, abstention, explanation
-      -> evidence-gated correction
+      -> claim extraction (dependent sentences stay bound; no orphan claims)
+      -> deterministic claim frame (event / current state / past state / future / stable / opinion)
+      -> bounded research plan: original claim, authority query, value-masked query, change query
+      -> direct page acquisition (verbatim passages; publication, update and retrieval dates kept separate)
+      -> advisory Workers AI assessment of each source (relation, scope, authority role, change notice)
+      -> deterministic adjudication: frame-aware recency, independent corroboration,
+         live issuer records, validated change notices, abstention
+      -> per-source trace (why each source counted or not), explanation, evidence-gated correction
 ```
 
 The semantic model is advisory; it cannot independently establish truth or override evidence adjudication.
 
 ## Public prototype
 
-- **Current deployed version:** `0.2.81`
+- **Current version:** `0.2.84` (see the release evidence below for the deployment status)
 - **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
@@ -57,15 +62,19 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
 
-## Verified release evidence (2026-11-15)
+## v0.2.84 release evidence
 
-- Public main CI [#43714968300](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43714968300): passed after the latest documentation update. The v0.2.81 release test run [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834) passed **321/321 tests in UTC and 321/321 in Asia/Riyadh**, plus syntax checks and the synthetic temporal diagnostic.
-- Deterministic local browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): passed.
-- Deployed public browser acceptance [#43713578554](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43713578554): passed against exact Worker version 0.2.81. Playwright loaded the public UI, submitted the Node.js 20 lifecycle claim, observed OUTDATED, rendered six evidence links including two official nodejs.org links, and recorded zero browser runtime errors.
-- Public live API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): the deployed health endpoint reported exact version `0.2.81`; one bounded `POST /api/verify` returned HTTP 200 and processed one claim.
-- Demonstrated claim: “Node.js 20.x remains actively supported under LTS.” The API returned `SUPERSEDED` using the official Node.js release/lifecycle table. Six evidence records were returned, two Tavily searches were used, Freshness was `FRESH`, and Evidence Confidence was `LIMITED`.
-- This is one specialist software-lifecycle scenario, not a general-domain accuracy study. No general precision, recall, false-positive rate, citation correctness, or cost-per-claim figure is claimed.
+- The release adds the v0.2.84 engine: claim frames, execution status, research planner, per-source trace, live issuer records and validated supersession. Each claim card shows the claim type, its recency policy and the sources that counted for or against it.
+- 484 automated tests pass in UTC and in Asia/Riyadh.
+- Before release, the same engine ran on an isolated staging Worker (bounded runs, each rolled back afterwards):
+  - English and Arabic temporal regression claims returned the expected statuses;
+  - browser acceptance passed;
+  - the Node.js 20 lifecycle claim returned `SUPERSEDED`.
+- These are integration checks, not an accuracy study. No precision, recall, false-positive rate or cost-per-claim figure is claimed; no claim of calibrated confidence is made.
 
+## Earlier release evidence (v0.2.81, 2026-11-15)
+
+- Public CI for v0.2.81 passed 321/321 tests in UTC and in Asia/Riyadh, and deployed-browser acceptance passed against version 0.2.81 for the Node.js 20 lifecycle claim (`OUTDATED`, six evidence links including two official nodejs.org links).
 
 ## Run locally
 
@@ -106,7 +115,7 @@ Automated tests and synthetic temporal benchmarks are engineering diagnostics, n
 
 ## Hackathon submission status
 
-This repository is the public source snapshot. The official Global AI Hackathon prototype deadline is listed as **15 November 2026**; the portal listing indicates **23:59 India Standard Time (18:29 UTC)**. The organizer's event page lists judging on **29 November 2026**. Verify the portal's live countdown and complete the official submission form. Repository publication, deployment, and CI success do **not** prove that an entry was submitted or received.
+This repository is the public source snapshot. The organizer extended the prototype deadline to **21 November 2026** and allows already-submitted teams to keep updating their repositories. Repository publication, deployment and CI success do **not** prove that an entry was submitted or received.
 
 Submission assets: [portal-ready project copy](docs/SUBMISSION-COPY.md), [portal submission checklist](docs/PORTAL-SUBMISSION-CHECKLIST.md), and [demo recording script](docs/DEMO-VIDEO-SCRIPT.md).
 

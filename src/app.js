@@ -37,14 +37,14 @@ function render(data) {
     CONTRADICTED: "يتعارض مع الأدلة",
     UNVERIFIABLE: "تعذر التحقق",
     NEEDS_REVIEW: "يحتاج إلى مراجعة",
-    NOT_TIME_SENSITIVE: "غير حساس زمنياً — ليس حكماً على الصحة"
+    NOT_ASSESSED: "لم يُقيَّم — تعذر تشغيلي"
   }[status] || status.replaceAll("_", " ")) : ({
     CURRENT: "SUPPORTED AS STATED",
     SUPERSEDED: "OUTDATED",
     CONTRADICTED: "CONTRADICTED BY EVIDENCE",
     UNVERIFIABLE: "UNVERIFIABLE",
     NEEDS_REVIEW: "NEEDS REVIEW",
-    NOT_TIME_SENSITIVE: "NOT TIME-SENSITIVE — NOT A TRUTH VERDICT"
+    NOT_ASSESSED: "NOT ASSESSED — SERVICE LIMIT OR ERROR"
   }[status] || status.replaceAll("_", " "));
   const statusTone = status => status === "CURRENT" ? "good"
     : ["CONTRADICTED", "SUPERSEDED"].includes(status) ? "bad"
@@ -57,7 +57,7 @@ function render(data) {
     : "";
   // Keep the judge-facing report language English regardless of claim language.
   // Individual claim text and evidence retain their detected RTL/LTR direction.
-  summary.textContent = data.claims.length + " CLAIMS · " + (counts.CURRENT || 0) + " SUPPORTED · " + (counts.CONTRADICTED || 0) + " CONTRADICTED · " + (counts.SUPERSEDED || 0) + " OUTDATED · " + (counts.NEEDS_REVIEW || 0) + " REVIEW · " + (counts.UNVERIFIABLE || 0) + " UNVERIFIABLE · " + providedCorrections + " CORRECTIONS PROVIDED" + extractionNote;
+  summary.textContent = data.claims.length + " CLAIMS · " + (counts.CURRENT || 0) + " SUPPORTED · " + (counts.CONTRADICTED || 0) + " CONTRADICTED · " + (counts.SUPERSEDED || 0) + " OUTDATED · " + (counts.NEEDS_REVIEW || 0) + " REVIEW · " + (counts.UNVERIFIABLE || 0) + " UNVERIFIABLE · " + (counts.NOT_ASSESSED ? counts.NOT_ASSESSED + " NOT ASSESSED · " : "") + providedCorrections + " CORRECTIONS PROVIDED" + extractionNote;
   data.claims.forEach((claim, index) => {
     const { lang, dir } = detectTextDirection(claim.text);
     const arabic = lang === "ar";
@@ -67,6 +67,47 @@ function render(data) {
     top.append(node("span", "meta", arabic ? `الادعاء ${String(index + 1).padStart(2, "0")}` : `CLAIM ${String(index + 1).padStart(2, "0")}`), node("span", `status ${statusTone(claim.status)}`, statusLabel(claim.status, arabic)));
     const claimText = node("p", "claim-text", claim.text); claimText.dir = dir; claimText.lang = lang;
     card.append(top, claimText);
+    // v0.2.84: what kind of temporal claim this is, and whether it needs recent
+    // evidence. Shown because it governs which evidence can count.
+    if (claim.claim_frame?.frame) {
+      const frameLabels = {
+        TIME_ANCHORED_EVENT: ["DATED PAST EVENT", "حدث ماضٍ مؤرَّخ"],
+        CURRENT_STATE: ["CURRENT STATE", "حالة راهنة"],
+        STATE_AT_PAST_TIME: ["STATE AT A PAST TIME", "حالة في وقت سابق"],
+        SCHEDULED_FUTURE: ["SCHEDULED / FUTURE", "مجدول / مستقبلي"],
+        MIXED_OR_AMBIGUOUS: ["MIXED OR AMBIGUOUS TIME", "زمن مختلط أو غامض"],
+        UNRESOLVED: ["TIME NOT RESOLVED", "زمن غير محدد"],
+        STABLE_FACT: ["STABLE FACT", "حقيقة ثابتة"],
+        ATTRIBUTED_FINDING: ["ATTRIBUTED FINDING", "نتيجة منسوبة"],
+        NON_FACTUAL: ["NOT A FACTUAL CLAIM", "ليس ادعاءً واقعياً"]
+      };
+      const frame = claim.claim_frame;
+      const label = frameLabels[frame.frame] || [frame.frame.replaceAll("_", " "), frame.frame];
+      const recency = frame.requires_recent_evidence
+        ? (arabic ? "يتطلب أدلة حديثة" : "RECENT EVIDENCE REQUIRED")
+        : (arabic ? "تُقبل السجلات الموثوقة الأقدم" : "OLDER AUTHORITATIVE RECORDS ACCEPTED");
+      const anchors = (frame.anchors || []).map(item => item.text).filter(Boolean).slice(0, 3);
+      const frameRow = node("div", "frame-row");
+      frameRow.dir = dir; frameRow.lang = lang;
+      frameRow.append(node("span", "frame-chip", (arabic ? "نوع الادعاء · " : "CLAIM TYPE · ") + (arabic ? label[1] : label[0])));
+      if (!["NON_FACTUAL", "STABLE_FACT"].includes(frame.frame)) frameRow.append(node("span", "frame-chip muted", recency));
+      if (anchors.length) frameRow.append(node("span", "frame-chip muted", (arabic ? "المرجع الزمني · " : "TIME ANCHOR · ") + anchors.join(arabic ? "، " : ", ")));
+      card.append(frameRow);
+    }
+    // Execution is reported separately from the factual verdict.
+    if (claim.execution && claim.execution.status !== "COMPLETED") {
+      const stageLabels = arabic
+        ? { search: "البحث", fetch: "جلب الصفحات", semantic: "تقييم العلاقة" }
+        : { search: "SEARCH", fetch: "PAGE FETCH", semantic: "RELATION MODEL" };
+      const stageText = Object.entries(claim.execution.stages || {})
+        .filter(([, value]) => value && value !== "OK" && value !== "NOT_RUN")
+        .map(([key, value]) => `${stageLabels[key] || key}: ${value}`).join(" · ");
+      const executionText = arabic
+        ? ({ PARTIAL: "اكتمل التشغيل جزئياً", PROVIDER_LIMITED: "تقيّد التشغيل بحدود مزوّد الخدمة", FAILED: "تعذّر التشغيل" }[claim.execution.status] || claim.execution.status)
+        : ({ PARTIAL: "RUN PARTIALLY COMPLETED", PROVIDER_LIMITED: "RUN LIMITED BY A PROVIDER", FAILED: "RUN FAILED" }[claim.execution.status] || claim.execution.status);
+      const executionNode = node("div", "execution-note", executionText + (stageText ? " · " + stageText : "") + (arabic ? " — هذا وضع تشغيلي وليس دليلاً على صحة الادعاء أو خطئه." : " — operational state only, not evidence about the claim."));
+      executionNode.dir = dir; executionNode.lang = lang; card.append(executionNode);
+    }
     const auditDetails = node("details", "audit-details");
     const auditSummary = node("summary", "audit-summary", arabic ? "تفاصيل الأدلة والمصادر وسجل التدقيق" : "Evidence, sources & audit details");
     auditDetails.append(auditSummary);
@@ -99,6 +140,41 @@ function render(data) {
     metrics.dir = dir; metrics.lang = lang;
     card.append(metrics);
     if (claim.explanation) { const explanation = node("p", "explanation", arabic ? (claim.status === "SUPERSEDED" ? "تُظهر الأدلة أن الادعاء أصبح قديماً أو تجاوزته تطورات لاحقة." : claim.status === "CURRENT" ? "تدعم مصادر مستقلة مؤهلة هذا الادعاء ضمن النطاق المحدد." : claim.status === "CONTRADICTED" ? "تتعارض مصادر مستقلة مؤهلة مع الادعاء." : claim.status === "NEEDS_REVIEW" ? "لم تتحقق عتبة الأدلة والتأييد المستقل؛ لذلك امتنع المحرك عن الحكم." : claim.explanation) : claim.explanation); explanation.dir = dir; explanation.lang = lang; card.append(explanation); }
+    // v0.2.82: why the engine abstained, shown separately from verification
+    // status, publication freshness, evidence confidence and source profile.
+    // Descriptive only; no numeric score is shown or implied.
+    if (claim.abstention_diagnosis) {
+      const diagnosis = claim.abstention_diagnosis;
+      const reasonText = {
+        PIPELINE_EXCEPTION: ["An internal error occurred during evidence acquisition.", "حدث خطأ داخلي أثناء جمع الأدلة."],
+        RETRIEVAL_PROVIDER_FAILURE: ["The search provider failed or was rate-limited.", "تعذّر الوصول إلى مزود البحث أو تجاوز حد الطلبات."],
+        RETRIEVAL_NO_RESULTS: ["No search results were found.", "لم تُعثر على نتائج بحث."],
+        NO_RELEVANT_EVIDENCE: ["Sources were found, but none addressed the claim.", "عُثر على مصادر لكن لم يتناول أيٌّ منها الادعاء."],
+        INSUFFICIENT_SOURCE_QUALITY: ["Relevant sources were found, but none was an official, institutional or reputable publisher.", "وُجدت مصادر ذات صلة لكن لم يكن بينها ناشر رسمي أو مؤسسي أو موثوق."],
+        INSUFFICIENT_INDEPENDENT_CORROBORATION: ["Fewer than two independent publishers corroborated the finding.", "لم يؤكد النتيجةَ ناشران مستقلان على الأقل."],
+        STALE_OR_UNDATED_EVIDENCE: ["The evidence is too old or undated for a time-sensitive claim. Retrieval time does not count as freshness.", "الأدلة قديمة أو غير مؤرخة بالنسبة لادعاء حساس زمنياً؛ وقت الاسترجاع لا يُعدّ دليلاً على الحداثة."],
+        SEMANTIC_PROVIDER_UNAVAILABLE: ["The evidence-relation model was unavailable, so no verdict was inferred.", "نموذج تقييم علاقة الأدلة غير متاح؛ لذلك لم يُستنتج حكم."],
+        SEMANTIC_UNCERTAINTY: ["The evidence neither clearly supported nor clearly contradicted the claim.", "لم تدعم الأدلة الادعاء بوضوح ولم تنقضه بوضوح."],
+        GENUINE_EVIDENCE_CONFLICT: ["Qualified sources disagree with each other.", "تتعارض المصادر المؤهلة فيما بينها."],
+        COMPONENT_COVERAGE_GAP: ["Not every part of a compound claim was covered by evidence.", "لم تغطِّ الأدلة جميع أجزاء الادعاء المركّب."],
+        SPECIALIST_EVIDENCE_GATE: ["A specialist rule's evidence did not meet the core evidence gates.", "لم تستوفِ أدلة القاعدة المتخصصة شروط الأدلة الأساسية."],
+        HIGH_IMPACT_SINGLE_SOURCE_BLOCK: ["High-impact claims need more than one independent source.", "الادعاءات عالية الأثر تتطلب أكثر من مصدر مستقل."]
+      }[diagnosis.primary_reason] || [diagnosis.primary_reason, diagnosis.primary_reason];
+      const box = node("section", "outcome-box abstention-reason");
+      box.dir = dir; box.lang = lang;
+      box.append(node("div", "outcome-heading", arabic ? "سبب عدم إصدار حكم" : "WHY NO VERDICT"));
+      box.append(node("p", "outcome-reason", arabic ? reasonText[1] : reasonText[0]));
+      const others = (diagnosis.contributing_factors || []).filter(item => item !== diagnosis.primary_reason);
+      box.append(node("p", "outcome-meta", (arabic ? "السبب الرئيسي: " : "PRIMARY REASON: ") + diagnosis.primary_reason + (others.length ? (arabic ? " · عوامل أخرى: " : " · ALSO: ") + others.join(", ") : "")));
+      (diagnosis.evidence_dates || []).slice(0, 4).forEach(item => {
+        const basis = arabic
+          ? { PUBLICATION_DATE: "تاريخ النشر", EDITORIAL_UPDATE_DATE: "تاريخ تحديث تحريري موثّق", UNDATED: "غير مؤرخ", LIVE_STRUCTURED_OBSERVATION: "ملاحظة مباشرة لقائمة رسمية" }[item.recency_basis] || item.recency_basis
+          : item.recency_basis.replaceAll("_", " ");
+        const line = node("p", "outcome-limitation", `${item.domain} · ${item.recency_date || (arabic ? "بلا تاريخ" : "NO DATE")} · ${basis}${item.within_window === false && diagnosis.recency_window_days ? (arabic ? ` · خارج نافذة ${diagnosis.recency_window_days} يوماً` : ` · OUTSIDE ${diagnosis.recency_window_days}-DAY WINDOW`) : ""}`);
+        line.dir = dir; line.lang = lang; box.append(line);
+      });
+      card.append(box);
+    }
     if (claim.explanation_detail) {
       const detail = claim.explanation_detail;
       const explainBox = node("section", "outcome-box explanation-outcome");
@@ -142,14 +218,14 @@ function render(data) {
         SUPERSEDED: "النتيجة: المعلومة أصبحت قديمة وتجاوزها تغير موثق.",
         NEEDS_REVIEW: "النتيجة: الأدلة الحالية لا تكفي لإثبات صحة الادعاء أو نفيه.",
         UNVERIFIABLE: "النتيجة: لم تتوفر أدلة قابلة للاستخدام للتحقق من الادعاء.",
-        NOT_TIME_SENSITIVE: "لم يُكتشف محفز زمني؛ هذه ليست نتيجة تحقق من صحة المعلومة."
+        NOT_ASSESSED: "لم يُقيَّم الادعاء بسبب تعذر تشغيلي (حد الخدمة أو خطأ)، وليس بسبب الأدلة. أعد المحاولة لاحقاً."
       } : {
         CURRENT: "Finding: evidence supports this claim within the reviewed scope and timeframe.",
         CONTRADICTED: "Finding: the claim conflicts with the eligible evidence retrieved for it.",
         SUPERSEDED: "Finding: a documented change has made the original information outdated.",
         NEEDS_REVIEW: "Finding: available evidence is not sufficient to establish or refute the claim.",
         UNVERIFIABLE: "Finding: no usable evidence was available to verify the claim.",
-        NOT_TIME_SENSITIVE: "No temporal trigger was detected; this is not a factual verdict."
+        NOT_ASSESSED: "Not assessed: an operational limit or error stopped the evidence process. This says nothing about the claim; try again later."
       };
       const finding = node("p", "comparison-finding", findingMap[claim.status] || claim.explanation || "");
       finding.dir = dir; finding.lang = lang; comparison.append(finding);
@@ -162,6 +238,7 @@ function render(data) {
       else if (claim.status === "CONTRADICTED" || claim.status === "SUPERSEDED") correctText = arabic ? "لم يعتمد المحرك حتى الآن صياغة بديلة مستوفية لشروط الإثبات المستقل وتطابق النطاق والزمن. لذلك لن يخمّن المعلومة الصحيحة. راجع الأدلة الأصلية أدناه." : "No replacement has yet passed the independent-evidence, scope, and timeframe checks. FreshProof will not guess the correct statement. Review the original sources below.";
       else if (claim.status === "NEEDS_REVIEW") correctText = arabic ? "لا يمكن الجزم بالمعلومة الصحيحة حالياً؛ توجد أدلة لكنها غير كافية أو تحتاج إلى حسم التعارض." : "The correct statement cannot yet be established; evidence is incomplete or conflicting.";
       else if (claim.status === "UNVERIFIABLE") correctText = arabic ? "لا يمكن تحديد المعلومة الصحيحة لعدم توفر أدلة قابلة للاستخدام." : "The correct statement cannot be determined because no usable evidence was obtained.";
+      else if (claim.status === "NOT_ASSESSED") correctText = arabic ? "لم يُقيَّم الادعاء؛ لا يمكن اقتراح تصحيح." : "The claim was not assessed; no correction can be proposed."
       else correctText = arabic ? "لم يصدر حكم واقعي على صحة الادعاء؛ التقييم الزمني وحده لا يثبت الصحة أو الخطأ." : "No factual judgment was made; temporal classification alone does not establish truth or error.";
       const correct = node("p", correction.status === "PROVIDED" ? "comparison-correct" : "comparison-unresolved", correctText);
       correct.dir = dir; correct.lang = lang; comparison.append(correct);
@@ -238,7 +315,39 @@ function render(data) {
       const domainNote = node("p", "alignment-note", arabic ? (domainEvidence.method === "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE" ? "تنص صفحة Python.org الرسمية على أن Python 2 انتهى دعمه في 1 يناير 2020. تاريخ نشر الصفحة غير متاح؛ وسُجل وقت الاسترجاع بصورة مستقلة." : domainEvidence.method === "FIRST_PARTY_OFFICIAL_WEBSITE_LINK" ? "يربط الموقع الرسمي للبيت الأبيض مباشرةً بحساب X هذا. يثبت ذلك الارتباط المؤسسي، ولا يثبت صحة كل منشور أو الحالة الأمنية للحساب." : domainEvidence.limitation || "دليل متخصص؛ راجع المصدر الأصلي وحدود الاستدلال.") : domainEvidence.limitation || "Domain-specific evidence; inspect the original sources and limitations."); domainNote.dir = arabic ? "rtl" : "ltr"; domainNote.lang = lang; verdict.append(domainNote);
       auditDetails.append(verdict);
     }
-    (claim.sources || []).forEach(source => {
+    // v0.2.84: group sources by how the adjudicator actually used them, using
+    // the same trace the verdict was computed from (no reconstruction).
+    const traceByIndex = new Map((claim.adjudication?.adjudication_signals?.source_trace || []).map(item => [item.index, item]));
+    const contributionRank = trace => !trace ? 3 : trace.contribution === "SUPPORTS_ELIGIBLE" ? 0 : trace.contribution === "CONTRADICTS_ELIGIBLE" ? 1 : trace.eligible ? 2 : 3;
+    const exclusionText = reason => {
+      const key = String(reason || "");
+      const table = {
+        RELEVANCE: ["not directly about the claim", "لا يتناول الادعاء مباشرة"],
+        RELIABILITY: ["publisher not classified as official, institutional or reputable", "الناشر غير مصنّف رسمياً أو مؤسسياً أو موثوقاً"],
+        FIRST_PARTY_NOT_CONFIRMED_AS_ORIGINATING: ["not confirmed as the originating record", "لم يُؤكَّد أنه السجل الأصلي"],
+        SCOPE_NO_MATCH: ["covers a different scope", "يغطي نطاقاً مختلفاً"],
+        NOT_RECENT_FOR_CURRENT_STATE: ["too old or undated for a current-state claim", "قديم أو غير مؤرخ بالنسبة لادعاء حالة راهنة"],
+        NO_SEMANTIC_RELATION: ["relation to the claim not assessed", "لم تُقيَّم علاقته بالادعاء"],
+        INVALID_URL: ["invalid address", "عنوان غير صالح"]
+      };
+      const entry = table[key] || table[key.split("_")[0]] || [key.replaceAll("_", " ").toLowerCase(), key];
+      return arabic ? entry[1] : entry[0];
+    };
+    const orderedSources = (claim.sources || []).map((source, index) => ({ source, index, trace: traceByIndex.get(index) }))
+      .sort((a, b) => contributionRank(a.trace) - contributionRank(b.trace) || a.index - b.index);
+    let currentGroup = null;
+    orderedSources.forEach(({ source, trace }) => {
+      if (traceByIndex.size) {
+        const group = contributionRank(trace);
+        if (group !== currentGroup) {
+          currentGroup = group;
+          const headings = arabic
+            ? ["مصادر احتُسبت داعمة", "مصادر احتُسبت مناقضة", "مصادر مؤهلة دون علاقة حاسمة", "مصادر لم تُحتسب في الحكم"]
+            : ["COUNTED AS SUPPORTING", "COUNTED AS CONTRADICTING", "ELIGIBLE, NO DECISIVE RELATION", "NOT COUNTED IN THE VERDICT"];
+          const heading = node("div", `source-group source-group-${group}`, headings[group]);
+          heading.dir = dir; heading.lang = lang; auditDetails.append(heading);
+        }
+      }
       const evidence = node("div", "evidence");
       const anchor = node("a", "", source.title || source.url);
       anchor.href = source.url; anchor.target = "_blank"; anchor.rel = "noopener noreferrer";
@@ -250,10 +359,21 @@ function render(data) {
       snippet.dir = snippetArabic ? "rtl" : "ltr"; snippet.lang = snippetArabic ? "ar" : "en";
       evidence.append(anchor, snippet);
       const dateParts = arabic ? [`تاريخ نشر المصدر ${source.published_date || "غير متاح"}`, `تصنيف المصدر ${source.source_reliability || "غير مقيّم"}`] : [`SOURCE PUBLICATION ${source.published_date || "NOT PROVIDED"}`, `DOMAIN ${source.source_reliability || "UNASSESSED"}`];
+      if (source.published_date && source.published_date_basis) dateParts[0] += arabic ? ` (${source.published_date_basis === "PAGE_METADATA" ? "من بيانات الصفحة" : "من مزود البحث"})` : ` (${source.published_date_basis.replaceAll("_", " ")})`;
+      if (source.updated_date) dateParts.push(arabic ? `تحديث تحريري ${source.updated_date}` : `EDITORIAL UPDATE ${source.updated_date}`);
+      else if (source.unverified_modified_date) dateParts.push(arabic ? `تاريخ تعديل غير معتمد ${source.unverified_modified_date}` : `UNVERIFIED MODIFIED DATE ${source.unverified_modified_date} (${String(source.unverified_modified_date_reason || "NOT TRUSTED").replaceAll("_", " ")})`);
       if (source.retrieved_at) dateParts.push(arabic ? `وقت الاسترجاع ${source.retrieved_at} (UTC)` : `RETRIEVED AT ${source.retrieved_at} (UTC)`);
+      if (source.evidence_origin) dateParts.push(arabic
+        ? ({ DIRECT_PAGE_PASSAGES: "مقتطفات حرفية من الصفحة", SEARCH_SNIPPET: "مقتطف محرك البحث فقط", SPECIALIST_DIRECT_ACQUISITION: "جلب مباشر متخصص" }[source.evidence_origin] || source.evidence_origin)
+        : `EVIDENCE ${source.evidence_origin.replaceAll("_", " ")}`);
+      if (source.first_party_confirmation === "NOT_CONFIRMED_BY_PAGE_IDENTITY" || source.first_party_confirmation === "NOT_FETCHED") dateParts.push(arabic ? "لم تُؤكَّد هوية الناشر الأصلي" : "FIRST-PARTY IDENTITY NOT CONFIRMED");
       if (source.event_date_candidate) dateParts.push(arabic ? `تاريخ الحدث المحتمل في المقتطف ${source.event_date_candidate}` : `POSSIBLE EVENT DATE IN SNIPPET ${source.event_date_candidate}`);
       const sourceMeta = node("div", "meta", dateParts.join(" · ")); sourceMeta.dir = dir; sourceMeta.lang = lang;
       evidence.append(sourceMeta);
+      if (trace && !trace.eligible && trace.exclusion_reasons?.length) {
+        const why = node("p", "source-exclusion", (arabic ? "لم يُحتسب: " : "Not counted: ") + [...new Set(trace.exclusion_reasons.map(exclusionText))].join(arabic ? "؛ " : "; "));
+        why.dir = dir; why.lang = lang; evidence.append(why);
+      }
       const relevance = source.relevance_assessment;
       if (relevance) {
         const relevanceBox = node("div", "alignment");

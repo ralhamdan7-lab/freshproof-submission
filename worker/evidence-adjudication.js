@@ -1,3 +1,7 @@
+import { evidenceRecency } from "./evidence-dates.js";
+import { adjudicateTemporalSupersession } from "./temporal-adjudication.js";
+import { MULTI_PART_SUFFIXES, independentLineages, isMultiPartSuffix } from "./evidence-acquisition.js";
+
 // Claim-specific evidence sufficiency. Semantic assessments are advisory; single-source
 // decisions are limited to narrow, low-risk claims backed by direct exact-scope primary evidence.
 const VALID_RELATIONS = new Set(["SUPPORTS", "CONTRADICTS", "MIXED", "IRRELEVANT", "INSUFFICIENT"]);
@@ -11,16 +15,10 @@ function hostOf(url) {
     return parsed.hostname.toLowerCase().replace(/^www\./, "");
   } catch { return ""; }
 }
-const MULTI_PART_PUBLIC_SUFFIXES = new Set([
-  "co.uk", "org.uk", "gov.uk", "ac.uk", "sch.uk",
-  "com.au", "net.au", "org.au", "edu.au", "gov.au",
-  "co.nz", "org.nz", "govt.nz", "ac.nz",
-  "com.br", "gov.br", "com.cn", "gov.cn", "com.sg", "gov.sg", "com.hk", "gov.hk", "com.tw", "gov.tw",
-  "co.jp", "ne.jp", "or.jp", "ac.jp", "go.jp", "gov.jp",
-  "co.in", "firm.in", "net.in", "org.in", "gen.in", "ind.in", "gov.in", "ac.in", "edu.in",
-  "com.mx", "com.tr", "co.za", "org.za", "ac.za", "gov.za",
-  "com.sa", "gov.sa", "edu.sa", "org.sa"
-]);
+// v0.2.82: one shared bounded multi-part suffix list (also used by acquisition and
+// temporal adjudication) so government and academic second levels of every
+// listed country are treated consistently.
+const MULTI_PART_PUBLIC_SUFFIXES = MULTI_PART_SUFFIXES;
 
 // Count independent registrable domains, not subdomains controlled by one publisher.
 // This is a bounded common-suffix list, not a complete Public Suffix List; unknown
@@ -31,39 +29,63 @@ export function registrableDomain(url) {
   const labels = host.split(".");
   if (labels.length <= 2) return host;
   const lastTwo = labels.slice(-2).join(".");
-  if (MULTI_PART_PUBLIC_SUFFIXES.has(lastTwo)) return labels.slice(-3).join(".");
+  if (isMultiPartSuffix(lastTwo)) return labels.slice(-3).join(".");
   return lastTwo;
 }
 
-function validDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value)) return null;
-  const n = Date.parse(value);
-  return Number.isFinite(n) ? n : null;
-}
+// Recency comes from evidenceRecency(): publication date or a validated,
+// page-declared editorial update date. Retrieval time is never recency evidence.
 function recentDated(source, now, maxAgeDays) {
-  const date = validDate(source.published_date);
-  return date !== null && date <= now + DAY && now - date <= maxAgeDays * DAY;
+  return evidenceRecency(source, { now, maxAgeDays }).is_recent;
 }
 
-// An older first-party record can establish the date of a formal transition,
-// but it cannot establish the present state by itself. It is admitted only as
-// a historical anchor when a complete semantic assessment binds it directly
-// to the exact current-state claim and identifies the originating authority.
-function isHistoricalTransitionAnchor(source, semanticSource, claimAssessment, now) {
-  if (claimAssessment?.claim_type !== "CURRENT_STATE"
-    || source?.source_reliability !== "PRIMARY_OR_OFFICIAL_DOMAIN"
-    || semanticSource?.directness !== "DIRECT"
-    || semanticSource?.scope_match !== "EXACT"
-    || semanticSource?.authority_role !== "ORIGINATING_AUTHORITY") return false;
-  const eventDate = validDate(source?.event_date_candidate);
-  const publicationDate = validDate(source?.published_date);
-  return eventDate !== null && publicationDate !== null
-    && eventDate <= publicationDate
-    && eventDate <= now + DAY
-    && publicationDate <= now + DAY;
+// v0.2.84 live issuer record: for a current-state claim, the originating
+// authority's own current record, fetched in this request, is evidence of the
+// present state even when the page carries no date (membership lists, registers,
+// directories). Every condition is required:
+//   - fetched directly in this request, with claim-relevant page passages;
+//   - publisher classified PRIMARY_OR_OFFICIAL_DOMAIN (structural or confirmed
+//     first-party), never by the model;
+//   - semantic assessment: DIRECT, EXACT scope, ORIGINATING_AUTHORITY and
+//     temporal_role CURRENT_STATE_RECORD;
+//   - a dated page is judged by its date: only undated or recent pages qualify,
+//     so an old news item or archived page never becomes "live".
+// Retrieval time is recorded as the observation time; it is not treated as a
+// publication date.
+const LIVE_RECORD_MAX_RETRIEVAL_AGE_MS = 6 * 3600 * 1000;
+function liveIssuerRecord(item, now, maxAgeDays) {
+  const source = item?.source;
+  const assessed = item?.semanticSource;
+  if (!source || !assessed) return false;
+  if (source.evidence_origin !== "DIRECT_PAGE_PASSAGES" || source.source_reliability !== "PRIMARY_OR_OFFICIAL_DOMAIN") return false;
+  if (assessed.directness !== "DIRECT" || assessed.scope_match !== "EXACT"
+    || assessed.authority_role !== "ORIGINATING_AUTHORITY" || assessed.temporal_role !== "CURRENT_STATE_RECORD") return false;
+  const retrieved = Date.parse(String(source.retrieved_at || ""));
+  if (!Number.isFinite(retrieved) || retrieved > now + 60000 || now - retrieved > LIVE_RECORD_MAX_RETRIEVAL_AGE_MS) return false;
+  const recency = evidenceRecency(source, { now, maxAgeDays });
+  return recency.recency_basis === "UNDATED" || recency.is_recent;
 }
+// v0.2.82: a first-party domain (publisher name equals an entity in the claim)
+// counts as primary only when the semantic assessment also finds that the page
+// itself directly originates the record. Structural/curated authority is unchanged.
+function authorityQualified(item) {
+  if (item?.source?.reliability_basis !== "FIRST_PARTY_ENTITY_DOMAIN") return true;
+  const assessed = item.semanticSource;
+  return Boolean(assessed) && assessed.directness === "DIRECT"
+    && ["ORIGINATING_AUTHORITY", "PRIMARY_RESEARCH"].includes(assessed.authority_role)
+    && assessed.scope_match !== "NO_MATCH";
+}
+// Proposition-level relevance: when structured source metadata exists, a source
+// the semantic assessment found to be out of scope (NO_MATCH) never qualifies,
+// however high its keyword relevance. The whole-claim relation remains required.
+function scopeQualified(item) {
+  return !item?.semanticSource || item.semanticSource.scope_match !== "NO_MATCH";
+}
+// v0.2.82: independence is counted by publisher lineage (same registrable
+// domain, same organisation label across suffixes, or near-duplicate
+// syndicated evidence text), never by raw hostname alone.
 function uniqueHosts(items) {
-  return new Set(items.map(x => registrableDomain(x.url)).filter(Boolean));
+  return new Set(independentLineages(items));
 }
 function completeAssessment(assessment, sourceCount, components = []) {
   if (!assessment || assessment.status !== "COMPLETED_ADVISORY" || !Array.isArray(assessment.assessments)
@@ -142,9 +164,25 @@ export function adjudicateEvidence({
   retrievalCount = 0,
   now = Date.now(),
   maxEvidenceAgeDays = 180,
-  temporalSensitive = true
+  temporalSensitive = true,
+  claimFrame = null
 } = {}) {
   const materialComponents = Array.isArray(claimComponents) ? claimComponents : [];
+  const evidenceFrame = claimFrame?.frame || null;
+  const requireRecentEvidence = evidenceFrame ? evidenceFrame === "CURRENT_STATE" : !!temporalSensitive;
+  if (["UNRESOLVED", "MIXED_OR_AMBIGUOUS", "SCHEDULED_FUTURE", "NON_FACTUAL"].includes(evidenceFrame)) {
+    return {
+      status: "NEEDS_REVIEW",
+      method: "CLAIM_FRAME_REQUIRES_REVIEW",
+      rationale: evidenceFrame === "SCHEDULED_FUTURE"
+        ? "A future or scheduled proposition is not treated as a present factual finding."
+        : evidenceFrame === "NON_FACTUAL"
+          ? "The extracted proposition is non-factual or normative and is not adjudicated as a factual claim."
+          : "The claim frame is ambiguous or its date anchor cannot be resolved safely; no decisive verdict was inferred.",
+      evidence: [],
+      adjudication_signals: { claim_frame: evidenceFrame, review_reason: "CLAIM_FRAME_NOT_DECISIVE" }
+    };
+  }
   const modelClassifiesCompound = semanticAssessment?.claim_assessment?.claim_type === "COMPOUND";
   if (modelClassifiesCompound && materialComponents.length < 2) {
     return {
@@ -165,7 +203,7 @@ export function adjudicateEvidence({
     const eligibleSource = (source) => source?.relevance_assessment?.relevance === "HIGH"
       && ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(source?.source_reliability)
       && Boolean(hostOf(source?.url))
-      && (!temporalSensitive || recentDated(source, now, maxEvidenceAgeDays));
+      && (!requireRecentEvidence || recentDated(source, now, maxEvidenceAgeDays));
     if (componentAssessment) {
       for (let componentId = 1; componentId <= materialComponents.length; componentId++) {
         const relationsForComponent = [];
@@ -185,7 +223,7 @@ export function adjudicateEvidence({
       return {
         status: "NEEDS_REVIEW",
         method: "SEMANTIC_COMPONENT_COVERAGE_GATE",
-        rationale: "A compound claim cannot receive a decisive verdict until every material component is linked to eligible, dated evidence with no unresolved component-level polarity conflict.",
+        rationale: "A compound claim cannot receive a decisive verdict until every material component is linked to evidence eligible under its claim-frame validity policy with no unresolved component-level polarity conflict.",
         evidence: [],
         adjudication_signals: {
           semantic_component_assessment_complete: Boolean(componentAssessment),
@@ -211,28 +249,73 @@ export function adjudicateEvidence({
     ].filter(Boolean);
     const eligibleByUrl = new Map((Array.isArray(sources) ? sources : []).map(source => [source.url, source]));
     const boundSources = evidenceUrls.map(url => eligibleByUrl.get(url));
-    const sourceDatesValid = boundSources.length > 0 && boundSources.every(source => {
-      const dates = [source?.retrieved_at, source?.published_date].map(value => Date.parse(value || "")).filter(Number.isFinite);
-      return dates.some(date => date <= now + DAY && now - date <= 365 * DAY);
-    });
+    // v0.2.82: retrieval time alone never validates adapter evidence. Only a
+    // publication date, a validated editorial update, or an adapter-declared
+    // structurally validated first-party live listing (named, narrow exception)
+    // can satisfy the 365-day window; the basis is recorded for audit.
+    const boundRecency = boundSources.map(source => source ? evidenceRecency(source, { now, maxAgeDays: 365, allowLiveObservation: true }) : null);
+    const sourceDatesValid = boundSources.length > 0 && boundRecency.every(item => item?.is_recent);
+    const isValidatedPythonHistoricalRecord = source => {
+      if (source?.evidence_kind !== "OFFICIAL_PYTHON2_SUNSET_NOTICE"
+        || source?.historical_record_semantics !== "AUTHORITATIVE_HISTORICAL_EVENT_RECORD"
+        || source?.historical_record_validation !== "PYTHON2_SUNSET_VALIDATED_CONTENT_V1"
+        || source?.event_date_candidate !== "2020-01-01"
+        || !["OFFICIAL_SUNSET_STATEMENT", "PEP_373_END_OF_LIFE_DATE"].includes(source?.event_date_basis)
+        || !["DIRECT_FIRST_PARTY_FETCH", "DIRECT_FIRST_PARTY_PEP", "TAVILY_INDEXED_FIRST_PARTY_PAGE"].includes(source?.acquisition_method)
+        || (source?.acquisition_method === "TAVILY_INDEXED_FIRST_PARTY_PAGE"
+          ? source?.evidence_origin !== "SPECIALIST_SEARCH_INDEX"
+          : source?.evidence_origin !== "SPECIALIST_DIRECT_ACQUISITION")) return false;
+      try {
+        const url = new URL(source.url);
+        const host = url.hostname.toLowerCase();
+        const path = url.pathname.toLowerCase();
+        return ((host === "python.org" || host === "www.python.org") && path.startsWith("/doc/sunset-python-2"))
+          || (host === "peps.python.org" && path === "/pep-0373/")
+          || (host === "docs.python.org" && path === "/3/howto/pyporting.html");
+      } catch { return false; }
+    };
+    const historicalEventRecordValid = decisive
+      && evidence?.method === "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE"
+      && evidence?.historical_record_semantics === "AUTHORITATIVE_HISTORICAL_EVENT_RECORD"
+      && evidence?.historical_record_validation === "PYTHON2_SUNSET_VALIDATED_CONTENT_V1"
+      && evidence?.event_date === "2020-01-01"
+      && evidence?.source?.historical_record_validation === "PYTHON2_SUNSET_VALIDATED_CONTENT_V1"
+      && evidence?.source?.event_date_candidate === evidence.event_date
+      && boundSources.length === 1
+      && boundSources.every(source => isValidatedPythonHistoricalRecord(source));
     const sourceQualityValid = boundSources.length > 0 && boundSources.every(source =>
       source?.relevance_assessment?.relevance === "HIGH"
       && ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(source?.source_reliability)
       && Boolean(hostOf(source.url))
     );
+    // v0.2.84: the adapter gate follows the same frame-aware validity policy as
+    // the generic path. Recency is required only for CURRENT_STATE claims (or
+    // when no frame is known); a time-anchored event, a past state or a stable
+    // fact is not invalidated by the age of its authoritative record.
+    const adapterFrameExemptFromRecency = Boolean(evidenceFrame) && evidenceFrame !== "CURRENT_STATE";
+    const temporalEvidenceValid = sourceDatesValid || historicalEventRecordValid || adapterFrameExemptFromRecency;
     const domainEvidenceValidated = !decisive || (
       evidenceUrls.length > 0
       && boundSources.length === evidenceUrls.length
-      && sourceDatesValid
+      && temporalEvidenceValid
       && sourceQualityValid
     );
     if (domainEvidenceValidated) {
       return {
         status: domainResult.status,
         method: "DOMAIN_SPECIFIC_RULE",
-        rationale: "A narrowly scoped domain adapter supplied an explicit result bound to eligible, recent primary or institutional evidence.",
+        rationale: historicalEventRecordValid
+          ? "The result is bound to a validated first-party historical event record. Its event date is not treated as publication freshness."
+          : "A narrowly scoped domain adapter supplied an explicit result bound to eligible, dated recent primary or institutional evidence.",
         evidence,
-        adjudication_signals: { semantic_relations: "ADVISORY_ONLY", domain_evidence_bound_to_core_sources: true }
+        adjudication_signals: {
+          semantic_relations: "ADVISORY_ONLY",
+          domain_evidence_bound_to_core_sources: true,
+          domain_evidence_temporal_basis: historicalEventRecordValid ? "VALIDATED_HISTORICAL_EVENT_RECORD" : "DATED_CURRENT_EVIDENCE",
+          domain_evidence_event_date: historicalEventRecordValid ? evidence.event_date : null,
+          domain_evidence_recency: boundRecency.map(item => item && { recency_date: item.recency_date, recency_basis: item.recency_basis, freshness_applicable: !historicalEventRecordValid && !adapterFrameExemptFromRecency }),
+          claim_frame_recency_policy: adapterFrameExemptFromRecency ? "NOT_REQUIRED_FOR_" + evidenceFrame : "REQUIRED_365_DAYS_OR_VALIDATED_RECORD"
+        }
       };
     }
     return {
@@ -244,7 +327,8 @@ export function adjudicateEvidence({
         semantic_relations: "ADVISORY_ONLY",
         domain_evidence_bound_to_core_sources: false,
         domain_evidence_url_count: evidenceUrls.length,
-        domain_evidence_bound_source_count: boundSources.filter(Boolean).length
+        domain_evidence_bound_source_count: boundSources.filter(Boolean).length,
+        domain_evidence_recency: boundRecency.map(item => item && { recency_date: item.recency_date, recency_basis: item.recency_basis, explanation: item.explanation })
       }
     };
   }
@@ -281,19 +365,57 @@ export function adjudicateEvidence({
     source, index, relation: relations?.byIndex.get(index) || "UNASSESSED",
     semanticSource: relations?.sourceByIndex.get(index) || null
   }));
+  const temporalSupersession = adjudicateTemporalSupersession({
+    claim, sources, relations, temporalSensitive: evidenceFrame ? evidenceFrame === "CURRENT_STATE" : temporalSensitive, frameIsCurrentState: evidenceFrame === "CURRENT_STATE", now
+  });
+  if (temporalSupersession) return temporalSupersession;
   const reviewCandidates = assessed.filter(x =>
     ["HIGH", "MEDIUM"].includes(x.source?.relevance_assessment?.relevance) && hostOf(x.source.url)
   );
   // Only HIGH relevance can support a generic verdict. MEDIUM relevance is
   // retained as a review lead so strict domain filtering does not erase retrieval.
   const eligible = reviewCandidates.filter(x => x.source?.relevance_assessment?.relevance === "HIGH");
-  const qualified = eligible.filter(x => {
-    if (!["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(x.source.source_reliability)) return false;
-    if (!temporalSensitive || recentDated(x.source, now, maxEvidenceAgeDays)) return true;
-    return isHistoricalTransitionAnchor(x.source, x.semanticSource, relations?.claimAssessment, now);
-  });
+  const qualified = eligible.filter(x =>
+    ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(x.source.source_reliability)
+    && authorityQualified(x)
+    && scopeQualified(x)
+    && (!requireRecentEvidence || recentDated(x.source, now, maxEvidenceAgeDays) || liveIssuerRecord(x, now, maxEvidenceAgeDays))
+  );
   const supporting = qualified.filter(x => x.relation === "SUPPORTS");
   const contradicting = qualified.filter(x => x.relation === "CONTRADICTS");
+  // v0.2.84 telemetry: the exact gate each source passed or failed, produced
+  // by the same predicates that adjudicate (no post-hoc reconstruction).
+  const qualifiedSet = new Set(qualified.map(x => x.index));
+  const source_trace = assessed.map(x => {
+    const reasons = [];
+    if (!hostOf(x.source?.url)) reasons.push("INVALID_URL");
+    const relevance = x.source?.relevance_assessment?.relevance || "UNASSESSED";
+    if (relevance !== "HIGH") reasons.push("RELEVANCE_" + relevance);
+    if (!["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(x.source?.source_reliability)) reasons.push("RELIABILITY_" + (x.source?.source_reliability || "UNKNOWN"));
+    if (!authorityQualified(x)) reasons.push("FIRST_PARTY_NOT_CONFIRMED_AS_ORIGINATING");
+    if (!scopeQualified(x)) reasons.push("SCOPE_NO_MATCH");
+    const liveRecord = requireRecentEvidence && liveIssuerRecord(x, now, maxEvidenceAgeDays);
+    if (requireRecentEvidence && !recentDated(x.source, now, maxEvidenceAgeDays) && !liveRecord) reasons.push("NOT_RECENT_FOR_CURRENT_STATE");
+    if (x.relation === "UNASSESSED") reasons.push("NO_SEMANTIC_RELATION");
+    const eligibleSource = qualifiedSet.has(x.index);
+    return {
+      index: x.index,
+      registrable_domain: hostOf(x.source?.url),
+      reliability: x.source?.source_reliability || null,
+      reliability_basis: x.source?.reliability_basis || null,
+      evidence_origin: x.source?.evidence_origin || null,
+      relevance,
+      relation: x.relation,
+      scope_match: x.semanticSource?.scope_match || null,
+      authority_role: x.semanticSource?.authority_role || null,
+      eligible: eligibleSource,
+      live_issuer_record: Boolean(liveRecord),
+      contribution: eligibleSource
+        ? (x.relation === "SUPPORTS" ? "SUPPORTS_ELIGIBLE" : x.relation === "CONTRADICTS" ? "CONTRADICTS_ELIGIBLE" : "ELIGIBLE_" + x.relation)
+        : "EXCLUDED:" + (reasons[0] || "NOT_QUALIFIED"),
+      exclusion_reasons: eligibleSource ? [] : reasons
+    };
+  });
   const scopeConflict = crossSourceConflicts.some(item => String(item.signal || "").includes("SCOPE"));
   const mixed = scopeConflict || qualified.some(x => x.relation === "MIXED")
     || (supporting.length > 0 && contradicting.length > 0);
@@ -305,6 +427,9 @@ export function adjudicateEvidence({
   const allEvidenceMixed = allRelations.includes("MIXED")
     || (allRelations.includes("SUPPORTS") && allRelations.includes("CONTRADICTS"));
   const signals = {
+    source_trace,
+    claim_frame: evidenceFrame,
+    recency_required: requireRecentEvidence,
     temporal_sensitive: !!temporalSensitive,
     semantic_assessment_complete: Boolean(relations),
     semantic_assessment_status: semanticAssessment?.status || "UNAVAILABLE",
@@ -319,15 +444,24 @@ export function adjudicateEvidence({
     lexical_conflicts_are_non_decisive: true,
     publication_and_event_dates_separate: true,
     single_source_lexical_guard: lexicalGuard,
-    single_source_mixed_relations_detected: allEvidenceMixed
+    single_source_mixed_relations_detected: allEvidenceMixed,
+    direct_page_evidence_sources: sources.filter(source => source?.evidence_origin === "DIRECT_PAGE_PASSAGES").length,
+    first_party_sources_not_confirmed_as_originating: eligible.filter(x => x.source?.reliability_basis === "FIRST_PARTY_ENTITY_DOMAIN" && !authorityQualified(x)).length,
+    scope_mismatched_sources: eligible.filter(x => !scopeQualified(x)).length
   };
 
   // One primary source is sufficient only for a narrow, low-risk proposition
   // when the model's structured assessment says it is direct and exact-scope.
   // The model does not establish publisher reliability: that remains URL-gated below.
+  // v0.2.84: a deterministic TIME_ANCHORED_EVENT frame (a dated, completed,
+  // discrete event) is an alternative to the model's LOW-risk record/event
+  // typing, unless the model rates the claim HIGH risk. Every source-level
+  // condition below is unchanged.
+  const boundedEventFrame = evidenceFrame === "TIME_ANCHORED_EVENT" && relations?.claimAssessment?.claim_risk !== "HIGH";
   const singleSourceEligible = relations
-    && relations.claimAssessment?.claim_risk === "LOW"
-    && ["INSTITUTIONAL_RECORD", "HISTORICAL_EVENT", "ATTRIBUTED_RESEARCH_RESULT"].includes(relations.claimAssessment?.claim_type)
+    && ((relations.claimAssessment?.claim_risk === "LOW"
+      && ["INSTITUTIONAL_RECORD", "HISTORICAL_EVENT", "ATTRIBUTED_RESEARCH_RESULT"].includes(relations.claimAssessment?.claim_type))
+      || boundedEventFrame)
     && !lexicalGuard.dynamic && !lexicalGuard.high_impact && !lexicalGuard.compound
     && qualified.length === 1
     && qualified[0].semanticSource?.directness === "DIRECT"
@@ -341,9 +475,9 @@ export function adjudicateEvidence({
     return {
       status: "CURRENT",
       method: "SINGLE_AUTHORITATIVE_PRIMARY_EVIDENCE",
-      rationale: "A single recent, high-relevance primary source directly addresses the exact scope of a narrow, low-risk claim. This exception does not apply to broad consensus, contested, compound, or dynamic current-state claims.",
+      rationale: "A single eligible, high-relevance primary source directly addresses the exact scope of a narrow, low-risk claim. This exception does not apply to broad consensus, contested, compound, or dynamic current-state claims.",
       evidence: supporting.map(x => evidenceItem(x.source, x.relation, x.index)),
-      adjudication_signals: { ...signals, single_source_exception: true, claim_type: relations.claimAssessment.claim_type, claim_risk: relations.claimAssessment.claim_risk }
+      adjudication_signals: { ...signals, single_source_exception: true, single_source_basis: boundedEventFrame ? "TIME_ANCHORED_EVENT_FRAME" : "LOW_RISK_RECORD_TYPE", claim_type: relations.claimAssessment.claim_type, claim_risk: relations.claimAssessment.claim_risk }
     };
   }
   if (singleSourceEligible && contradicting.length === 1) {
@@ -352,16 +486,37 @@ export function adjudicateEvidence({
       method: "SINGLE_AUTHORITATIVE_PRIMARY_EVIDENCE",
       rationale: "A single recent, high-relevance primary source directly contradicts the exact scope of a narrow, low-risk claim. This exception does not apply to broad consensus, contested, compound, or dynamic current-state claims.",
       evidence: contradicting.map(x => evidenceItem(x.source, x.relation, x.index)),
-      adjudication_signals: { ...signals, single_source_exception: true, claim_type: relations.claimAssessment.claim_type, claim_risk: relations.claimAssessment.claim_risk }
+      adjudication_signals: { ...signals, single_source_exception: true, single_source_basis: boundedEventFrame ? "TIME_ANCHORED_EVENT_FRAME" : "LOW_RISK_RECORD_TYPE", claim_type: relations.claimAssessment.claim_type, claim_risk: relations.claimAssessment.claim_risk }
+    };
+  }
+  // v0.2.84: a current-state claim settled by the originating authority's live
+  // record. Requires every decisive qualified source to agree, no mixed or
+  // conflicting relation among any assessed source, a non-compound claim, and
+  // at least one live issuer record among the agreeing sources.
+  const liveRecords = qualified.filter(x => liveIssuerRecord(x, now, maxEvidenceAgeDays));
+  const liveIssuerEligible = requireRecentEvidence && relations && liveRecords.length > 0
+    && !mixed && !allEvidenceMixed && !lexicalGuard.compound;
+  if (liveIssuerEligible && (supporting.length > 0) !== (contradicting.length > 0)
+    && liveRecords.every(x => x.relation === (supporting.length ? "SUPPORTS" : "CONTRADICTS"))) {
+    const agreeing = supporting.length ? supporting : contradicting;
+    return {
+      status: supporting.length ? "CURRENT" : "CONTRADICTED",
+      method: "LIVE_ISSUER_RECORD",
+      rationale: supporting.length
+        ? "The originating authority's own current record, fetched during this verification, directly states the claimed present state, and no assessed source conflicts with it."
+        : "The originating authority's own current record, fetched during this verification, directly states a different present state, and no assessed source supports the claim.",
+      evidence: agreeing.map(x => evidenceItem(x.source, x.relation, x.index)),
+      adjudication_signals: { ...signals, live_issuer_records: liveRecords.map(x => hostOf(x.source.url)), observation_time_is_retrieval_time: true }
     };
   }
   // Narrow corroboration by reputable secondary publishers; no single-source shortcut.
   const secondaryOnlyEligible = (items) => {
-    const allowedClaim = relations?.claimAssessment?.claim_risk === "LOW"
-      && ["HISTORICAL_EVENT", "INSTITUTIONAL_RECORD", "ATTRIBUTED_RESEARCH_RESULT"].includes(relations?.claimAssessment?.claim_type)
+    const allowedClaim = ((relations?.claimAssessment?.claim_risk === "LOW"
+      && ["HISTORICAL_EVENT", "INSTITUTIONAL_RECORD", "ATTRIBUTED_RESEARCH_RESULT"].includes(relations?.claimAssessment?.claim_type))
+      || boundedEventFrame)
       && !lexicalGuard.dynamic && !lexicalGuard.high_impact && !lexicalGuard.compound && !allEvidenceMixed;
     const distinct = new Map(items.map(x => [registrableDomain(x.source.url), x]));
-    return allowedClaim && distinct.size >= 2 && [...distinct.values()].every(x =>
+    return allowedClaim && distinct.size >= 2 && independentLineages(items.map(x => x.source)).length >= 2 && [...distinct.values()].every(x =>
       x.source.source_reliability === "SECONDARY_REPUTABLE"
       && x.semanticSource?.directness === "DIRECT"
       && x.semanticSource?.scope_match === "EXACT"
@@ -369,28 +524,22 @@ export function adjudicateEvidence({
     );
   };
   const hasSufficientCorroboration = items => {
+    const primaryHosts = uniqueHosts(items.filter(x =>
+      ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(x.source.source_reliability)).map(x => x.source));
+    if (primaryHosts.size >= 2) return true;
     const allHosts = uniqueHosts(items.map(x => x.source));
-    if (allHosts.size < 2) return secondaryOnlyEligible(items);
     const hasPrimaryOrInstitutional = items.some(x =>
       ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(x.source.source_reliability));
-    if (!hasPrimaryOrInstitutional && !secondaryOnlyEligible(items)) return false;
-    if (!temporalSensitive) return true;
-    // For current-state claims, any historical transition anchor must be paired
-    // with at least one independently published recent source. Retrieval time
-    // alone never upgrades an old publication into current evidence.
-    return items.some(x => recentDated(x.source, now, maxEvidenceAgeDays));
+    return allHosts.size >= 2 && hasPrimaryOrInstitutional || secondaryOnlyEligible(items);
   };
   if (relations && !mixed && hasSufficientCorroboration(contradicting)) {
     const secondary = secondaryOnlyEligible(contradicting);
-    const hasHistoricalAnchor = contradicting.some(x => isHistoricalTransitionAnchor(
-      x.source, x.semanticSource, relations.claimAssessment, now
-    ));
     return {
       status: "CONTRADICTED",
-      method: hasHistoricalAnchor ? "TEMPORAL_TRANSITION_CORROBORATION" : secondary ? "CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE" : "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE",
+      method: secondary ? "CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE" : "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE",
       rationale: secondary
         ? "Two independent curated secondary publishers directly match the exact scope of a narrow, low-risk historical/record claim."
-        : "Two independent, recent, high-relevance primary/institutional domains were semantically assessed as contradicting the exact claim.",
+        : "Two independent, eligible, high-relevance primary/institutional domains were semantically assessed as contradicting the exact claim.",
       evidence: contradicting.map(x => evidenceItem(x.source, x.relation, x.index)),
       adjudication_signals: signals
     };
@@ -402,7 +551,7 @@ export function adjudicateEvidence({
       method: secondary ? "CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE" : "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE",
       rationale: secondary
         ? "Two independent curated secondary publishers directly match the exact scope of a narrow, low-risk historical/record claim."
-        : "Two independent, recent, high-relevance primary/institutional domains were semantically assessed as supporting the exact claim.",
+        : "Two independent, eligible, high-relevance primary/institutional domains were semantically assessed as supporting the exact claim.",
       evidence: supporting.map(x => evidenceItem(x.source, x.relation, x.index)),
       adjudication_signals: signals
     };

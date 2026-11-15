@@ -2,69 +2,52 @@
 
 Updated: 2026-11-15
 
-## Public release
-- Repository: this public submission repository.
-- Current deployed public release: `0.2.81` (verified by live public Worker health and bounded API acceptance on 2026-11-15).
-- Release commit: `1eebb41c5699ae416ce990f168852593d0500d2f`.
-- Latest public main release commit: `31dfc83516faae9fdb86611792ebdb601239e4e4` (PR #9).
-- Cloudflare Worker: `freshproof-submission-demo`.
-- Public demo: `https://freshproof-submission-demo.ralhamdan7.workers.dev`.
+## Product and release
 
-## Implemented in the public source
-- Claim extraction and temporal assessment
-- Bounded evidence retrieval and source diversity
-- Evidence adjudication and conservative abstention
-- Explanation and evidence-gated correction
-- English/Arabic browser UI
-- Standalone embedded-asset fallback for an independent Worker deployment
-- Regression tests and synthetic temporal smoke benchmark
-- Public documentation sanitized to remove private operational history
+- Public repository: https://github.com/ralhamdan7-lab/freshproof-submission
+- Public demo: https://freshproof-submission-demo.ralhamdan7.workers.dev
+- Deployed Worker: `freshproof-submission-demo`
+- Verified live version: `0.2.81`
+- Public parity PR: [#9](https://github.com/ralhamdan7-lab/freshproof-submission/pull/9), merged.
 
-## Historical release 0.2.77 verification (superseded by 0.2.81)
-- Main-branch verification workflow #43706073119: **327/327 tests passed in UTC and 327/327 in Asia/Riyadh**, with 0 failures. Worker/adjudication/adapter/browser syntax checks and temporal smoke benchmark passed.
-- Deterministic local browser acceptance passed on the same main commit.
-- Cloudflare Workers Build for main commit `59cc4414384910a69569dd7d14b6b63a58ce10ad` completed with `build_outcome: success`; `npx wrangler deploy` succeeded. The deployed script ETag is unchanged from the verified 0.2.77 code release.
-- Post-deploy live API acceptance workflow #43705319250 waited for public health version `0.2.77`, then sent one bounded `POST /api/verify` request. HTTP 200; exactly one claim processed.
-- Live test proposition: `Node.js 20.x remains actively supported under LTS.` Result: `SUPERSEDED`, domain adapter `software_release`. Official Node.js release table evidence reports support status `EOL`, row last-updated `2026-03-24`, and latest LTS major `26`.
-- Six evidence records were returned, including official Node.js first-party records. Two Tavily search calls were used (request-wide search budget 2/5). Freshness was `FRESH`; Evidence Confidence was `LIMITED`; secondary publishers were `UNASSESSED`.
-- **Deployed public browser acceptance passed** in workflow #43706073070 against the actual public URL. Playwright opened the page, confirmed the title and claim controls, submitted the same bounded claim through the browser UI, and observed `OUTDATED`. Six evidence links rendered, including two official `nodejs.org` links; browser runtime errors: 0.
-- This is one specialized software-lifecycle scenario. It is not a general accuracy evaluation, proof of calibrated confidence, or evidence that all domains meet the same standard.
-- Read-only Cloudflare inspection confirmed `API_RATE_LIMITER` at 3 requests / 60 seconds, `AI` binding present, `ENABLE_SEMANTIC_TRIAGE=true`, `ENABLE_CORRECTION_CANDIDATE_REVIEW=false`, and server-side `TAVILY_API_KEY` binding present. Secret value was not accessed.
-- Static scan of changed PR patches found no common Tavily/GitHub/OpenAI/Cloudflare token patterns, private project names, private staging hostname, or internal Cloudflare account identifier. This was a diff-scoped scan, not a full-repository third-party secret-scanner report.
+## Implemented
 
-## Guardrails in release 0.2.77
-- Public documentation matches the deployed limits: 3 processed claims per request and 3 requests per 60 seconds per client IP/edge location (approximate per-edge rate limiting).
-- English Node.js release-table dates are parsed as validated UTC calendar dates, avoiding local-time day shifts.
-- Tavily credentials are sent only in the `Authorization: Bearer` header, never in the JSON request body.
-- Semantic triage remains advisory; optional model-assisted correction candidate review is disabled.
-- No application database or durable user-submission storage is configured.
+- Claim-level extraction with dependent-clause preservation.
+- Temporal triage distinct from factual verification.
+- Publisher-agnostic generic evidence retrieval.
+- Primary-source preference and narrow specialist adapters.
+- Event/publication/update/retrieval date separation where available.
+- Evidence comparison, conservative adjudication, abstention, explanation, and evidence-gated correction.
+- English and Arabic RTL/LTR UI.
+- Bounded requests and provider operations.
 
-## Remaining validation and submission work
-- Audited held-out real-world evaluation is still required before publishing precision, recall, false-positive rate, citation correctness, abstention rate, latency, or cost-per-claim metrics.
-- The live browser/API acceptance above covers one Node.js software-lifecycle scenario only. Broader claim types, Arabic claims, conflicting evidence, insufficient evidence, and generic supersession need audited evaluation.
-- Official hackathon portal submission and its receipt are not verified; repository publication is not submission confirmation.
+## Verification evidence
 
-## Status
-Historical release `0.2.77` was deployed and accepted. The current deployed release is `0.2.81`, with its own bounded live API acceptance recorded below. The product is not generally accuracy-validated or officially submitted.
+- Release CI [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): **321/321 tests passed in UTC and 321/321 in Asia/Riyadh**; syntax and temporal smoke checks passed.
+- Latest documentation CI [#43712624254](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43712624254): **SUCCESS**.
+- Deterministic local browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): **PASS**. Deployed-browser step was skipped in that run.
+- Live public API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): **PASS**. Health endpoint reported version 0.2.81; one bounded POST /api/verify returned HTTP 200.
+- Live proposition: “Node.js 20.x remains actively supported under LTS.” Actual API result: **SUPERSEDED**, using the official Node.js previous-releases/lifecycle table. Six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED.
+- This specialist scenario validates one narrow software-lifecycle path only; it is not a general accuracy benchmark.
+- Public PR #9 patch scan found no common credential patterns, private Staging hostname, or unrelated-project names. This is a diff-scoped scan, not a full-repository scanner attestation.
+- No paid fallback, PAYG activation, billing change, or secret value access/change.
 
+## Outstanding submission gates
 
-## v0.2.81 public parity and deployment verification — 2026-11-15
-- PR #9 merged: [universal verification architecture parity](https://github.com/ralhamdan7-lab/freshproof-submission/pull/9).
-- Main CI [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): **321/321 tests passed in UTC and 321/321 in Asia/Riyadh**; Worker/adjudication/adapter/browser syntax and temporal smoke diagnostic passed.
-- Deterministic browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): PASS. The deployed live-browser step was skipped; no deployed browser result is claimed for 0.2.81.
-- Public live deployment/API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): exact public Worker health version **0.2.81** verified; one bounded POST /api/verify request returned HTTP 200 and processed one claim.
-- Test claim: Node.js 20.x remains actively supported under LTS. Actual result: **SUPERSEDED**, software_release adapter, official Node.js release table reports EOL; six evidence records, two Tavily searches. Freshness was FRESH and Evidence Confidence LIMITED. This is one specialist scenario, not a general accuracy result.
-- Public diff-scoped scan found no common credential patterns, private Staging hostname, or other-project names in PR #9 changes.
-- No paid fallback, billing/PAYG activation, or secret change.
+1. Deployed-browser acceptance against exact version 0.2.81.
+2. Complete and audit the 54-case held-out v2 evaluation. Its gold review is an owner-approved assistant audit, not independent external adjudication.
+3. Finish the pitch deck and actual 2–4 minute demo recording; confirm the video plays in a logged-out browser if uploaded.
+4. Complete the official Global AI Hackathon portal submission and verify its receipt.
 
+## Official event timing
 
-## Current release state — v0.2.81 (2026-11-15)
+The organizer's Geek Room page lists prototype submission on 15 November 2026 and judging on 29 November 2026. The HackCulture event listing is reported as closing at 23:59 IST (18:29 UTC) on 15 November. Recheck the live portal countdown before submitting.
 
-- **DEPLOYED:** public Worker `freshproof-submission-demo`, exact health version `0.2.81` observed by live acceptance workflow [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878).
-- **IMPLEMENTED / MERGED:** PR #9, universal claim-dependency preservation and publisher-agnostic generic retrieval.
-- **TESTED:** [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834), 321/321 tests in UTC and 321/321 in Asia/Riyadh; syntax and temporal smoke diagnostics passed.
-- **TESTED:** [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836), deterministic local browser acceptance passed. The deployed-browser step was skipped, so no v0.2.81 deployed-browser acceptance is claimed.
-- **LIVE API VERIFIED:** [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878), one bounded POST /api/verify request returned HTTP 200. Node.js 20.x continuing LTS-support claim was classified SUPERSEDED using the official Node.js release table; six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED.
-- This single software-release specialist case is not a general-domain accuracy result. No precision/recall/FPR or cost-per-claim metric is claimed.
-- Security scan of PR #9 changes found no common credential patterns, private Staging hostname, or names of unrelated projects. No paid fallback, billing/PAYG, or secret changes.
-- Official hackathon portal submission remains unconfirmed.
+## Current status
+
+**DEPLOYED:** v0.2.81.  
+**TESTED:** CI and deterministic local browser acceptance.  
+**LIVE API VERIFIED:** one bounded Node.js lifecycle scenario.  
+**PENDING:** deployed-browser acceptance on v0.2.81; full held-out report and audit; final deck/video; official submission receipt.
+
+Do not claim general accuracy or official submission until the relevant evidence exists.

@@ -2,7 +2,7 @@ const ASSETS = new Map([["/",decodeURIComponent("%3C!doctype%20html%3E%0A%3Chtml
 const TYPES = {"/":"text/html; charset=utf-8","/index.html":"text/html; charset=utf-8","/app.js":"text/javascript; charset=utf-8","/styles.css":"text/css; charset=utf-8","/text-direction.js":"text/javascript; charset=utf-8","/magnifying-glass.svg":"image/svg+xml"};
 export function serveEmbeddedAsset(request) {
   const url = new URL(request.url);
-  const path = url.pathname === "/" ? "/" : url.pathname.replace(/\\/+$/, "");
+  const path = url.pathname === "/" ? "/" : url.pathname.replace(/\/+$/, "");
   const body = ASSETS.get(path);
   if (body === undefined) return new Response("Not found", { status: 404 });
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });

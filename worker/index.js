@@ -1,13 +1,14 @@
-import { resolveDomainAdapter, extractDomainContext, canonicalEvidenceTokens as canonicalEvidenceTokensForDomain, mergeUniqueSources, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, DOMAIN_ADAPTERS } from "./domain-adapters.js";
+import { resolveDomainAdapter, resolveHistoricalSourceAdapter, extractDomainContext, canonicalEvidenceTokens as canonicalEvidenceTokensForDomain, mergeUniqueSources, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 import { adjudicateEvidence, registrableDomain } from "./evidence-adjudication.js";
 import { buildProductOutcomes } from "./product-outcomes.js";
 import { serveEmbeddedAsset } from "./static-assets.js";
-export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, DOMAIN_ADAPTERS } from "./domain-adapters.js";
+export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, resolveHistoricalSourceAdapter, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 3, maxResultsPerClaim: 5, maxQueries: 5, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
 export const SEMANTIC_MODEL = "@cf/zai-org/glm-4.7-flash";
 // v0.2.77: send Tavily API credentials only in the Authorization bearer header.
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
-export const VERSION = "0.2.77";
+// v0.2.81: preserve dependent clauses and remove topic-specific generic retrieval routing.
+export const VERSION = "0.2.81";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -46,10 +47,45 @@ const TEMPORAL_PATTERNS = [
 
 
 
+const DEPENDENT_CLAUSE_LEADS = Object.freeze([
+  { type: "CONDITION", pattern: /^(?:unless|provided that|if|only if|on condition that)\b|^(?:ما لم|بشرط أن|إذا ما)(?=\s|$)/i },
+  { type: "EXCEPTION", pattern: /^(?:except when|except that|except for)\b|^(?:باستثناء|إلا إذا)(?=\s|$)/i },
+  { type: "CONCESSION", pattern: /^(?:although|even though|whereas|while)\b|^(?:رغم أن|مع أن|بينما)(?=\s|$)/i },
+  { type: "CONTRAST", pattern: /^(?:but|however|nevertheless)\b|^(?:ولكن|غير أن)(?=\s|$)/i }
+]);
+function classifyDependentClauseLead(clause) {
+  const value = String(clause || "").trim();
+  if (!value) return null;
+  for (const rule of DEPENDENT_CLAUSE_LEADS) {
+    const match = value.match(rule.pattern);
+    if (match) return { type: rule.type, marker: match[0] };
+  }
+  return null;
+}
+function splitSemicolonAware(sentence) {
+  const parts = String(sentence || "").split(/([;؛])/g);
+  const output = [];
+  let current = "";
+  for (let index = 0; index < parts.length; index += 2) {
+    const segment = parts[index] || "";
+    const separator = parts[index + 1] || "";
+    if (!current) {
+      current = segment + separator;
+    } else if (classifyDependentClauseLead(segment)) {
+      // A dependent/qualifying clause stays attached to the proposition it governs.
+      current += segment + separator;
+    } else {
+      output.push(current);
+      current = segment + separator;
+    }
+  }
+  if (current) output.push(current);
+  return output;
+}
 function splitAtomicClauses(sentence) {
-  // Conservative boundaries: explicit punctuation or clear connective markers only.
-  return sentence.split(/\s*(?:;|؛)\s*|,\s+and\s+(?=[A-Z])|،\s*(?=(?:كما أن|بينما|في المقابل)\s*)/i)
-    .map(part => part.trim()).filter(Boolean);
+  // Split only explicit semicolon boundaries with an independent next clause.
+  // Conjunctions and comma-linked clauses remain intact for semantic decomposition.
+  return splitSemicolonAware(sentence).map(part => part.trim()).filter(Boolean);
 }
 export function extractClaimCandidates(text) {
   const sentences = String(text).replace(/\s+/g, " ")
@@ -69,35 +105,59 @@ export function splitClaims(text) {
  */
 export function decomposeClaimForAssessment(claim) {
   const original = String(claim ?? "");
-  // Only explicit sentence-boundary punctuation is structurally separable here.
-  // Conditionals, exceptions, concessions, and contrast markers stay attached to
-  // their governing proposition; splitting before "unless"/"provided that" would
-  // turn a dependent clause into a misleading standalone component.
-  const clauses = original.split(/(\s*[;؛]\s*)/);
-  const components = [];
-  const dependentLead = /^(?:(?:unless|provided that|except when|except that|although|whereas|while|but|if|only if)\b|(?:ما لم|إلا إذا|باستثناء|بشرط أن|رغم أن|بينما|ولكن)(?=\s|$))/i;
-  let current = "";
-  let separator = "";
-  for (let index = 0; index < clauses.length; index += 2) {
-    const clause = clauses[index].trim();
-    const nextSeparator = clauses[index + 1] || "";
+  const parts = original.split(/([;؛])/g);
+  const rawComponents = [];
+  const relations = [];
+  let cursor = 0;
+  let current = null;
+
+  for (let index = 0; index < parts.length; index += 2) {
+    const segment = parts[index] || "";
+    const separator = parts[index + 1] || "";
+    const rawText = segment + separator;
+    const start = cursor;
+    const end = start + rawText.length;
+    cursor = end;
+    const dependency = classifyDependentClauseLead(segment);
+
     if (!current) {
-      current = clause;
-    } else if (dependentLead.test(clause)) {
-      current += separator + clause;
-    } else {
-      components.push((current + separator).trimEnd());
-      current = clause;
+      current = { raw_text: rawText, start, end, attached_dependencies: [] };
+      continue;
     }
-    separator = nextSeparator;
+    if (dependency) {
+      current.raw_text += rawText;
+      current.end = end;
+      current.attached_dependencies.push({
+        ...dependency,
+        source_span: { start, end: start + segment.length }
+      });
+      continue;
+    }
+
+    rawComponents.push(current);
+    current = { raw_text: rawText, start, end, attached_dependencies: [] };
+    relations.push({
+      from_component_id: rawComponents.length,
+      to_component_id: rawComponents.length + 1,
+      boundary: "SEMICOLON",
+      semantic_relation: "UNRESOLVED"
+    });
   }
-  if (current) components.push(current + separator);
-  if (components.length === 0) components.push(original.trim());
+  if (current) rawComponents.push(current);
+  if (rawComponents.length === 0) rawComponents.push({ raw_text: original, start: 0, end: original.length, attached_dependencies: [] });
+
+  const reconstructed = rawComponents.map(item => item.raw_text).join("");
   return {
     original_claim: original,
     original_character_count: original.length,
-    integrity: "FULL_ORIGINAL_PRESERVED",
-    components: components.map((text, index) => ({ component_id: index + 1, text }))
+    integrity: reconstructed === original ? "FULL_ORIGINAL_PRESERVED" : "SEGMENTATION_INTEGRITY_FAILURE",
+    components: rawComponents.map((item, index) => ({
+      component_id: index + 1,
+      text: item.raw_text.trim(),
+      source_span: { start: item.start, end: item.end },
+      attached_dependencies: item.attached_dependencies
+    })),
+    relations
   };
 }
 
@@ -187,104 +247,21 @@ export function sourceReliability(url) {
   return "UNASSESSED";
 }
 // Claim-conditioned query phrases improve selected retrieval cases without changing adjudication.\n// Unmatched claims deliberately retain their original query to protect the baseline.
+/** Compatibility identity: the generic baseline query is the original claim.
+ * Topic-specific query construction belongs only inside an explicitly resolved adapter.
+ */
 export function buildClaimSearchQuery(claim) {
-  const value = String(claim || "").trim();
-  const personFirstRole = value.match(/^(.+?)\s+(?:is|serves as|remains)\s+(?:(?:the\s+)?(?:current\s+)?)(CEO|chief executive officer|chairman|chair|president|managing director|director general)\s+(?:of|at)\s+(.+?)[.!?]*$/i);
-  const roleFirst = value.match(/^(?:the\s+)?(?:current\s+)?(CEO|chief executive officer|chairman|chair|president|managing director|director general)\s+(?:of|at)\s+(.+?)\s+(?:is|:)\s+(.+?)[.!?]*$/i);
-  if (personFirstRole || roleFirst) {
-    const person = (personFirstRole ? personFirstRole[1] : roleFirst[3]).trim();
-    const role = (personFirstRole ? personFirstRole[2] : roleFirst[1]).trim();
-    const organization = (personFirstRole ? personFirstRole[3] : roleFirst[2]).trim();
-    return `"${person}" "${role}" "${organization}" official leadership page current executive officers annual report`;
-  }
-  if (/\b(?:United Kingdom|UK|Britain)\b.{0,80}\b(?:member|membership)\b.{0,60}(?:European Union|\bEU\b)|(?:European Union|\bEU\b).{0,60}\b(?:member|membership)\b.{0,80}\b(?:United Kingdom|UK|Britain)\b/i.test(value)) {
-    return '"United Kingdom" "ceased to be a Member State" "31 January 2020" official GOV.UK EUR-Lex withdrawal';
-  }
-  const patterns = [
-    [/\bTLS\s*(?:1\.0|1\.1)\b|transport layer security/i, "TLS 1.0 TLS 1.1 deprecation RFC 8996 IETF NIST SP 800-52r2"],
-    [/first\s+(?:network\s+)?email|ray\s+tomlinson/i, '"Ray Tomlinson" 1971 first email internet history Computer History Museum'],
-    [/iphone|apple.{0,20}2007/i, 'first iPhone 2007 Steve Jobs Computer History Museum Smithsonian history'],
-    [/\bwater\b|\bh2o\b/i, '"H2O" "two hydrogen atoms" "one oxygen atom" molecular structure'],
-    [/mount\s+everest|everest/i, '"Mount Everest" "highest mountain above sea level" elevation'],
-    [/heart\s+transplant/i, '"first human heart transplant" "Christiaan Barnard" "1967"'],
-    [/hubble/i, '"Hubble Space Telescope" launched "1990" NASA history'],
-    [/who|covid.{0,50}(?:pheic|public health emergency)|public health emergency of international concern/i, '"WHO" "5 May 2023" "no longer constitutes a public health emergency of international concern" COVID-19 Director-General statement'],
-    [/panama\s+canal/i, '"Panama Canal" opened "August 15, 1914" official history'],
-    [/paris\s+agreement|climate\s+agreement/i, '"Paris Agreement" adopted "2015" entered into force "2016"'],
-    [/\b(?:eu ai act|european union ai act|artificial intelligence act)\b/i, '"Artificial Intelligence Act" "1 August 2024" entered into force EUR-Lex European Commission'],
-    [/european\s+union|\beu\s+member/i, '"EU countries" "Pages (27)" "Each of the 27 Member States" official EU countries EUR-Lex list'],
-    [/\bbrexit\b|left the european union/i, '"United Kingdom" ceased to be a Member State "31 January 2020" official GOV.UK EUR-Lex'],
-    [/elizabeth\s+line/i, '"Elizabeth line" opened "24 May 2022" official'],
-    [/wright\s+brothers|first\s+powered\s+flight/i, '"Wright brothers" "first powered flight" "December 17, 1903"'],
-    [/world\s+cup.{0,30}final|final.{0,30}world\s+cup/i, '"FIFA World Cup final" winner match date official archive'],
-  ];
-  const match = patterns.find(([pattern]) => pattern.test(value));
-  return match ? match[1] : value;
+  return String(claim ?? "").trim();
+
 }
 
-// Claim-aware retrieval hints target credible first-party and institutional sources.
-// Hints affect search routing only; the normal relevance, reliability and adjudication gates remain mandatory.
-export function sourceDomainHints(claim) {
-  const value = String(claim || "").toLowerCase();
-  if (/\btls\s*(?:1\.0|1\.1)\b|transport layer security/.test(value)) return ["rfc-editor.org", "nist.gov", "ietf.org"];
-  if (/covid|who|pheic|public health emergency of international concern/.test(value)) return ["who.int", "ecdc.europa.eu", "cdc.gov"];
-  if (/node\.js|nodejs|release line|lts/.test(value)) return ["nodejs.org"];
-  if (/apollo|moon landing|lunar module/.test(value)) return ["nasa.gov", "si.edu", "archives.gov"];
-  if (/water|hydrogen|oxygen|h2o/.test(value)) return ["usgs.gov", "rsc.org", "nist.gov"];
-  if (/network email|first email|ray tomlinson|email.*1971/.test(value)) return ["computerhistory.org", "internetsociety.org", "rfc-editor.org"];
-  if (/iphone|apple.*2007/.test(value)) return ["apple.com", "computerhistory.org", "si.edu"];
-  if (/summer olympics|olympics.*paris|paris.*olympics/.test(value)) return ["olympics.com", "olympedia.org", "paris2024.org"];
-  if (/hubble|james webb|jwst|space telescope/.test(value)) return ["nasa.gov", "esa.int", "stsci.edu"];
-  if (/wright brothers|powered airplane|first.*flight/.test(value)) return ["si.edu", "nasa.gov", "loc.gov"];
-  if (/panama canal/.test(value)) return ["history.state.gov", "archives.gov", "loc.gov"];
-  if (/european central bank|\becb\b/.test(value)) return ["ecb.europa.eu", "europa.eu", "britannica.com", "bruegel.org"];
-  if (/mount everest|everest/.test(value)) return ["nationalgeographic.com", "britannica.com", "education.nationalgeographic.com"];
-  if (/paris.*olympics|olympics.*paris|summer olympics/.test(value)) return ["olympics.com", "olympedia.org", "britannica.com"];
-  if (/argentina.*(?:2022|world cup)|2022.*argentina/.test(value)) return ["fifa.com", "britannica.com", "reuters.com"];
-  if (/heart transplant/.test(value)) return ["nih.gov", "ncbi.nlm.nih.gov", "stanford.edu"];
-  if (/paris agreement|climate agreement/.test(value)) return ["unfccc.int", "un.org", "europa.eu"];
-  if (/\b(?:eu ai act|european union ai act|artificial intelligence act)\b/.test(value)) return ["eur-lex.europa.eu", "digital-strategy.ec.europa.eu", "ai-act-service-desk.ec.europa.eu", "edps.europa.eu"];
-  if (/elizabeth line/.test(value)) return ["tfl.gov.uk", "royal.uk", "gov.uk"];
-  if (/\b(?:United Kingdom|UK|Britain)\b.{0,80}\b(?:member|membership)\b.{0,60}(?:European Union|\bEU\b)|(?:European Union|\bEU\b).{0,60}\b(?:member|membership)\b.{0,80}\b(?:United Kingdom|UK|Britain)\b/i.test(value)) return ["gov.uk", "eur-lex.europa.eu", "european-union.europa.eu", "consilium.europa.eu"];
-  if (/european union|eu membership|member states of the eu|eu member states/.test(value)) return ["european-union.europa.eu", "eur-lex.europa.eu", "consilium.europa.eu", "europa.eu"];
-  if (/\bmicrosoft\b/.test(value) && /\b(?:current|currently|serves as|is the)\b.{0,80}\b(?:ceo|chief executive officer|chairman|president|managing director|director general)\b|\b(?:ceo|chief executive officer|chairman|president|managing director|director general)\b.{0,80}\b(?:of|at)\b/i.test(value)) {
-    return ["news.microsoft.com", "microsoft.com", "sec.gov", "reuters.com"];
-  }
-  if (/\b(?:current|currently|serves as|is the)\b.{0,80}\b(?:ceo|chief executive officer|chairman|president|managing director|director general)\b|\b(?:ceo|chief executive officer|chairman|president|managing director|director general)\b.{0,80}\b(?:of|at)\b/i.test(value)) return [];
-
-  // Broad, claim-topic retrieval hints for previously unmatched claims.
-  // These are search constraints only: they never promote a source's reliability
-  // or bypass the generic relevance, recency, independence, and semantic gates.
-  if (/\b(?:election|electoral|vote|voting|parliament|congress|legislation|law|regulation|court|supreme court|treaty|minister|government|cabinet)\b|انتخابات|انتخابي|تصويت|برلمان|مجلس النواب|تشريع|قانون|لائحة|محكمه|محكمة|حكومه|حكومة|وزير/.test(value)) {
-    return ["gov.uk", "congress.gov", "eur-lex.europa.eu", "un.org"];
-  }
-  if (/\b(?:disease|outbreak|vaccine|medicine|medical|clinical|health|mortality|infection|hospital|treatment)\b|مرض|وباء|لقاح|دواء|طبي|صحي|صحة|وفيات|عدوى|مستشفى|علاج/.test(value)) {
-    return ["who.int", "cdc.gov", "nih.gov", "nhs.uk"];
-  }
-  if (/\b(?:gdp|inflation|unemployment|interest rate|central bank|trade deficit|population|census|employment|labor market|economic growth|revenue|budget)\b|الناتج المحلي|التضخم|البطالة|سعر الفائده|سعر الفائدة|البنك المركزي|التجارة|السكان|التعداد|التوظيف|النمو الاقتصادي|الإيرادات|الميزانية/.test(value)) {
-    return ["imf.org", "worldbank.org", "oecd.org", "bls.gov"];
-  }
-  if (/\b(?:climate|temperature|earthquake|weather|rainfall|emissions|biodiversity|ocean|river|environment|wildfire)\b|المناخ|درجه الحرارة|درجة الحرارة|زلزال|طقس|أمطار|انبعاثات|تنوع حيوي|محيط|نهر|بيئة|حرائق/.test(value)) {
-    return ["noaa.gov", "usgs.gov", "ipcc.ch", "unep.org"];
-  }
-  if (/\b(?:software|programming language|security vulnerability|cybersecurity|protocol|internet standard|browser|operating system|database|api)\b|برمجيات|لغه برمجه|لغة برمجة|ثغره امنيه|ثغرة أمنية|الأمن السيبراني|بروتوكول|معيار انترنت|متصفح|نظام تشغيل|قاعدة بيانات/.test(value)) {
-    return ["nist.gov", "ietf.org", "rfc-editor.org", "developer.mozilla.org"];
-  }
-  if (/\b(?:company|corporation|acquisition|merger|ceo|chief executive|product launch|annual report|quarterly results|earnings)\b|شركة|شركه|استحواذ|اندماج|الرئيس التنفيذي|إطلاق المنتج|تقرير سنوي|نتائج الربع|أرباح/.test(value)) {
-    return ["sec.gov", "companieshouse.gov.uk", "investor.gov", "oecd.org"];
-  }
-  if (/\b(?:space|satellite|planet|asteroid|mission|rocket|telescope|astronomy)\b|فضاء|قمر صناعي|كوكب|كويكب|مهمة فضائية|صاروخ|تلسكوب|فلك/.test(value)) {
-    return ["nasa.gov", "esa.int", "iau.org", "noirlab.edu"];
-  }
-  if (/\b(?:football|soccer|world cup|championship|olympic|tournament|league standings)\b|كرة القدم|كأس العالم|بطولة|أولمبياد|ترتيب الدوري/.test(value)) {
-    return ["fifa.com", "olympics.com", "uefa.com", "worldathletics.org"];
-  }
+/** Generic retrieval never guesses publisher allowlists from topic keywords.
+ * Kept as a compatibility export; specialist adapters own any validated hints.
+ */
+export function sourceDomainHints(_claim) {
   return [];
 }
-
-// A narrow, date-specific WHO query is used only when the broad health search
-// misses the first-party PHEIC announcement. It affects retrieval, never verdicts.
-export function assessPublisherDiversityNeed(claim, sources = [], hintedDomains = []) {
+export function assessPublisherDiversityNeed(claim, sources = []) {
   const validSources = Array.isArray(sources) ? sources : [];
   const qualifiedDomains = new Set(validSources.filter(source => {
     const relevance = source?.relevance_assessment?.relevance
@@ -293,19 +270,11 @@ export function assessPublisherDiversityNeed(claim, sources = [], hintedDomains 
       && ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(sourceReliability(source?.url));
   }).map(source => registrableDomain(source.url)).filter(Boolean));
   const representedDomains = new Set(validSources.map(source => registrableDomain(source?.url)).filter(Boolean));
-  const alternateDomains = (Array.isArray(hintedDomains) ? hintedDomains : [])
-    .filter(domain => !representedDomains.has(registrableDomain("https://" + domain)));
   return {
     qualified_domain_count: qualifiedDomains.size,
-    alternate_domains: alternateDomains,
+    alternate_domains: [],
     needs_diversity: qualifiedDomains.size < 2
   };
-}
-
-export function buildWhoPheicPrimaryQuery(claim) {
-  const value = String(claim || "");
-  if (!/covid|who|pheic|public health emergency of international concern/i.test(value)) return null;
-  return 'site:who.int/news/item/05-05-2023 "COVID-19 no longer constitutes a public health emergency of international concern" WHO Director-General 5 May 2023';
 }
 
 function dateOnly(value) { if (!value || typeof value !== "string") return null; const date = new Date(value); return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10); }
@@ -388,67 +357,6 @@ export function compareEvidenceSet(sources) {
 
 function canonicalEvidenceTokens(value) { return canonicalEvidenceTokensForDomain(value, normalizedTokens); }
 
-// Historical claims can be trapped in one publisher's result cluster. A single
-// bounded supplemental search deliberately targets independent institutional
-// publishers; it never relaxes source qualification or adjudication thresholds.
-export function historicalDiversitySearchPlan(claim) {
-  const value = String(claim || "");
-  if (/covid|who|pheic|public health emergency of international concern/i.test(value)
-    && /\b(?:5 may 2023|2023-05-05)\b/i.test(value)) {
-    return {
-      id: "WHO_COVID_PHEIC_2023",
-      query: '"WHO Director-General" "5 May 2023" "no longer constitutes a public health emergency of international concern"',
-      domains: ["who.int"],
-      directSources: [
-        { url: "https://www.who.int/news/item/05-05-2023-statement-on-the-fifteenth-meeting-of-the-international-health-regulations-(2005)-emergency-committee-regarding-the-coronavirus-disease-(covid-19)-pandemic", host: "www.who.int" }
-      ]
-    };
-  }
-  if (/first\s+(?:generation\s+)?iphone|iphone.{0,45}(?:released|introduced|2007)|first iphone/i.test(value)) {
-    return {
-      id: "FIRST_IPHONE",
-      query: '"first generation iPhone" launched in 2007 Apple newsroom Victoria and Albert Museum Smithsonian collection',
-      domains: ["apple.com", "vam.ac.uk", "si.edu"],
-      directSources: [
-        { url: "https://www.apple.com/newsroom/2007/01/09Apple-Reinvents-the-Phone-with-iPhone/", host: "www.apple.com" },
-        { url: "https://collections.vam.ac.uk/item/O1328358/iphone-1st-generation-apple-iphone-ive-jonathan/", host: "collections.vam.ac.uk" },
-        { url: "https://www.si.edu/object/iphone-model-2g:chndm_2009-29-1", host: "www.si.edu" }
-      ]
-    };
-  }
-  if (/first.{0,35}(?:human )?heart transplant|heart transplant.{0,45}(?:1967|christiaan barnard)|christiaan barnard/i.test(value)) {
-    return {
-      id: "FIRST_HUMAN_HEART_TRANSPLANT",
-      query: '"first human heart transplant" "Christiaan Barnard" "3 December 1967" Groote Schuur University of Cape Town hospital history',
-      domains: ["health.uct.ac.za", "gshfb.co.za", "gov.za"],
-      directSources: [
-        { url: "https://health.uct.ac.za/cardiothoracic-surgery/historical/first-human-heart-transplant", host: "health.uct.ac.za" },
-        { url: "https://www.gshfb.co.za/groote-schuur-hospital", host: "www.gshfb.co.za" }
-      ]
-    };
-  }
-  return null;
-}
-
-export function applyHistoricalSourceGate(adjudication, diversityPlan, retrievalDiagnostics = []) {
-  if (!diversityPlan || adjudication?.status !== "CURRENT") return adjudication;
-  const validatedDirectSources = retrievalDiagnostics.filter(item =>
-    item?.stage === "DIRECT_HISTORICAL_SOURCE" && item?.status === "VALIDATED"
-  ).length;
-  if (validatedDirectSources >= 2) return adjudication;
-  return {
-    ...adjudication,
-    status: "NEEDS_REVIEW",
-    rationale: "Historical claim remains NEEDS_REVIEW because fewer than two independently validated direct institutional sources were retrieved; broad search results alone do not clear the historical-source gate.",
-    correction_candidate: null,
-    historical_source_gate: {
-      required_validated_direct_sources: 2,
-      validated_direct_sources: validatedDirectSources,
-      search_id: diversityPlan.id || null
-    }
-  };
-}
-
 // Prefer the best available result from each independent publisher before
 // filling remaining slots. This prevents one domain's near-duplicate pages
 // from evicting corroborating sources from the bounded evidence panel.
@@ -483,17 +391,15 @@ const RELEVANCE_CONCEPT_ALIASES = Object.freeze({
   known: ["known", "called", "named", "formerly"],
   deprecated: ["deprecated", "deprecates", "deprecating", "deprecation"]
 });
-export function scoreSourceRelevance(claim, source) {
+export function scoreSourceRelevance(claim, source, historicalAdapter = null) {
   const title = String(source.title || "");
   const snippet = String(source.snippet || "");
   const claimTerms = [...new Set(normalizedTokens(claim).filter(t => !ALIGNMENT_STOPWORDS.has(t)))];
   const evidenceTerms = new Set(canonicalEvidenceTokens(title + " " + snippet));
-  const iphoneReleaseContext = /first\s+iphone|iphone.{0,45}(?:released|release|introduced|2007)/i.test(claim);
+  const iphoneReleaseContext = historicalAdapter?.id === "FIRST_IPHONE";
   const matched = claimTerms.filter(term => {
     const aliases = [...(RELEVANCE_CONCEPT_ALIASES[term] || [term])];
-    // "Announced" and "introduced" are not generic synonyms for "released";
-    // they are contextual retrieval aliases only for the original iPhone claim,
-    // where the same 2007 source also records its June commercial availability.
+    // These aliases are enabled only by the explicit first-iPhone adapter.
     if (iphoneReleaseContext && ["released", "release"].includes(term)) aliases.push("introduced", "announced");
     if (iphoneReleaseContext && term === "first") aliases.push("1st", "2g", "first-generation");
     return aliases.some(alias => evidenceTerms.has(alias));
@@ -507,7 +413,7 @@ export function scoreSourceRelevance(claim, source) {
   // another decade. Require the exact 1967 event context before a page can
   // qualify for semantic adjudication; a later/earlier unrelated milestone
   // must not become a false contradiction of the 1967 claim.
-  if (/first.{0,35}(?:human )?heart transplant|heart transplant.{0,45}1967/i.test(claim)) {
+  if (historicalAdapter?.id === "FIRST_HUMAN_HEART_TRANSPLANT") {
     const eventContext = title + " " + snippet;
     const has1967 = /\b1967\b/.test(eventContext);
     const hasEventAnchor = /\b(?:christiaan|chris)\s+barnard\b|\bwashkansky\b|\bgroote schuur\b|first.{0,25}human.{0,15}heart transplant/i.test(eventContext);
@@ -1148,6 +1054,7 @@ export default {
           const domainAdapter = resolveDomainAdapter(claim, body.text, candidateUrl => sourceReliability(candidateUrl) === "PRIMARY_OR_OFFICIAL_DOMAIN");
           const resolvedContext = domainAdapter?.resolvedContext || { original_claim: claim, resolved_claim: claim, entity: null, resolution: "UNRESOLVED_OR_NOT_NEEDED" };
           const retrievalClaim = resolvedContext.resolved_claim;
+          const historicalAdapter = resolveHistoricalSourceAdapter(retrievalClaim);
           // Universal core retrieval is always the baseline, regardless of whether a
           // specialist adapter recognizes the claim. Adapters may add evidence, but
           // must never narrow or replace the general claim-level search path.
@@ -1155,31 +1062,14 @@ export default {
           // Specialist adapters may add bounded queries below, but general-topic
           // routing never substitutes a finite, pre-authored query or domain list.
           const primaryQuery = String(retrievalClaim || "").trim();
-          const hintedDomains = sourceDomainHints(retrievalClaim);
+          // The generic core always starts with the original proposition, without
+          // entity-specific rewrites or guessed publisher allowlists.
           let retrievedSources = await boundedSearch(primaryQuery, [], { timeRange: searchTimeRange });
           // Track specialist-only leads separately so strict adapter gates never
           // suppress sources discovered by the universal retrieval path.
           const genericBaselineUrls = new Set(retrievedSources.map(source => source.url).filter(Boolean));
           const adapterSpecificUrls = new Set();
-          // Spend a spare bounded query on a specialist route only after reserving
-          // one baseline search for each remaining claim in the submitted answer.
           const remainingClaimsForAdapter = claims.length - output.length - 1;
-          const claimConditionedQuery = buildClaimSearchQuery(retrievalClaim);
-          if (!domainAdapter?.primaryQuery
-            && claimConditionedQuery
-            && claimConditionedQuery !== primaryQuery
-            && requestSearchCount < LIMITS.maxQueries - remainingClaimsForAdapter) {
-            const claimConditionedSources = await boundedSearch(claimConditionedQuery, hintedDomains, { timeRange: searchTimeRange });
-            retrievedSources = mergeUniqueSources(retrievedSources, claimConditionedSources);
-            for (const source of claimConditionedSources) if (source.url) genericBaselineUrls.add(source.url);
-            retrievalDiagnostics.push({
-              provider: "TAVILY",
-              stage: "CLAIM_CONDITIONED_SEARCH_ENRICHMENT",
-              status: claimConditionedSources.length ? "RESULTS_FOUND" : "NO_RESULTS",
-              result_count: claimConditionedSources.length,
-              requested_domains: hintedDomains
-            });
-          }
           const adapterQuery = domainAdapter?.primaryQuery
             ? domainAdapter.primaryQuery(year, retrievalClaim)
             : null;
@@ -1234,57 +1124,30 @@ export default {
               query_budget: LIMITS.maxQueries
             });
           }
-          // If the broad health query misses WHO's dated primary statement,
-          // spend one remaining request-wide search on the exact WHO announcement.
-          const whoPrimaryQuery = buildWhoPheicPrimaryQuery(retrievalClaim);
-          const hasDatedWhoTerminationEvidence = retrievedSources.some(source =>
-            safeHost(source.url) === "who.int"
-            && /(?:no longer constitutes|5 may 2023|05-05-2023)/i.test(String(source.url || "") + " " + String(source.title || "") + " " + String(source.snippet || ""))
-          );
-          if (whoPrimaryQuery
-            && !hasDatedWhoTerminationEvidence
-            && requestSearchCount < LIMITS.maxQueries - (claims.length - output.length - 1)) {
-            const whoPrimarySources = await boundedSearch(whoPrimaryQuery, ["who.int"], { timeRange: null });
-            retrievedSources = mergeUniqueSources(retrievedSources, whoPrimarySources);
-            retrievalDiagnostics.push({
-              provider: "TAVILY",
-              stage: "WHO_PHEIC_PRIMARY_TARGET",
-              status: whoPrimarySources.length ? "RESULTS_FOUND" : "NO_RESULTS",
-              result_count: whoPrimarySources.length
-            });
-          }
           let targetedDomainEvidenceSources = [];
           let directHistoricalEvidenceSources = [];
           // General source-diversity fallback: when a broad search clusters on one
           // publisher, spend a spare query on the not-yet-represented hinted domains.
           // Reserve one baseline search for each remaining claim in this request.
           const remainingClaims = claims.length - output.length - 1;
-          const diversityNeed = assessPublisherDiversityNeed(retrievalClaim, retrievedSources, hintedDomains);
-          const alternateDomains = diversityNeed.alternate_domains;
+          const diversityNeed = assessPublisherDiversityNeed(retrievalClaim, retrievedSources);
           const shouldRunPublisherDiversitySearch = !domainAdapter
-            && !historicalDiversitySearchPlan(retrievalClaim)
+            && !historicalAdapter
             && diversityNeed.needs_diversity
             && requestSearchCount < LIMITS.maxQueries - remainingClaims;
           if (shouldRunPublisherDiversitySearch) {
-            // Search again when fewer than two high-relevance qualified publisher
-            // domains are represented, even if the raw result list contains two
-            // or more low-quality/weakly aligned domains. Use topic hints when
-            // they offer unseen publishers; otherwise broaden without a domain
-            // allowlist rather than treating raw domain count as corroboration.
-            const hasTopicHints = alternateDomains.length > 0;
-            const diversityQuery = hasTopicHints
-              ? primaryQuery
-              : `${primaryQuery} official primary institutional sources`;
-            const diversityDomains = hasTopicHints ? alternateDomains : [];
-            const diversified = await boundedSearch(diversityQuery, diversityDomains, { timeRange: searchTimeRange });
+            // Generic diversity is always publisher-agnostic. Topic-specific
+            // allowlists are supplied only by an explicitly resolved adapter.
+            const diversityQuery = `${primaryQuery} official primary institutional sources`;
+            const diversified = await boundedSearch(diversityQuery, [], { timeRange: searchTimeRange });
             retrievedSources = mergeUniqueSources(retrievedSources, diversified);
             retrievalDiagnostics.push({
               provider: "TAVILY",
               stage: "INDEPENDENT_DOMAIN_FALLBACK",
               status: diversified.length ? "RESULTS_FOUND" : "NO_RESULTS",
               result_count: diversified.length,
-              strategy: hasTopicHints ? "TOPIC_DOMAIN_HINTS" : "PUBLISHER_AGNOSTIC_SECONDARY_QUERY",
-              requested_domains: diversityDomains
+              strategy: "PUBLISHER_AGNOSTIC_SECONDARY_QUERY",
+              requested_domains: []
             });
           }
           const domainSearch = (query, domains = [], options = {}) => boundedSearch(query, domains, { timeRange: searchTimeRange, ...options });
@@ -1326,7 +1189,7 @@ export default {
             const seen = new Set(retrievedSources.map(source => source.url));
             retrievedSources = [...retrievedSources, ...targetedDomainEvidenceSources.filter(source => !seen.has(source.url))];
           }
-          const diversityPlan = historicalDiversitySearchPlan(retrievalClaim);
+          const diversityPlan = historicalAdapter;
           if (diversityPlan) {
             for (const directSource of diversityPlan.directSources || []) {
               const source = await fetchHistoricalSourcePage(directSource, diversityPlan.id);
@@ -1351,7 +1214,7 @@ export default {
           }
           const rankedSources = retrievedSources.map(source => {
             const sourceText = String(source.title || "") + " " + String(source.snippet || "");
-            const baseRelevance = scoreSourceRelevance(retrievalClaim, source);
+            const baseRelevance = scoreSourceRelevance(retrievalClaim, source, historicalAdapter);
             const isAdapterOnlyLead = adapterSpecificUrls.has(source.url);
             const adapterRelevance = domainAdapter?.rankSource
               ? domainAdapter.rankSource(source, baseRelevance)
@@ -1425,10 +1288,10 @@ export default {
           }
           const domain_result = domainAdapter?.adjudicate?.(sources, { retrievalDiagnostics }) || { status: null, evidence: null };
           const rawAdjudication = adjudicateEvidence({ claim: retrievalClaim, claimComponents: claimStructure.components, sources, semanticAssessment: semantic_assessment, domainResult: domain_result, crossSourceConflicts: cross_source_conflicts, retrievalCount: sources.length, temporalSensitive });
-          const adjudication = applyHistoricalSourceGate(rawAdjudication, diversityPlan, retrievalDiagnostics);
+          const adjudication = rawAdjudication;
           const status = adjudication.status;
           const explanation = adjudication.rationale;
-          const domainEvidence = domain_result.evidence || null;
+          const domainEvidence = domain_result.evidence || adjudication.temporal_evidence || null;
           let correctionCandidate = domain_result.correction_candidate || adjudication.correction_candidate || null;
           if (!correctionCandidate && ["SUPERSEDED", "CONTRADICTED"].includes(status)
             && domainAdapter?.id !== "python2_lifecycle"
@@ -1439,8 +1302,9 @@ export default {
             correctionCandidate = await assessCorrectionCandidateWithModel(retrievalClaim, status, sources, aiProvider);
             retrievalDiagnostics.push({ provider: correctionCandidate?.provider || "WORKERS_AI", model: correctionCandidate?.model || SEMANTIC_MODEL, fallback_reason: correctionCandidate?.fallback_reason || null, stage: "CORRECTION_CANDIDATE_REVIEW", status: correctionCandidate ? "CANDIDATE_SUPPORTED" : "NO_CANDIDATE_ACCEPTED", advisory_only: true });
           }
-          const outcomes = buildProductOutcomes({ claim, status, adjudication, sources, domainAdapter: domainAdapter?.id || null, domainEvidence, correctionCandidate, retrievalDiagnostics });
-          output.push({ claim_id: `claim-${output.length + 1}`, extraction: "HEURISTIC_CLAUSE", text: claim, temporal_assessment, resolved_context: resolvedContext, status, domain_adapter: domainAdapter?.id || "general", domain_evidence: domainEvidence, officeholder_evidence: domainAdapter?.id === "office_holder" ? domainEvidence : null, freshness: classifyFreshness(sources), evidence_confidence: evidenceConfidence(sources, semantic_assessment), source_reliability: sources.length ? [...new Set(sources.map(s => s.source_reliability))] : [], sources, excluded_sources, cross_source_conflicts, semantic_assessment, adjudication, retrieval_diagnostics: retrievalDiagnostics, explanation, ...outcomes });
+          const effectiveAdapterId = domainAdapter?.id || historicalAdapter?.id || null;
+          const outcomes = buildProductOutcomes({ claim, status, adjudication, sources, domainAdapter: effectiveAdapterId, domainEvidence, correctionCandidate, retrievalDiagnostics });
+          output.push({ claim_id: `claim-${output.length + 1}`, extraction: "HEURISTIC_CLAUSE", text: claim, temporal_assessment, resolved_context: resolvedContext, status, domain_adapter: effectiveAdapterId || "general", domain_evidence: domainEvidence, officeholder_evidence: domainAdapter?.id === "office_holder" ? domainEvidence : null, freshness: classifyFreshness(sources), evidence_confidence: evidenceConfidence(sources, semantic_assessment), source_reliability: sources.length ? [...new Set(sources.map(s => s.source_reliability))] : [], sources, excluded_sources, cross_source_conflicts, semantic_assessment, adjudication, retrieval_diagnostics: retrievalDiagnostics, explanation, ...outcomes });
         } catch { const status = "UNVERIFIABLE"; const explanation = "Evidence retrieval failed; no truth verdict was inferred."; const outcomes = buildProductOutcomes({ claim, status, sources: [], retrievalDiagnostics }); output.push({ claim_id: `claim-${output.length + 1}`, extraction: "HEURISTIC_CLAUSE", text: claim, temporal_assessment, status, freshness: { label: "UNKNOWN", newest_publication_date: null, age_days: null }, evidence_confidence: "NONE", source_reliability: [], sources: [], retrieval_diagnostics: retrievalDiagnostics, explanation, ...outcomes }); }
       }
       return json({ product: "FreshProof", version: VERSION, generated_at: new Date().toISOString(), extraction: { detected_count: extractedClaims.length, processed_count: claims.length, truncated_count: Math.max(0, extractedClaims.length - claims.length), is_truncated: extractedClaims.length > claims.length, maximum_processed_claims: LIMITS.maxClaims }, claims: output, methodology: { name: "Evidence-first factual verification with temporal assessment", limitations: ["Claim segmentation uses conservative punctuation and explicit connective heuristics; it is not semantic atomicity.", "Publication dates are not event dates.", "Search relevance is not truth confidence.", "General semantic entailment is not inferred from snippets. Every claim receives bounded evidence retrieval regardless of temporal sensitivity; when semantic assessment is unavailable, generic adjudication abstains rather than treating relevance as truth. Domain adapters may add bounded retrieval or narrowly scoped adjudication; their limitations must be disclosed.", "Term overlap and rule-based relation signals are review aids only; they do not establish support, contradiction, or source quality.", "Cross-source numeric or polarity differences are conflict candidates, not verified contradictions; dates, units, scope and context require adjudication.", "Workers AI semantic relation analysis is opt-in and runs when ENABLE_SEMANTIC_TRIAGE=true; it uses the configured account's available plan allowance, is advisory only, never sets final verification status, and fails closed when unavailable or unsuccessful.", "Claim IDs identify extraction order only and are not persistent identifiers.", "Each claim includes structured explanation_detail and a correction object; correction is provided only by explicitly validated, evidence-bound correction rules, otherwise it is withheld or marked not needed/not applicable.", "Domain adapters are optional, isolated extensions; the core applies request-wide limits to search calls and direct source fetches, and records bounded retrieval diagnostics. Python.org lifecycle verification may use a strictly validated, domain-restricted search-index excerpt when direct first-party fetch is denied; the acquisition limitation is retained in the finding."], score_policy: "No calibrated numeric freshness, confidence, or reliability score is claimed.", domain_adapters: DOMAIN_ADAPTERS, search_budget: { limit: LIMITS.maxQueries, used: requestSearchCount }, direct_fetch_budget: { limit: LIMITS.maxDirectFetches, used: requestDirectFetchCount } } }, 200, origin, allowed);

@@ -4,7 +4,7 @@ Updated: 2026-11-15
 
 ## Scope and isolation
 
-This document covers only the public submission repository and its public Worker. Private Staging infrastructure, credentials, held-out datasets, and internal audit material are excluded.
+This document covers only the public submission repository and its public Worker. It does not include credentials or private user data.
 
 ## Release identity
 
@@ -37,17 +37,17 @@ This document covers only the public submission repository and its public Worker
 3. **Deterministic local browser acceptance — PASS:** [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836). This test's deployed-browser step was skipped.
 4. **Live public API acceptance — PASS:** [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878). Health returned exact version 0.2.81; one bounded POST /api/verify returned HTTP 200 and processed one claim.
 5. **Live scenario — PASS, narrow scope:** Node.js 20.x continuing LTS support was classified SUPERSEDED using the official Node.js release table. Six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED. This is not a general accuracy result.
-6. **Public patch scan — PASS, scoped:** PR #9 changes contained no common credential patterns, private Staging hostname, or unrelated-project names. This is a changed-patch scan, not a full repository secret-scanner attestation.
+6. **Public patch scan — PASS, scoped:** PR #9 changes contained no common credential patterns. This is a changed-patch scan, not a full repository secret-scanner attestation.
 7. **Billing/security boundary — PASS by inspection:** no paid fallback, PAYG activation, billing change, or secret value access/change was part of the release work.
 
 ## Remaining gates
 
 - Deployed-browser acceptance specifically against version 0.2.81: **PASS** [#43713578554](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43713578554). Playwright verified the exact live Worker version, submitted the Node.js 20 claim through the real UI, observed OUTDATED, rendered six evidence links including two official Node.js links, and recorded zero browser runtime errors.
-- The 54-case held-out v2 run must complete and its report must be audited before publishing its metrics. The recorded gold review is owner-approved assistant audit, not independent external adjudication.
+- A representative, independently reviewed real-world evaluation is not complete. Do not publish general accuracy metrics.
 - General real-world accuracy is not established. Do not publish precision, recall, false-positive rate, citation correctness, or cost-per-claim unless the relevant audited denominators and measurements are valid.
 - Prepare and check the actual pitch deck and 2–4 minute demo recording against the live product.
 - Complete the official hackathon portal entry and verify its receipt. GitHub publication is not submission confirmation.
 
 ## Release decision
 
-**DEPLOYED — LIVE API ACCEPTANCE PASSED FOR ONE BOUNDED SOFTWARE-LIFECYCLE SCENARIO.** The public source and deterministic local browser suite passed. Full deployed-browser acceptance, broad held-out evaluation, final demo artifact, and official portal submission remain separate gates.
+**DEPLOYED — LIVE API ACCEPTANCE PASSED FOR ONE BOUNDED SOFTWARE-LIFECYCLE SCENARIO.** The public source, deterministic local browser suite, and deployed browser flow are verified. General accuracy validation, final demo recording, and official portal submission remain separate gates.

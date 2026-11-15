@@ -23,8 +23,8 @@ Updated: 2026-11-15
 - Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
 - Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
 - Deployed Worker configuration read-only check confirmed `API_RATE_LIMITER` limit 3 / period 60 seconds, `AI` binding present, `ENABLE_SEMANTIC_TRIAGE=true`, `ENABLE_CORRECTION_CANDIDATE_REVIEW=false`, and server-side `TAVILY_API_KEY` secret binding present (secret value was not read).
-- Public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test.
-- Full browser acceptance against the deployed public URL remains outstanding.
+- Live public `POST /api/verify` acceptance passed against deployed baseline `0.2.76` (GitHub Actions run #43704887636; provenance capture repeat #43705018545). One bounded claim request returned HTTP 200, one processed claim, `SUPERSEDED`, and six evidence records. The Node.js adapter bound the result to the official Node.js previous-releases table: support status `EOL`, row last-updated `2026-03-24`, latest LTS major `26`. Tavily search budget used 2 of 5; the direct official Node.js page and the official release schedule retrieval succeeded. `Evidence Confidence` was `LIMITED`; secondary sources were `UNASSESSED`. This is a single domain-adapter acceptance case, not a general accuracy evaluation.
+- Browser acceptance remains deterministic and isolated (local UI + fixture); full browser acceptance against the deployed public URL remains outstanding.
 
 ## Guardrails, timezone and credential-transport fixes in this PR
 - Correct public documentation to match the deployed `API_RATE_LIMITER` configuration: 3 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
@@ -38,9 +38,9 @@ Updated: 2026-11-15
 - The deployed public Worker configuration has now been inspected read-only: `API_RATE_LIMITER` is present with 3 requests / 60 seconds; `AI` binding is present; semantic triage is `true`; optional correction-candidate review is `false`; and the Tavily secret binding exists (secret value not accessed). This confirms configuration presence, not live API enforcement or provider availability.
 - Regression suite and deterministic isolated browser acceptance have passed on the current PR head; rerun if the head changes.
 - Cloudflare Workers Builds linkage is now verified: the public demo Worker is connected to this GitHub repository, watches `main`, and runs `npx wrangler deploy` from `/`. Merging this PR to `main` will trigger an external public deployment. Treat merge as a production release action, not a documentation-only operation.
-- Before merge, complete a safe live smoke request against public `POST /api/verify` and record the actual result; do not infer it from health status.
-- Confirm free provider quota and billing controls before live evidence-search demonstrations.
+- Free Tavily promotional hackathon quota was confirmed by the project owner; PAYGO and automatic upgrade/recharge are disabled. No paid fallback is configured.
+- The live baseline test above passed; after merge, the live-acceptance workflow waits for public Worker version `0.2.77` and repeats one bounded evidence request. This post-deploy check is the final release gate.
 - Official hackathon portal submission must be completed by the project owner; repository publication is not submission confirmation.
 
 ## Status
-The public demo URL and health endpoint have been verified previously. The public evidence-search API and full deployed browser acceptance are **not yet verified**. Do not describe the product as fully end-to-end verified or officially submitted until those gates pass.
+The public demo health endpoint and baseline evidence-search API have been verified. Candidate `0.2.77` is still not deployed; its post-merge live acceptance remains pending. Full deployed-URL browser acceptance, audited real-world accuracy metrics, and official hackathon portal submission remain unverified. Do not describe the product as fully end-to-end verified or officially submitted until those gates pass.

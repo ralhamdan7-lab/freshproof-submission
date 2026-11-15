@@ -4,7 +4,7 @@ Updated: 2026-11-15
 
 ## Public release
 - Repository: this public submission repository.
-- Current deployed release: `0.2.77`.
+- Current deployed release: `0.2.77` (0.2.81 parity candidate is under review; not deployed).
 - Release commit: `1eebb41c5699ae416ce990f168852593d0500d2f`.
 - Latest main commit adds the one-time deployed-browser acceptance gate: `59cc4414384910a69569dd7d14b6b63a58ce10ad`.
 - Cloudflare Worker: `freshproof-submission-demo`.

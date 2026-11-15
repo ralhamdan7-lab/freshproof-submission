@@ -42,5 +42,5 @@ This is a verified specialist software-lifecycle scenario only. Do not generaliz
 - Do not claim a live UI result until the deployed-browser test passes against version 0.2.81.
 - Do not present synthetic benchmark output as real-world accuracy.
 - Do not claim calibrated confidence or general-purpose entailment accuracy.
-- Do not show API keys, private repositories, internal Staging endpoints, or personal information.
+- Do not show API keys, non-public infrastructure, or personal information.
 - State any waiting-time edits or accelerated footage in the video.

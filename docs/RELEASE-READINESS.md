@@ -3,9 +3,11 @@
 ## Scope
 This document describes only the public submission candidate in this repository. Private development infrastructure, account identifiers, internal CI links, and private deployment endpoints are intentionally excluded.
 
-## Release candidate
-- Current deployed baseline: 0.2.76
-- Proposed candidate: 0.2.77
+## Release
+- Deployed version: `0.2.77`
+- Release commit: `1eebb41c5699ae416ce990f168852593d0500d2f`
+- Cloudflare Worker: `freshproof-submission-demo`
+- Deployed Worker version ID: `41ea7111-2c5c-45cf-a914-207ac1c95689`
 - Runtime: Cloudflare Worker with static browser assets
 - Evidence retrieval: Tavily, server-side only
 - Optional semantic triage: Cloudflare Workers AI; advisory and fail-closed
@@ -21,22 +23,23 @@ This document describes only the public submission candidate in this repository.
 - English/Arabic UI with RTL/LTR handling
 - Request, query, result, and direct-fetch limits
 
-## Required release gates
-1. Node regression tests pass on the exact release commit.
-2. Worker and browser JavaScript syntax checks pass.
-3. Temporal smoke benchmark passes.
-4. Browser acceptance passes against an isolated local Worker with deterministic API fixtures.
-5. Secret and private-resource scan passes.
-6. Independent public demo deployment health check passes.
-7. Deployed Worker configuration is checked for the required rate-limit binding, semantic triage flag, AI binding, and server-side provider secret binding; configuration inspection is not a substitute for live enforcement tests.
-8. Bounded live retrieval has passed on deployed baseline `0.2.76` (run #43704887636; provenance repeat #43705018545): one claim, HTTP 200, `SUPERSEDED`, six evidence records, two Tavily search calls, and an official Node.js lifecycle source. Evidence confidence was `LIMITED`; this is a domain-adapter smoke case, not a general accuracy metric. The test ran under the project's zero-cost guardrails; no paid fallback or upgrade path was invoked.
-9. Cloudflare Workers Builds linkage is verified: merging to `main` automatically invokes `npx wrangler deploy` for the public demo Worker. A post-merge GitHub Actions acceptance workflow waits for health version `0.2.77`, then performs one bounded live verification request. Merge is therefore a public release action; the post-deploy workflow must pass before calling the candidate verified.
+## Release-gate results
+1. Node regression suite: **PASS**, 327/327 in UTC and 327/327 in Asia/Riyadh (main workflow #43705319290).
+2. Worker and browser JavaScript syntax checks: **PASS**.
+3. Temporal smoke benchmark: **PASS** (engineering diagnostic only).
+4. Deterministic browser acceptance against an isolated local Worker: **PASS** (workflow #43705319266); this does not establish full public-URL browser acceptance.
+5. Static scan of changed PR patches: no common provider/API token patterns or known private-project references found. This was scoped to changed PR patches, not a full-repository third-party secret scan.
+6. Public health/version gate: **PASS**; post-deploy workflow observed version `0.2.77`.
+7. Deployed Worker configuration inspection: **PASS** for the 3/60-second rate limiter, AI binding, semantic triage flag, disabled correction-candidate review, and server-side provider secret binding. Secret value was not read.
+8. Bounded live evidence retrieval: **PASS** on deployed `0.2.77` (workflow #43705319250): one claim, HTTP 200, `SUPERSEDED`, six evidence records, two Tavily search calls, and official Node.js lifecycle evidence. Evidence Confidence was `LIMITED`; this is a specialized domain-adapter smoke case, not a general accuracy metric.
+9. Cloudflare Workers Builds: **PASS**. The verified `main` push triggered `npx wrangler deploy`; Cloudflare recorded successful build completion and deployed Worker version `41ea7111-2c5c-45cf-a914-207ac1c95689`.
 
 ## Current limitations
 - No general accuracy metrics are claimed without an audited held-out evaluation.
+- The live acceptance covers one software-release lifecycle scenario only; do not generalize its result to arbitrary domains.
 - Semantic model output is advisory, not a truth verdict.
-- Retrieval quality depends on external provider availability and free quota.
-- The public demo is not considered deployed until its independent URL and version are verified.
+- The local browser acceptance is not equivalent to full browser acceptance against the deployed public URL.
+- Official hackathon portal submission has not been confirmed.
 
 ## Release decision
-Pre-merge CI, deterministic browser acceptance, configuration inspection, and live baseline evidence-search acceptance have passed. Candidate `0.2.77` is not yet deployed; its post-merge live acceptance and deployed-URL browser acceptance remain pending. A green CI run is necessary but not sufficient. Do not label the release deployed or submitted until the corresponding live checks and owner submission are confirmed.
+**DEPLOYED — LIVE API ACCEPTANCE PASSED.** Version `0.2.77` is deployed and the bounded live evidence-search path passed on that exact version. Full deployed-URL browser acceptance, audited real-world accuracy evaluation, and official hackathon submission remain pending.

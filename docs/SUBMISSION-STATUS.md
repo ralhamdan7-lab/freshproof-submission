@@ -2,10 +2,12 @@
 
 Updated: 2026-11-15
 
-## Public candidate
+## Public release
 - Repository: this public submission repository.
-- Main remains at 0.2.76; proposed public candidate is 0.2.77 with timezone-safe date parsing and Tavily Bearer authentication.
-- Public source baseline: `b8b525a5977d1a082b053ab057c9a04f28ea812c`; this PR adds release guardrails and documentation corrections.
+- Current deployed release: `0.2.77`.
+- Release commit: `1eebb41c5699ae416ce990f168852593d0500d2f`.
+- Cloudflare Worker: `freshproof-submission-demo`.
+- Deployed Worker version ID: `41ea7111-2c5c-45cf-a914-207ac1c95689`.
 - Public demo: `https://freshproof-submission-demo.ralhamdan7.workers.dev`.
 
 ## Implemented in the public source
@@ -18,29 +20,28 @@ Updated: 2026-11-15
 - Regression tests and synthetic temporal smoke benchmark
 - Public documentation sanitized to remove private operational history
 
-## Verified on the public source baseline
-- Public candidate head `d2a0d92ad1bdf0e3a96764c75b3686a23d8b1ab2`: **327/327 tests passed in UTC and 327/327 in Asia/Riyadh** (workflow run #43701704267). Added regression coverage for leap-day acceptance, preservation of `Aug 08, 2023` as `2023-08-08`, and rejection of impossible dates such as `Feb 30, 2024`. Worker/adjudication/adapter/browser syntax checks and temporal smoke benchmark passed in both jobs. The same head passed deterministic isolated browser acceptance (run #43701704209); this is fixture-based, not a live deployed-URL test.
-- Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
-- Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
-- Deployed Worker configuration read-only check confirmed `API_RATE_LIMITER` limit 3 / period 60 seconds, `AI` binding present, `ENABLE_SEMANTIC_TRIAGE=true`, `ENABLE_CORRECTION_CANDIDATE_REVIEW=false`, and server-side `TAVILY_API_KEY` secret binding present (secret value was not read).
-- Live public `POST /api/verify` acceptance passed against deployed baseline `0.2.76` (GitHub Actions run #43704887636; provenance capture repeat #43705018545). One bounded claim request returned HTTP 200, one processed claim, `SUPERSEDED`, and six evidence records. The Node.js adapter bound the result to the official Node.js previous-releases table: support status `EOL`, row last-updated `2026-03-24`, latest LTS major `26`. Tavily search budget used 2 of 5; the direct official Node.js page and the official release schedule retrieval succeeded. `Evidence Confidence` was `LIMITED`; secondary sources were `UNASSESSED`. This is a single domain-adapter acceptance case, not a general accuracy evaluation.
-- Browser acceptance remains deterministic and isolated (local UI + fixture); full browser acceptance against the deployed public URL remains outstanding.
+## Verified on release 0.2.77
+- Main-branch verification workflow #43705319290: **327/327 tests passed in UTC and 327/327 in Asia/Riyadh**, with 0 failures. Worker/adjudication/adapter/browser syntax checks and temporal smoke benchmark passed.
+- Deterministic browser acceptance workflow #43705319266: PASS using a local static UI and deterministic API fixture. This is not a full browser test against the deployed public URL.
+- Cloudflare Workers Build for release commit completed with `build_outcome: success`; `npx wrangler deploy` completed successfully and deployed Worker version `41ea7111-2c5c-45cf-a914-207ac1c95689`.
+- Post-deploy live acceptance workflow #43705319250 waited until the public health endpoint reported version `0.2.77`, then sent one bounded `POST /api/verify` request. HTTP 200; exactly one claim processed.
+- Live test proposition: `Node.js 20.x remains actively supported under LTS.` Result: `SUPERSEDED`, domain adapter `software_release`. Official Node.js release table evidence reports support status `EOL`, row last-updated `2026-03-24`, and latest LTS major `26`.
+- Six evidence records were returned, including official Node.js first-party records. Two Tavily search calls were used (request-wide search budget 2/5). Freshness was `FRESH`; Evidence Confidence was `LIMITED`; secondary publishers were `UNASSESSED`.
+- The live case validates one specialized software-lifecycle adapter path. It is not a general accuracy evaluation, proof of calibrated confidence, or evidence that all domains meet the same standard.
+- Read-only Cloudflare inspection confirmed `API_RATE_LIMITER` at 3 requests / 60 seconds, `AI` binding present, `ENABLE_SEMANTIC_TRIAGE=true`, `ENABLE_CORRECTION_CANDIDATE_REVIEW=false`, and server-side `TAVILY_API_KEY` binding present. Secret value was not accessed.
+- Static scan of changed PR patches found no common Tavily/GitHub/OpenAI/Cloudflare token patterns, private project names, private staging hostname, or internal Cloudflare account identifier. This was a diff-scoped scan, not a full-repository third-party secret-scanner report.
 
-## Guardrails, timezone and credential-transport fixes in this PR
-- Correct public documentation to match the deployed `API_RATE_LIMITER` configuration: 3 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
-- Parse English Node.js release-table calendar dates with `Date.UTC` and validate the calendar components, avoiding local-time day shifts.
-- Send the Tavily key only in `Authorization: Bearer ...`; never include it in the JSON body.
-- Keep semantic triage enabled for the public evidence-adjudication path.
-- Disable optional model-assisted correction candidate review to reduce inference consumption.
-- Align security documentation with the actual configuration and its limitations.
+## Guardrails in release 0.2.77
+- Public documentation matches the deployed limits: 3 processed claims per request and 3 requests per 60 seconds per client IP/edge location (approximate per-edge rate limiting).
+- English Node.js release-table dates are parsed as validated UTC calendar dates, avoiding local-time day shifts.
+- Tavily credentials are sent only in the `Authorization: Bearer` header, never in the JSON request body.
+- Semantic triage remains advisory; optional model-assisted correction candidate review is disabled.
+- No application database or durable user-submission storage is configured.
 
-## Remaining acceptance gates
-- The deployed public Worker configuration has now been inspected read-only: `API_RATE_LIMITER` is present with 3 requests / 60 seconds; `AI` binding is present; semantic triage is `true`; optional correction-candidate review is `false`; and the Tavily secret binding exists (secret value not accessed). This confirms configuration presence, not live API enforcement or provider availability.
-- Regression suite and deterministic isolated browser acceptance have passed on the current PR head; rerun if the head changes.
-- Cloudflare Workers Builds linkage is now verified: the public demo Worker is connected to this GitHub repository, watches `main`, and runs `npx wrangler deploy` from `/`. Merging this PR to `main` will trigger an external public deployment. Treat merge as a production release action, not a documentation-only operation.
-- The bounded live test ran under the project's zero-cost guardrails; no paid fallback or upgrade path was invoked.
-- The live baseline test above passed; after merge, the live-acceptance workflow waits for public Worker version `0.2.77` and repeats one bounded evidence request. This post-deploy check is the final release gate.
-- Official hackathon portal submission must be completed by the project owner; repository publication is not submission confirmation.
+## Remaining validation and submission work
+- Full browser acceptance against the deployed public URL remains outstanding; current browser automation uses deterministic local fixtures.
+- Audited held-out real-world evaluation is still required before publishing precision, recall, false-positive, citation-correctness, abstention, latency, or cost metrics.
+- Official hackathon portal submission and its receipt are not verified; repository publication is not submission confirmation.
 
 ## Status
-The public demo health endpoint and baseline evidence-search API have been verified. Candidate `0.2.77` is still not deployed; its post-merge live acceptance remains pending. Full deployed-URL browser acceptance, audited real-world accuracy metrics, and official hackathon portal submission remain unverified. Do not describe the product as fully end-to-end verified or officially submitted until those gates pass.
+Release `0.2.77` is **DEPLOYED** and its public evidence-search API is **LIVE-ACCEPTANCE VERIFIED** for the bounded scenario above. The product is not yet fully end-to-end browser-verified, generally accuracy-validated, or officially submitted.

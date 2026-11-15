@@ -30,11 +30,11 @@ Updated: 2026-11-15
 - Live public API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): **PASS**. Health endpoint reported version 0.2.81; one bounded POST /api/verify returned HTTP 200.
 - Live proposition: “Node.js 20.x remains actively supported under LTS.” Actual API result: **SUPERSEDED**, using the official Node.js previous-releases/lifecycle table. Six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED.
 - This specialist scenario validates one narrow software-lifecycle path only; it is not a general accuracy benchmark.
-- Public PR #9 patch scan found no common credential patterns, private Staging hostname, or unrelated-project names. This is a diff-scoped scan, not a full-repository scanner attestation.
+- Public PR #9 patch scan found no common credential patterns in the changed files. This is a diff-scoped scan, not a full-repository scanner attestation.
 - No paid fallback, PAYG activation, billing change, or secret value access/change.
 
 ## Outstanding submission gates
-1. Complete and audit the 54-case held-out v2 evaluation. Its gold review is an owner-approved assistant audit, not independent external adjudication.
+1. Complete a representative, independently reviewed real-world accuracy evaluation before publishing general accuracy metrics.
 2. Record and review the actual 2–4 minute demo video; confirm the video plays in a logged-out browser if uploaded.
 3. Complete the official Global AI Hackathon portal submission and verify its receipt.
 
@@ -48,7 +48,7 @@ The organizer's Geek Room page lists prototype submission on 15 November 2026 an
 **TESTED:** CI, deterministic local browser, and deployed public browser acceptance on v0.2.81.
 **LIVE API VERIFIED:** one bounded Node.js lifecycle scenario.
 **READY:** editable 10-slide pitch deck and demo-video recording script.
-**PENDING:** held-out v2 report and audit; actual demo recording; official submission receipt.
+**PENDING:** broader accuracy study; actual demo recording; official submission receipt.
 
 **DEPLOYED:** v0.2.81.  
 **TESTED:** CI and deterministic local browser acceptance.  

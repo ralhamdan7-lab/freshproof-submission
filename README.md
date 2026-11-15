@@ -108,6 +108,8 @@ Automated tests and synthetic temporal benchmarks are engineering diagnostics, n
 
 This repository is the public source snapshot. The official Global AI Hackathon prototype deadline is listed as **15 November 2026**; the portal listing indicates **23:59 India Standard Time (18:29 UTC)**. The organizer's event page lists judging on **29 November 2026**. Verify the portal's live countdown and complete the official submission form. Repository publication, deployment, and CI success do **not** prove that an entry was submitted or received.
 
+Submission assets: [portal-ready project copy](docs/SUBMISSION-COPY.md), [portal submission checklist](docs/PORTAL-SUBMISSION-CHECKLIST.md), and [demo recording script](docs/DEMO-VIDEO-SCRIPT.md).
+
 ## Ownership
 
 No open-source license is granted unless a separate license file explicitly states otherwise. All rights are reserved by the project owner.

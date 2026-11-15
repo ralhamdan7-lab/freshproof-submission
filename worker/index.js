@@ -5,8 +5,9 @@ import { serveEmbeddedAsset } from "./static-assets.js";
 export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 3, maxResultsPerClaim: 5, maxQueries: 5, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
 export const SEMANTIC_MODEL = "@cf/zai-org/glm-4.7-flash";
+// v0.2.77: send Tavily API credentials only in the Authorization bearer header.
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
-export const VERSION = "0.2.76";
+export const VERSION = "0.2.77";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.

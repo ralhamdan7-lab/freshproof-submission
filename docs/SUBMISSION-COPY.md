@@ -68,7 +68,7 @@ This is one specialist software-lifecycle scenario. It is not evidence of genera
 - Deployed public browser acceptance against exact version 0.2.81: passed.
 - One bounded live API scenario: passed.
 - A 32-case synthetic temporal diagnostic matched its synthetic labels; it is an engineering diagnostic, not a real-world accuracy estimate.
-- A broader held-out evaluation is being run separately and is not represented here as completed.
+- No representative real-world accuracy study is claimed; only the listed engineering checks and bounded live scenario are reported.
 - No general precision, recall, false-positive rate, citation correctness, calibrated confidence, or cost-per-claim is claimed.
 
 The prototype is designed for bounded verification and review, not as a guarantee that every proposition can be conclusively adjudicated. Users should inspect cited sources and respect NEEDS_REVIEW and UNVERIFIABLE outcomes.

@@ -248,14 +248,28 @@ function parseNodeScheduleJson(content) {
   } catch { return []; }
 }
 
+function parseEnglishCalendarDate(value) {
+  const match = String(value || "").trim().match(/^([A-Z][a-z]{2,8})\\s+(\\d{1,2}),?\\s+(\\d{4})$/i);
+  if (!match) return null;
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const month = months.indexOf(match[1].slice(0, 3).toLowerCase());
+  const day = Number(match[2]);
+  const year = Number(match[3]);
+  if (month < 0 || day < 1 || day > 31 || year < 1000 || year > 9999) return null;
+  const timestamp = Date.UTC(year, month, day);
+  const date = new Date(timestamp);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) return null;
+  return timestamp;
+}
+
 function parseNodeReleaseRows(content) {
   const text = String(content || "");
   const rows = [];
-  const pattern = /\|?\s*v?(\d+)(?:\.x)?\s*\|\s*([^|]*)\|\s*([A-Z][a-z]{2,8}\s+\d{1,2},?\s+\d{4})\s*\|\s*([A-Z][a-z]{2,8}\s+\d{1,2},?\s+\d{4})\s*\|\s*(LTS|EOL|Current|Alpha)\b/gi;
+  const pattern = /\\|?\\s*v?(\\d+)(?:\\.x)?\\s*\\|\\s*([^|]*)\\|\\s*([A-Z][a-z]{2,8}\\s+\\d{1,2},?\\s+\\d{4})\\s*\\|\\s*([A-Z][a-z]{2,8}\\s+\\d{1,2},?\\s+\\d{4})\\s*\\|\\s*(LTS|EOL|Current|Alpha)\\b/gi;
   for (const match of text.matchAll(pattern)) {
-    const firstReleased = Date.parse(match[3]);
-    const lastUpdated = Date.parse(match[4]);
-    if (!Number.isFinite(firstReleased) || !Number.isFinite(lastUpdated)) continue;
+    const firstReleased = parseEnglishCalendarDate(match[3]);
+    const lastUpdated = parseEnglishCalendarDate(match[4]);
+    if (firstReleased === null || lastUpdated === null) continue;
     rows.push({ major: Number(match[1]), first_released: new Date(firstReleased).toISOString().slice(0, 10), last_updated: new Date(lastUpdated).toISOString().slice(0, 10), status: match[5].toUpperCase() });
   }
   return rows;

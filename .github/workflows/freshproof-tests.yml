@@ -22,8 +22,15 @@ permissions:
 
 jobs:
   test:
+    name: test (${{ matrix.timezone }})
+    strategy:
+      fail-fast: false
+      matrix:
+        timezone: [UTC, Asia/Riyadh]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    env:
+      TZ: ${{ matrix.timezone }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

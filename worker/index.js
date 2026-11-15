@@ -5,8 +5,9 @@ import { serveEmbeddedAsset } from "./static-assets.js";
 export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 3, maxResultsPerClaim: 5, maxQueries: 5, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
 export const SEMANTIC_MODEL = "@cf/zai-org/glm-4.7-flash";
+// v0.2.77: send Tavily API credentials only in the Authorization bearer header.
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
-export const VERSION = "0.2.76";
+export const VERSION = "0.2.77";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -964,7 +965,7 @@ export function normalizeSource(item) {
 }
 
 async function searchTavily(query, env, includeDomains = [], options = {}, onRejectedUrl = null) {
-  const response = await fetch("https://api.tavily.com/search", { method: "POST", signal: AbortSignal.timeout(10000), headers: { "content-type": "application/json" }, body: JSON.stringify({ api_key: env.TAVILY_API_KEY, query, topic: "general", search_depth: "basic", max_results: LIMITS.maxResultsPerClaim, include_answer: false, include_raw_content: false, include_published_date: true, ...(options.timeRange === null ? {} : { time_range: options.timeRange || "year" }), filter_by_published_date: false, ...(includeDomains.length ? { include_domains: includeDomains } : {}) }) });
+  const response = await fetch("https://api.tavily.com/search", { method: "POST", signal: AbortSignal.timeout(10000), headers: { "content-type": "application/json", authorization: `Bearer ${env.TAVILY_API_KEY}` }, body: JSON.stringify({ query, topic: "general", search_depth: "basic", max_results: LIMITS.maxResultsPerClaim, include_answer: false, include_raw_content: false, include_published_date: true, ...(options.timeRange === null ? {} : { time_range: options.timeRange || "year" }), filter_by_published_date: false, ...(includeDomains.length ? { include_domains: includeDomains } : {}) }) });
   if (!response.ok) throw new Error(`Evidence provider returned ${response.status}`);
   const data = await response.json();
   const normalized = [];

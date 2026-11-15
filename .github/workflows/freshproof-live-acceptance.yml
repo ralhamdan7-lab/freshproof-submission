@@ -1,0 +1,118 @@
+name: FreshProof live deployment acceptance
+
+on:
+  push:
+    branches:
+      - main
+      - docs/public-guardrail-accuracy-2026-11-15
+    paths:
+      - "worker/**"
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/freshproof-live-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: freshproof-live-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      BASE_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select expected deployed version
+        id: expected
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.2.76" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for expected public Worker version
+        env:
+          EXPECTED_VERSION: ${{ steps.expected.outputs.version }}
+        shell: bash
+        run: |
+          for attempt in $(seq 1 36); do
+            body="$(curl --silent --show-error --max-time 8 "$BASE_URL/api/health" || true)"
+            actual="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(JSON.parse(s).version||'')}catch{}})")"
+            if [[ "$actual" == "$EXPECTED_VERSION" ]]; then
+              echo "Public Worker health verified: version $actual"
+              exit 0
+            fi
+            echo "Waiting for version $EXPECTED_VERSION (observed: ${actual:-unavailable}), attempt $attempt/36"
+            sleep 5
+          done
+          echo "Expected public Worker version $EXPECTED_VERSION was not observed."
+          exit 1
+
+      - name: Run one bounded live evidence-verification request
+        env:
+          EXPECTED_VERSION: ${{ steps.expected.outputs.version }}
+        shell: bash
+        run: |
+          http_code="$(curl --silent --show-error --max-time 45 \
+            --output /tmp/freshproof-live-response.json \
+            --write-out '%{http_code}' \
+            --request POST "$BASE_URL/api/verify" \
+            --header 'content-type: application/json' \
+            --data '{"text":"Node.js 20.x remains actively supported under LTS."}')"
+          if [[ "$http_code" != "200" ]]; then
+            echo "Live verification returned HTTP $http_code"
+            cat /tmp/freshproof-live-response.json
+            exit 1
+          fi
+          EXPECTED_VERSION="$EXPECTED_VERSION" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const body = JSON.parse(fs.readFileSync('/tmp/freshproof-live-response.json', 'utf8'));
+          if (body.product !== 'FreshProof') throw new Error('Unexpected product identity');
+          if (body.version !== process.env.EXPECTED_VERSION) throw new Error(`Expected version ${process.env.EXPECTED_VERSION}, received ${body.version}`);
+          if (!Array.isArray(body.claims) || body.claims.length !== 1) throw new Error('Expected exactly one processed claim');
+          const claim = body.claims[0];
+          const allowed = new Set(['CURRENT','SUPERSEDED','CONTRADICTED','UNVERIFIABLE','NEEDS_REVIEW','NOT_TIME_SENSITIVE']);
+          if (!allowed.has(claim.status)) throw new Error(`Unexpected verification status: ${claim.status}`);
+          if (!Array.isArray(claim.sources) || claim.sources.length < 1) throw new Error('No live evidence sources returned');
+          const hosts = [...new Set(claim.sources.map(source => {
+            try { return new URL(source.url).hostname; } catch { return 'invalid-url'; }
+          }))];
+          if (hosts.includes('invalid-url')) throw new Error('A returned evidence URL is invalid');
+          const sourceSummary = claim.sources.map(source => ({
+            title: source.title,
+            url: source.url,
+            reliability: source.source_reliability ?? null,
+            published_date: source.published_date ?? null,
+            retrieved_at: source.retrieved_at ?? null,
+            relevance: source.relevance_assessment?.relevance ?? null,
+            evidence_kind: source.evidence_kind ?? null
+          }));
+          console.log(JSON.stringify({
+            acceptance: 'PASS',
+            version: body.version,
+            processed_claims: body.claims.length,
+            claim: claim.text,
+            verification_status: claim.status,
+            domain_adapter: claim.domain_adapter ?? null,
+            domain_evidence: claim.domain_evidence ?? null,
+            adjudication: {
+              method: claim.adjudication?.method ?? null,
+              rationale: claim.adjudication?.rationale ?? claim.explanation ?? null
+            },
+            evidence_sources: sourceSummary,
+            freshness: claim.freshness ?? null,
+            evidence_confidence: claim.evidence_confidence ?? null,
+            source_reliability: claim.source_reliability ?? null,
+            retrieval_diagnostics: claim.retrieval_diagnostics ?? [],
+            search_budget: body.methodology?.search_budget ?? null
+          }, null, 2));
+          NODE

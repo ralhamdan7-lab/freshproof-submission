@@ -11,7 +11,7 @@ Request:
 {"text":"The current CEO was appointed in 2025. A stable scientific fact follows."}
 ```
 
-Limits: 12,000 input characters; maximum five sentence candidates; maximum five search results per time-sensitive claim. Tavily search requests set `max_age_hours: 24` and `include_published_date: true`; the former constrains the age of Tavily's cached page copy, not the source publication date or event date.
+Limits: 12,000 input characters; maximum three processed claim candidates per request; maximum five search results per claim. Tavily search requests set `max_age_hours: 24` and `include_published_date: true`; the former constrains the age of Tavily's cached page copy, not the source publication date or event date.
 
 Each claim may return:
 - `status`: `CURRENT`, `SUPERSEDED`, `CONTRADICTED`, `UNVERIFIABLE`, `NEEDS_REVIEW`, or `NOT_TIME_SENSITIVE`. Generic verdicts remain subject to conservative adjudication rules; specialized statuses may be limited to domain adapters.
@@ -26,7 +26,7 @@ Each claim may return:
 - `explanation_detail`: structured `summary`, `reason`, `evidence_basis[]`, distinct `date_interpretation` fields (`event_date`, `publication_date`, `retrieved_at`), and `limitations[]`.
 - `correction`: `status` (`PROVIDED`, `NOT_NEEDED`, `WITHHELD`, `NOT_APPLICABLE`), nullable `text`, `evidence_refs[]`, and `limitations[]`. A provided correction must cite an evidence reference used by the claim outcome. In v0.2.33, deterministic correction text is intentionally limited to the validated Python 2 sunset adapter; other changed/contradicted claims are withheld until a tested correction rule exists.
 
-Errors: 400 invalid JSON/empty text; 403 disallowed origin; 405 unsupported method; 413 oversized input; 422 no complete sentence candidate; 429 rate limit exceeded; 503 missing Tavily secret or rate limiter unavailable; 404 unknown API route. Verification requests use Cloudflare's approximate per-edge rate limiter (10 requests per 60 seconds per client IP); it is not a strict global quota.
+Errors: 400 invalid JSON/empty text; 403 disallowed origin; 405 unsupported method; 413 oversized input; 422 no complete sentence candidate; 429 rate limit exceeded; 503 missing Tavily secret or rate limiter unavailable; 404 unknown API route. Verification requests use Cloudflare's approximate per-edge rate limiter (3 requests per 60 seconds per client IP); it is not a strict global quota.
 
 
 ## v0.2.22 claim-context and relevance fields

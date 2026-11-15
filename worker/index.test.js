@@ -34,8 +34,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.76 release version", () => {
-  assert.equal(VERSION, "0.2.76");
+test("v0.2.77 release version", () => {
+  assert.equal(VERSION, "0.2.77");
 });
 
 test("conditional and exception clauses remain attached to their governing proposition", () => {
@@ -848,6 +848,38 @@ test("Node.js supported release-line claims use the official schedule without re
   assert.equal(resolveDomainAdapter(oldLine)?.id, "software_release");
   assert.equal(assessNodeReleaseLifecycle(oldLine, [source], Date.parse("2026-11-13T00:00:00Z")).status, "SUPERSEDED");
   assert.equal(assessNodeReleaseLifecycle(currentLine, [source], Date.parse("2026-11-13T00:00:00Z")).status, "CURRENT");
+});
+
+test("Node.js release-table calendar dates are timezone invariant and preserve leap days", () => {
+  const source = {
+    title: "Node.js — Official Previous Releases",
+    url: "https://nodejs.org/en/about/previous-releases",
+    content: "| 20.x | Iron | Feb 29, 2024 | Aug 08, 2023 | LTS |",
+    retrieved_at: "2026-11-08T12:00:00.000Z"
+  };
+  const result = assessNodeReleaseLifecycle(
+    "Node.js 20.x remains actively supported under LTS.",
+    [source],
+    Date.parse("2026-11-09T00:00:00Z")
+  );
+  assert.equal(result.status, "CURRENT");
+  assert.equal(result.evidence.last_updated, "2023-08-08");
+});
+
+test("Node.js release-table parser rejects impossible calendar dates instead of normalizing them", () => {
+  const source = {
+    title: "Node.js — Official Previous Releases",
+    url: "https://nodejs.org/en/about/previous-releases",
+    content: "| 20.x | Iron | Feb 30, 2024 | Aug 08, 2023 | LTS |",
+    retrieved_at: "2026-11-08T12:00:00.000Z"
+  };
+  const result = assessNodeReleaseLifecycle(
+    "Node.js 20.x remains actively supported under LTS.",
+    [source],
+    Date.parse("2026-11-09T00:00:00Z")
+  );
+  assert.equal(result.status, null);
+  assert.equal(result.evidence, null);
 });
 
 test("claim extraction reports all candidates separately from the bounded processing slice", () => {

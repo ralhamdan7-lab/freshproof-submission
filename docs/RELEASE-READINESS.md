@@ -29,7 +29,7 @@ This document describes only the public submission candidate in this repository.
 5. Secret and private-resource scan passes.
 6. Independent public demo deployment health check passes.
 7. Deployed Worker configuration is checked for the required rate-limit binding, semantic triage flag, AI binding, and server-side provider secret binding; configuration inspection is not a substitute for live enforcement tests.
-8. Bounded live retrieval has passed on deployed baseline `0.2.76` (run #43704887636; provenance repeat #43705018545): one claim, HTTP 200, `SUPERSEDED`, six evidence records, two Tavily search calls, and an official Node.js lifecycle source. Evidence confidence was `LIMITED`; this is a domain-adapter smoke case, not a general accuracy metric. The owner confirmed the 8,000-credit hackathon promotional grant; PAYGO and automatic upgrade/recharge are disabled.
+8. Bounded live retrieval has passed on deployed baseline `0.2.76` (run #43704887636; provenance repeat #43705018545): one claim, HTTP 200, `SUPERSEDED`, six evidence records, two Tavily search calls, and an official Node.js lifecycle source. Evidence confidence was `LIMITED`; this is a domain-adapter smoke case, not a general accuracy metric. The test ran under the project's zero-cost guardrails; no paid fallback or upgrade path was invoked.
 9. Cloudflare Workers Builds linkage is verified: merging to `main` automatically invokes `npx wrangler deploy` for the public demo Worker. A post-merge GitHub Actions acceptance workflow waits for health version `0.2.77`, then performs one bounded live verification request. Merge is therefore a public release action; the post-deploy workflow must pass before calling the candidate verified.
 
 ## Current limitations

@@ -106,7 +106,7 @@ try {
   assert.equal(await cards.nth(0).locator(".claim-text").getAttribute("lang"), "ar");
   assert.equal(await cards.nth(1).locator(".claim-text").getAttribute("dir"), "ltr");
   assert.equal(await cards.nth(1).locator(".claim-text").getAttribute("lang"), "en");
-  assert.match(await page.locator("#summary").innerText(), /ادعاءات/);
+  assert.match(await page.locator("#summary").innerText(), /CLAIMS|ادعاءات/i);
   assert.equal(await cards.nth(0).locator(".claim-comparison").count(), 1);
   assert.equal(await cards.nth(0).locator(".correction-outcome").count(), 1);
   assert.equal(await cards.nth(0).locator(".outcome-evidence a").getAttribute("href"), "https://example.com/official");

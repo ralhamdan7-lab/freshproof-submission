@@ -34,8 +34,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.76 release version", () => {
-  assert.equal(VERSION, "0.2.76");
+test("v0.2.77 release version", () => {
+  assert.equal(VERSION, "0.2.77");
 });
 
 test("conditional and exception clauses remain attached to their governing proposition", () => {

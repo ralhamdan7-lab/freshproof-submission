@@ -34,8 +34,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.77 release version", () => {
-  assert.equal(VERSION, "0.2.77");
+test("v0.2.81 release version", () => {
+  assert.equal(VERSION, "0.2.81");
 });
 
 test("conditional and exception clauses remain attached to their governing proposition", () => {
@@ -58,6 +58,44 @@ test("conditional and exception clauses remain attached to their governing propo
   }
 });
 
+test("claim extraction never detaches a semicolon-led condition or exception", () => {
+  const cases = [
+    "The service is available; unless the regulator suspends it, access remains open.",
+    "The rule applies; provided that the authority publishes the notice, it takes effect.",
+    "تظل الخدمة متاحة؛ ما لم تصدر الجهة قراراً بإيقافها، يستمر الوصول.",
+    "يسري القرار؛ بشرط أن يُنشر رسمياً، وإلا فلا يُطبّق."
+  ];
+  for (const claim of cases) {
+    assert.deepEqual(extractClaimCandidates(claim), [claim]);
+    assert.deepEqual(splitClaims(claim), [claim]);
+  }
+});
+
+test("independent semicolon clauses form separate components with unresolved graph edges", () => {
+  const claim = "The regulator approved the rule; the rule took effect in 2025.";
+  const extracted = extractClaimCandidates(claim);
+  assert.deepEqual(extracted, [
+    "The regulator approved the rule;",
+    "the rule took effect in 2025."
+  ]);
+  const graph = decomposeClaimForAssessment(claim);
+  assert.equal(graph.integrity, "FULL_ORIGINAL_PRESERVED");
+  assert.equal(graph.components.length, 2);
+  assert.equal(graph.relations.length, 1);
+  assert.equal(graph.relations[0].semantic_relation, "UNRESOLVED");
+  assert.deepEqual(graph.components[0].source_span, { start: 0, end: 32 });
+});
+
+test("dependent clause metadata remains attached to its governing graph node", () => {
+  const claim = "The service is available; unless the regulator suspends it, access remains open; the agency reviews the rule annually.";
+  const graph = decomposeClaimForAssessment(claim);
+  assert.equal(graph.integrity, "FULL_ORIGINAL_PRESERVED");
+  assert.equal(graph.components.length, 2);
+  assert.equal(graph.components[0].attached_dependencies.length, 1);
+  assert.equal(graph.components[0].attached_dependencies[0].type, "CONDITION");
+  assert.equal(graph.relations.length, 1);
+});
+
 test("curated institutional and official source profiles are classified without trusting arbitrary domains", () => {
   assert.equal(sourceReliability("https://www.nasa.gov/history/apollo-11/"), "PRIMARY_OR_OFFICIAL_DOMAIN");
   assert.equal(sourceReliability("https://support.apple.com/en-ie/108044"), "PRIMARY_OR_OFFICIAL_DOMAIN");
@@ -74,14 +112,18 @@ test("curated institutional and official source profiles are classified without 
   assert.equal(sourceReliability("https://example-random-blog.invalid/article"), "UNASSESSED");
 });
 
-test("stable historical claims receive targeted authoritative retrieval hints", () => {
-  assert.deepEqual(sourceDomainHints("Apollo 11 landed on the Moon in 1969."), ["nasa.gov", "si.edu", "archives.gov"]);
-  assert.deepEqual(sourceDomainHints("The European Central Bank was established in 1998."), ["ecb.europa.eu", "europa.eu", "britannica.com", "bruegel.org"]);
-  assert.deepEqual(sourceDomainHints("Mount Everest is the highest mountain above sea level."), ["nationalgeographic.com", "britannica.com", "education.nationalgeographic.com"]);
-  assert.deepEqual(sourceDomainHints("Water is composed of hydrogen and oxygen."), ["usgs.gov", "rsc.org", "nist.gov"]);
-  assert.deepEqual(sourceDomainHints("The first network email was sent in 1971."), ["computerhistory.org", "internetsociety.org", "rfc-editor.org"]);
-  assert.deepEqual(sourceDomainHints("The European Union currently has 27 member states."), ["european-union.europa.eu", "eur-lex.europa.eu", "consilium.europa.eu", "europa.eu"]);
-  assert.deepEqual(sourceDomainHints("An unrelated statement about something unknown."), []);
+test("generic retrieval does not infer publisher allowlists from topic keywords", () => {
+  const claims = [
+    "Apollo 11 landed on the Moon in 1969.",
+    "The European Central Bank was established in 1998.",
+    "Mount Everest is the highest mountain above sea level.",
+    "Water is composed of hydrogen and oxygen.",
+    "The first network email was sent in 1971.",
+    "The European Union currently has 27 member states.",
+    "A novel marine governance rule changed last week.",
+    "تغيّر نظام التأشيرات لهذا البلد خلال الشهر الحالي."
+  ];
+  for (const claim of claims) assert.deepEqual(sourceDomainHints(claim), [], claim);
 });
 
 test("middle-initial office-holder claim remains intact", () => {

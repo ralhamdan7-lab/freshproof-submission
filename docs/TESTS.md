@@ -1,4 +1,11 @@
-# Test Strategy — FreshProof v0.2.76
+## v0.2.81 public parity candidate
+- Ported claim dependency preservation and source-span graph metadata from the private engine release.
+- Generic retrieval uses the original proposition and publisher-agnostic bounded diversity; entity/topic query rewrites and inferred publisher allowlists are removed from the core.
+- Historical retrieval special cases are isolated behind narrow specialist adapters; specialist evidence cannot override whole-claim adjudication.
+- UTC/Asia-Riyadh CI, syntax checks, temporal smoke benchmark, and deployed browser acceptance are required before public release/deployment.
+- Synthetic temporal benchmark results are diagnostics only, not real-world accuracy.
+
+# Test Strategy — FreshProof v0.2.81
 
 ## Automated validation
 The public release candidate uses GitHub Actions to run:

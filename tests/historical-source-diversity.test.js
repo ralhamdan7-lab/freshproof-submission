@@ -1,16 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { historicalDiversitySearchPlan, selectDiverseSources, sourceReliability, scoreSourceRelevance } from "../worker/index.js";
+import worker, { selectDiverseSources, sourceReliability, scoreSourceRelevance } from "../worker/index.js";
+import { resolveHistoricalSourceAdapter } from "../worker/domain-adapters.js";
 import { registrableDomain } from "../worker/evidence-adjudication.js";
 
 test("historical diversity plans target independent first-party publishers", () => {
-  const iphone = historicalDiversitySearchPlan("The first iPhone was released in 2007.");
+  const iphone = resolveHistoricalSourceAdapter("The first iPhone was released in 2007.");
   assert.equal(iphone.id, "FIRST_IPHONE");
   assert.deepEqual(iphone.domains, ["apple.com", "vam.ac.uk", "si.edu"]);
-  const transplant = historicalDiversitySearchPlan("The first successful human heart transplant was performed in 1967.");
+  const transplant = resolveHistoricalSourceAdapter("The first successful human heart transplant was performed in 1967.");
   assert.equal(transplant.id, "FIRST_HUMAN_HEART_TRANSPLANT");
   assert.deepEqual(transplant.domains, ["health.uct.ac.za", "gshfb.co.za", "gov.za"]);
-  assert.equal(historicalDiversitySearchPlan("Apollo 11 landed on the Moon in 1969."), null);
+  assert.equal(resolveHistoricalSourceAdapter("Apollo 11 landed on the Moon in 1969."), null);
 });
 
 test("South African institutional subdomains resolve to independent registrable publishers", () => {
@@ -116,30 +117,33 @@ test("historical retrieval supplements concentrated result clusters and retains 
 });
 
 test("released and announced are contextual aliases only for the original iPhone timeline", () => {
-  const iphone = scoreSourceRelevance("The first iPhone was released in 2007.", {
+  const iphoneClaim = "The first iPhone was released in 2007.";
+  const iphone = scoreSourceRelevance(iphoneClaim, {
     title: "IPhone Model 2G Smartphone",
     snippet: "The original iPhone was a 2007 debut. Steve Jobs unveiled the product in January 2007 for a June launch."
-  });
+  }, resolveHistoricalSourceAdapter(iphoneClaim));
   assert.equal(iphone.relevance, "HIGH");
-  const unrelated = scoreSourceRelevance("The first version of the protocol was released in 2007.", {
+  const unrelatedClaim = "The first version of the protocol was released in 2007.";
+  const unrelated = scoreSourceRelevance(unrelatedClaim, {
     title: "Protocol announced in 2007",
     snippet: "The protocol was announced in 2007."
-  });
+  }, null);
   assert.notEqual(unrelated.relevance, "HIGH");
 });
 
 test("heart-transplant relevance excludes nearby history without the 1967 event anchors", () => {
   const claim = "The first successful human heart transplant was performed in 1967.";
+  const adapter = resolveHistoricalSourceAdapter(claim);
   const unrelated = scoreSourceRelevance(claim, {
     title: "Stanford inventions and innovations",
     snippet: "A 1959 medical innovation and later work in the heart transplant field."
-  });
+  }, adapter);
   assert.equal(unrelated.relevance, "LOW");
   assert.equal(unrelated.method, "HISTORICAL_EVENT_CONTEXT_GUARD");
   const direct = scoreSourceRelevance(claim, {
     title: "World's First Human Heart Transplant",
     snippet: "Professor Christiaan Barnard performed the first human heart transplant at Groote Schuur Hospital on 3 December 1967."
-  });
+  }, adapter);
   assert.equal(direct.relevance, "HIGH");
 });
 

@@ -9,7 +9,7 @@ A 10-slide editable PowerPoint has been prepared as a separate submission artifa
 5. **Architecture** — Browser UI, Cloudflare Worker, Tavily, source normalization, evidence adjudication, abstention.
 6. **Live proof** — The deployed v0.2.81 API classified “Node.js 20.x remains actively supported under LTS” as SUPERSEDED using the official Node.js lifecycle table; six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED.
 7. **Responsible decisions** — CURRENT, SUPERSEDED, CONTRADICTED, NEEDS_REVIEW, UNVERIFIABLE, and NOT_TIME_SENSITIVE (temporal metadata, not a truth verdict).
-8. **Validation** — 321/321 tests in UTC and 321/321 in Asia/Riyadh; one bounded live API scenario; 32-case synthetic diagnostic clearly labeled non-representative. The 54-case held-out evaluation is not reported as complete until its live run and report are audited.
+8. **Validation** — 321/321 tests in UTC and 321/321 in Asia/Riyadh; one bounded live API scenario; 32-case synthetic diagnostic clearly labeled non-representative. Broader real-world accuracy evaluation is not yet complete; no general accuracy metrics are claimed.
 9. **Trust and operating model** — Minimal data retention, server-side secrets, bounded operations, free-tier design, no paid fallback.
 10. **Close** — Public demo and source repository; evidence first, temporal context always, uncertainty stated.
 

@@ -1,3 +1,11 @@
+# v0.2.81 — claim dependency preservation and publisher-agnostic retrieval (2026-11-15)
+
+- Preserve dependent condition, exception, concession, and contrast clauses across semicolon boundaries; do not emit dependent fragments as standalone claims.
+- Keep comma/conjunction-linked clauses intact for semantic decomposition; preserve exact original wording and add source spans, attached dependency metadata, and unresolved structural relations.
+- Remove entity/topic-specific generic query rewrites and inferred publisher allowlists. Every claim starts with its original proposition; bounded generic diversity search remains publisher-agnostic.
+- Keep WHO/PHEIC, first-iPhone, and 1967 heart-transplant retrieval plans in narrow specialist adapters. Specialist evidence is additive; the core whole-claim adjudicator retains verdict control.
+- No evidence threshold or verdict threshold is relaxed.
+
 ## 0.2.47 — source independence and domain evidence quality (2026-11-12)
 - Independent corroboration now groups sources by registrable domain rather than raw hostname, preventing multiple subdomains of one publisher from being counted as independent evidence.
 - Added focused regression tests for registrable-domain independence and evidence-confidence behavior.

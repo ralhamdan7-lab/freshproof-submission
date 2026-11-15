@@ -24,7 +24,7 @@ Updated: 2026-11-15
 ## Verification evidence
 
 - Release CI [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): **321/321 tests passed in UTC and 321/321 in Asia/Riyadh**; syntax and temporal smoke checks passed.
-- Latest documentation CI [#43712624254](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43712624254): **SUCCESS**.
+- Latest documentation CI [#43713794632](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43713794632): **SUCCESS**.
 - Deterministic local browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): **PASS**.
 - Deployed public browser acceptance [#43713578554](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43713578554): **PASS** against exact Worker version 0.2.81. Playwright submitted the Node.js 20 claim through the real UI, observed OUTDATED, rendered six evidence links including two official Node.js links, and recorded zero browser runtime errors.
 - Live public API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): **PASS**. Health endpoint reported version 0.2.81; one bounded POST /api/verify returned HTTP 200.

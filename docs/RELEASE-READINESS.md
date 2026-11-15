@@ -44,3 +44,11 @@ This document describes only the public submission candidate in this repository.
 
 ## Release decision
 **DEPLOYED — LIVE API AND PUBLIC BROWSER ACCEPTANCE PASSED FOR ONE BOUNDED SCENARIO.** Version `0.2.77` is deployed and its actual public browser flow and evidence-search API passed the Node.js lifecycle acceptance. General real-world accuracy evaluation and official hackathon submission remain pending.
+
+
+## v0.2.81 deployment gate closure — 2026-11-15
+- PR #9 merged and public main advanced to v0.2.81.
+- Public Worker health matched exact version 0.2.81 in workflow #43711250878.
+- One bounded live verification request passed: Node.js 20.x stale LTS support claim -> SUPERSEDED, with official Node.js release table evidence.
+- UTC/Asia-Riyadh CI: 321/321 in each timezone. Deterministic browser acceptance passed.
+- General-domain accuracy and deployed-browser acceptance on 0.2.81 remain unverified; no general accuracy claim is authorized.

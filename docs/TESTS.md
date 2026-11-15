@@ -1,21 +1,11 @@
-## v0.2.81 public parity candidate
-- Ported claim dependency preservation and source-span graph metadata from the private engine release.
-- Generic retrieval uses the original proposition and publisher-agnostic bounded diversity; entity/topic query rewrites and inferred publisher allowlists are removed from the core.
-- Historical retrieval special cases are isolated behind narrow specialist adapters; specialist evidence cannot override whole-claim adjudication.
-- UTC/Asia-Riyadh CI, syntax checks, temporal smoke benchmark, and deployed browser acceptance are required before public release/deployment.
-- Synthetic temporal benchmark results are diagnostics only, not real-world accuracy.
-
 # Test Strategy — FreshProof v0.2.81
 
-## Automated validation
-The public release candidate uses GitHub Actions to run:
-- Node.js unit, integration, and regression tests
-- Worker entrypoint syntax validation
-- Evidence adjudication module syntax validation
-- Domain adapter syntax validation
-- Browser application syntax validation
-- Synthetic temporal smoke benchmark
-- Playwright browser acceptance against an isolated local Worker and deterministic API fixture
+## Current public CI (2026-11-15)
+- Main verification workflow [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): **321/321 PASS in UTC and 321/321 PASS in Asia/Riyadh**, zero failures/skips.
+- Worker, adjudication, domain adapter, and browser application syntax checks passed.
+- Synthetic temporal smoke benchmark passed; it is a diagnostic fixture, not a real-world accuracy estimate.
+- Deterministic browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): PASS using local deterministic fixtures.
+- Public live deployment/API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): exact Worker 0.2.81 health verified; one live Node.js lifecycle claim returned SUPERSEDED with official Node.js evidence. This is a single specialist integration case.
 
 ## Coverage areas
 - Current and superseded claims
@@ -28,9 +18,7 @@ The public release candidate uses GitHub Actions to run:
 - Arabic/English and RTL/LTR presentation
 - Unsafe source URL handling and HTML-like user input rendering
 - Bounded search and direct-fetch budgets
+- Semicolon-dependent clauses, source-span integrity, and publisher-agnostic generic retrieval
 
 ## Interpretation
-A passing test suite demonstrates that defined software contracts pass on the tested commit. Synthetic benchmark results are not a representative real-world accuracy study. Do not claim general precision, recall, false-positive rate, citation correctness, latency, or cost without a separately audited evaluation.
-
-## Current public CI
-Use the repository's GitHub Actions page to inspect the exact commit, run, job, and step results. Historical private development run links are intentionally not mirrored here.
+A passing test suite demonstrates that defined software contracts pass on the tested commit. Synthetic benchmark results are not a representative real-world accuracy study. The one live Node.js lifecycle result is not generalization evidence. Do not claim general precision, recall, false-positive rate, citation correctness, latency, or cost without a separately audited evaluation.

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { buildClaimSearchQuery, sourceDomainHints } from "../worker/index.js";
-import { resolveDomainAdapter } from "../worker/domain-adapters.js";
+import worker, { buildClaimSearchQuery, sourceDomainHints, scoreSourceRelevance } from "../worker/index.js";
+import { resolveDomainAdapter, resolveHistoricalSourceAdapter } from "../worker/domain-adapters.js";
 
 test("unknown-domain claims retain a general unconstrained retrieval path", () => {
   const claim = "A new ceremonial custom was officially revised last week.";
@@ -30,8 +30,39 @@ test("broad unseen subjects remain eligible for general retrieval without adapte
   for (const claim of claims) {
     assert.equal(resolveDomainAdapter(claim), null, claim);
     assert.equal(buildClaimSearchQuery(claim), claim);
-    assert.ok(Array.isArray(sourceDomainHints(claim)));
+    assert.deepEqual(sourceDomainHints(claim), []);
   }
+});
+
+test("historical specialist routing uses bounded full-scope matches, not loose entity substrings", () => {
+  assert.equal(resolveHistoricalSourceAdapter("The person who wrote the report changed their view."), null);
+  assert.equal(resolveHistoricalSourceAdapter("The current iPhone price changed this week."), null);
+  assert.equal(resolveHistoricalSourceAdapter("A heart transplant unit updated its visiting hours."), null);
+
+  assert.equal(
+    resolveHistoricalSourceAdapter("COVID-19 no longer constituted a PHEIC on 5 May 2023.")?.id,
+    "WHO_COVID_PHEIC_2023"
+  );
+  assert.equal(
+    resolveHistoricalSourceAdapter("The first iPhone was introduced in 2007.")?.id,
+    "FIRST_IPHONE"
+  );
+  assert.equal(
+    resolveHistoricalSourceAdapter("Christiaan Barnard performed the first human heart transplant in 1967.")?.id,
+    "FIRST_HUMAN_HEART_TRANSPLANT"
+  );
+});
+
+test("topic-specific relevance aliases apply only after explicit specialist adapter resolution", () => {
+  const claim = "The first iPhone was released in 2007.";
+  const source = {
+    title: "First-generation iPhone introduced in 2007",
+    snippet: "Apple introduced the first-generation iPhone in January 2007.",
+    url: "https://www.apple.com/newsroom/2007/01/09Apple-Reinvents-the-Phone-with-iPhone/"
+  };
+  const generic = scoreSourceRelevance(claim, source);
+  const specialist = scoreSourceRelevance(claim, source, resolveHistoricalSourceAdapter(claim));
+  assert.ok(specialist.matched_term_count > generic.matched_term_count);
 });
 
 test("specialist adapters remain optional enrichment and do not define supported subject coverage", () => {
@@ -143,10 +174,12 @@ test("unregistered topics receive bounded publisher-agnostic diversity enrichmen
   }
 });
 
-test("known-topic query rewrites never replace the original universal claim query", async () => {
+test("known-topic claims retain the original text through generic retrieval", async () => {
   const originalFetch = globalThis.fetch;
   const claim = "The Paris Agreement entered into force on 12 December 2015.";
   const requests = [];
+  assert.equal(buildClaimSearchQuery(claim), claim);
+  assert.deepEqual(sourceDomainHints(claim), []);
   globalThis.fetch = async (input, init = {}) => {
     assert.equal(typeof input === "string" ? input : input.url, "https://api.tavily.com/search");
     requests.push(JSON.parse(init.body));
@@ -167,9 +200,12 @@ test("known-topic query rewrites never replace the original universal claim quer
     assert.equal(requests[0].query, claim);
     assert.equal(Object.hasOwn(requests[0], "include_domains"), false);
     assert.ok(requests.length >= 1 && requests.length <= 5,
-      "the original query may be followed by bounded retry/enrichment requests");
-    assert.equal(Object.hasOwn(requests[0], "include_domains"), false,
-      "the universal baseline must remain publisher-agnostic; later bounded enrichment may use topic-specific hints");
+      "the original query may be followed only by bounded publisher-agnostic diversity enrichment");
+    assert.ok(requests.every(request => !Object.hasOwn(request, "include_domains")),
+      "the generic path must never constrain publishers from a topic/entity keyword list");
+    assert.ok(requests.every(request => request.query === claim
+      || request.query === claim + " official primary institutional sources"),
+      "generic retrieval may only add the publisher-agnostic diversity suffix");
     assert.equal(body.methodology.search_budget.used, requests.length);
     assert.ok(requests.length <= 5);
   } finally {

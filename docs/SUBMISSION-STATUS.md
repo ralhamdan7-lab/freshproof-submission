@@ -4,7 +4,7 @@ Updated: 2026-11-15
 
 ## Public candidate
 - Repository: this public submission repository.
-- Candidate version: 0.2.76 (source version; no application code change in this guardrail patch).
+- Candidate version: 0.2.76 on `main`; this PR adds a timezone-safe Node.js release-table date parser without changing the public version until release approval.
 - Public source baseline: `b8b525a5977d1a082b053ab057c9a04f28ea812c`; this PR adds release guardrails and documentation corrections.
 - Public demo: `https://freshproof-submission-demo.ralhamdan7.workers.dev`.
 
@@ -19,14 +19,15 @@ Updated: 2026-11-15
 - Public documentation sanitized to remove private operational history
 
 ## Verified on the public source baseline
-- Node regression suite: **325 passed, 0 failed** on the latest verified public baseline (run #43676443268). An earlier failed run (#43676355647) was caused by a stale test expectation of five processed claims while the configured request cap was three; the test expectation was corrected. No timezone-specific failure is established by that run.
+- Node regression suite: **325 passed, 0 failed** on the latest main baseline (run #43676443268). The UTC/Asia-Riyadh matrix in PR #7 reproduced a one-day shift for the Node.js release-table date `Aug 08, 2023` under Asia/Riyadh; the current PR branch replaces local-time parsing with validated UTC calendar parsing. Both matrix jobs passed 325/325 on commit `10d023620c0e58919af3dac5e170ffc089323ece` (run #43696904081).
 - Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
 - Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
 - Public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test.
 - Full browser acceptance against the deployed public URL remains outstanding.
 
-## Guardrails in this PR
-- Bind the native Cloudflare rate limiter as `API_RATE_LIMITER` at 3 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
+## Guardrails and timezone fix in this PR
+- Correct public documentation to match the deployed `API_RATE_LIMITER` configuration: 3 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
+- Parse English Node.js release-table calendar dates with `Date.UTC` and validate the calendar components, avoiding local-time day shifts.
 - Keep semantic triage enabled for the public evidence-adjudication path.
 - Disable optional model-assisted correction candidate review to reduce inference consumption.
 - Align security documentation with the actual configuration and its limitations.
@@ -34,6 +35,7 @@ Updated: 2026-11-15
 ## Remaining acceptance gates
 - The rate-limit binding must be verified in the deployed Worker; a binding/configuration error fails verification requests closed with HTTP 503.
 - Re-run the complete regression suite and browser acceptance on the final PR head.
+- Confirm whether merging to public `main` triggers an external Cloudflare Workers Build; do not merge or redeploy until the public release/security gate is explicitly cleared.
 - Perform a safe live smoke request against public `POST /api/verify` and record the actual result; do not infer it from health status.
 - Confirm free provider quota and billing controls before live evidence-search demonstrations.
 - Official hackathon portal submission must be completed by the project owner; repository publication is not submission confirmation.

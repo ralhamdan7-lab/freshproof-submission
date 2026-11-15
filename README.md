@@ -51,7 +51,7 @@ The semantic model is advisory. It cannot independently establish a claim or ove
 
 ## Public prototype
 
-- **Current deployed release:** `0.2.77` (the `0.2.81` universal-verification parity candidate is under review and is not yet deployed) (Groq provider integration and non-public configuration are excluded).
+- **Current deployed release:** `0.2.81` (Groq provider integration and non-public configuration are excluded).
 - **Runtime:** Cloudflare Worker and static browser application.
 - **Evidence search:** Tavily; its credential is configured as a server-side Worker secret.
 - **Optional semantic analysis:** Cloudflare Workers AI binding.
@@ -66,7 +66,7 @@ The public repository is an independently configured release candidate. It conta
 - **Deployment:** isolated Cloudflare Worker `freshproof-submission-demo`; the latest Workers Build from public `main` completed successfully and deployed 100% traffic.
 - **Health check:** the live endpoint returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
 
-The public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test, and full browser acceptance against the deployed public URL remains outstanding. Therefore the demo URL is live, but full verification readiness is not claimed. The private development Staging Worker is not used as a substitute. Do not submit confidential or personal information.
+The public `POST /api/verify` path passed one bounded live end-to-end acceptance request on 2026-11-15: the stale Node.js 20 LTS-support claim returned `SUPERSEDED` with official Node.js release-table evidence. Deterministic local browser acceptance also passed. A deployed-browser run specifically on v0.2.81 has not yet been recorded. This one specialist case does not establish general-domain accuracy. Do not submit confidential or personal information.
 
 ## Run locally
 

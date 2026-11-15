@@ -22,6 +22,7 @@ Updated: 2026-11-15
 - Public candidate head `d2a0d92ad1bdf0e3a96764c75b3686a23d8b1ab2`: **327/327 tests passed in UTC and 327/327 in Asia/Riyadh** (workflow run #43701704267). Added regression coverage for leap-day acceptance, preservation of `Aug 08, 2023` as `2023-08-08`, and rejection of impossible dates such as `Feb 30, 2024`. Worker/adjudication/adapter/browser syntax checks and temporal smoke benchmark passed in both jobs. The same head passed deterministic isolated browser acceptance (run #43701704209); this is fixture-based, not a live deployed-URL test.
 - Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
 - Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
+- Deployed Worker configuration read-only check confirmed `API_RATE_LIMITER` limit 3 / period 60 seconds, `AI` binding present, `ENABLE_SEMANTIC_TRIAGE=true`, `ENABLE_CORRECTION_CANDIDATE_REVIEW=false`, and server-side `TAVILY_API_KEY` secret binding present (secret value was not read).
 - Public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test.
 - Full browser acceptance against the deployed public URL remains outstanding.
 
@@ -34,7 +35,7 @@ Updated: 2026-11-15
 - Align security documentation with the actual configuration and its limitations.
 
 ## Remaining acceptance gates
-- The rate-limit binding must be verified in the deployed Worker; a binding/configuration error fails verification requests closed with HTTP 503.
+- The deployed public Worker configuration has now been inspected read-only: `API_RATE_LIMITER` is present with 3 requests / 60 seconds; `AI` binding is present; semantic triage is `true`; optional correction-candidate review is `false`; and the Tavily secret binding exists (secret value not accessed). This confirms configuration presence, not live API enforcement or provider availability.
 - Regression suite and deterministic isolated browser acceptance have passed on the current PR head; rerun if the head changes.
 - Cloudflare Workers Builds linkage is now verified: the public demo Worker is connected to this GitHub repository, watches `main`, and runs `npx wrangler deploy` from `/`. Merging this PR to `main` will trigger an external public deployment. Treat merge as a production release action, not a documentation-only operation.
 - Before merge, complete a safe live smoke request against public `POST /api/verify` and record the actual result; do not infer it from health status.

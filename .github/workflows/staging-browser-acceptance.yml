@@ -25,7 +25,7 @@ permissions:
 jobs:
   browser-acceptance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -57,8 +57,8 @@ jobs:
         env:
           FRESH_PROOF_BASE_URL: http://127.0.0.1:8787
         run: node scripts/staging-browser-smoke.mjs
-      - name: Test deployed public UI and live verification flow
-        if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[live-browser-smoke]')
+      - name: Wait for exact public Worker release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           FRESH_PROOF_PUBLIC_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
         shell: bash
@@ -69,17 +69,23 @@ jobs:
             actual="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(JSON.parse(s).version||'')}catch{}})")"
             if [[ "$actual" == "$expected" ]]; then
               echo "Public Worker health verified: $actual"
-              break
+              exit 0
             fi
-            if [[ "$attempt" == "36" ]]; then
-              echo "Expected public Worker $expected; observed ${actual:-unavailable}"
-              exit 1
-            fi
+            echo "Waiting for version $expected (observed: ${actual:-unavailable}), attempt $attempt/36"
             sleep 5
           done
-          EXPECTED_VERSION="$expected" node --input-type=module <<'NODE'
+          echo "Expected public Worker version $expected was not observed."
+          exit 1
+      - name: Test deployed public UI and live verification flow
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          FRESH_PROOF_PUBLIC_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
+        shell: bash
+        run: |
+          EXPECTED_VERSION="$(node -p "require('./package.json').version")" node --input-type=module <<'NODE'
           import { chromium } from 'playwright';
           const base = process.env.FRESH_PROOF_PUBLIC_URL;
+          const expected = process.env.EXPECTED_VERSION;
           const browser = await chromium.launch({ headless: true });
           try {
             const page = await browser.newPage();
@@ -107,7 +113,7 @@ jobs:
             if (pageErrors.length) throw new Error(`Browser runtime errors: ${pageErrors.join('; ')}`);
             console.log(JSON.stringify({
               browser_acceptance: 'PASS',
-              version: process.env.EXPECTED_VERSION,
+              version: expected,
               page_title: await page.title(),
               verification_status: status,
               evidence_links: links.length,

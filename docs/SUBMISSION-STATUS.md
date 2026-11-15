@@ -4,7 +4,7 @@ Updated: 2026-11-15
 
 ## Public release
 - Repository: this public submission repository.
-- Current deployed release: `0.2.77` (0.2.81 parity candidate is under review; not deployed).
+- Current deployed public release: `0.2.81` (verified by live public Worker health and bounded API acceptance on 2026-11-15).
 - Release commit: `1eebb41c5699ae416ce990f168852593d0500d2f`.
 - Latest public main release commit: `31dfc83516faae9fdb86611792ebdb601239e4e4` (PR #9).
 - Cloudflare Worker: `freshproof-submission-demo`.
@@ -20,7 +20,7 @@ Updated: 2026-11-15
 - Regression tests and synthetic temporal smoke benchmark
 - Public documentation sanitized to remove private operational history
 
-## Verified on release 0.2.77
+## Historical release 0.2.77 verification (superseded by 0.2.81)
 - Main-branch verification workflow #43706073119: **327/327 tests passed in UTC and 327/327 in Asia/Riyadh**, with 0 failures. Worker/adjudication/adapter/browser syntax checks and temporal smoke benchmark passed.
 - Deterministic local browser acceptance passed on the same main commit.
 - Cloudflare Workers Build for main commit `59cc4414384910a69569dd7d14b6b63a58ce10ad` completed with `build_outcome: success`; `npx wrangler deploy` succeeded. The deployed script ETag is unchanged from the verified 0.2.77 code release.
@@ -45,7 +45,7 @@ Updated: 2026-11-15
 - Official hackathon portal submission and its receipt are not verified; repository publication is not submission confirmation.
 
 ## Status
-Release `0.2.77` is **DEPLOYED**. Its public evidence-search API and actual public browser flow are **LIVE-ACCEPTANCE VERIFIED** for the bounded Node.js scenario above. The product is not yet generally accuracy-validated or officially submitted.
+Historical release `0.2.77` was deployed and accepted. The current deployed release is `0.2.81`, with its own bounded live API acceptance recorded below. The product is not generally accuracy-validated or officially submitted.
 
 
 ## v0.2.81 public parity and deployment verification — 2026-11-15
@@ -56,3 +56,15 @@ Release `0.2.77` is **DEPLOYED**. Its public evidence-search API and actual publ
 - Test claim: Node.js 20.x remains actively supported under LTS. Actual result: **SUPERSEDED**, software_release adapter, official Node.js release table reports EOL; six evidence records, two Tavily searches. Freshness was FRESH and Evidence Confidence LIMITED. This is one specialist scenario, not a general accuracy result.
 - Public diff-scoped scan found no common credential patterns, private Staging hostname, or other-project names in PR #9 changes.
 - No paid fallback, billing/PAYG activation, or secret change.
+
+
+## Current release state — v0.2.81 (2026-11-15)
+
+- **DEPLOYED:** public Worker `freshproof-submission-demo`, exact health version `0.2.81` observed by live acceptance workflow [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878).
+- **IMPLEMENTED / MERGED:** PR #9, universal claim-dependency preservation and publisher-agnostic generic retrieval.
+- **TESTED:** [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834), 321/321 tests in UTC and 321/321 in Asia/Riyadh; syntax and temporal smoke diagnostics passed.
+- **TESTED:** [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836), deterministic local browser acceptance passed. The deployed-browser step was skipped, so no v0.2.81 deployed-browser acceptance is claimed.
+- **LIVE API VERIFIED:** [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878), one bounded POST /api/verify request returned HTTP 200. Node.js 20.x continuing LTS-support claim was classified SUPERSEDED using the official Node.js release table; six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED.
+- This single software-release specialist case is not a general-domain accuracy result. No precision/recall/FPR or cost-per-claim metric is claimed.
+- Security scan of PR #9 changes found no common credential patterns, private Staging hostname, or names of unrelated projects. No paid fallback, billing/PAYG, or secret changes.
+- Official hackathon portal submission remains unconfirmed.

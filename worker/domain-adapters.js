@@ -947,3 +947,61 @@ export function resolveDomainAdapter(claim, answer = "", isPrimaryDomain = () =>
   }
   return null;
 }
+
+/**
+ * Explicit historical evidence adapters.
+ *
+ * These adapters are intentionally narrow and additive: they may supply a
+ * specialist query and first-party/institutional source candidates, but they
+ * never replace the original-claim baseline search or grant a verdict.
+ */
+export function resolveHistoricalSourceAdapter(claim) {
+  const value = String(claim || "");
+
+  const hasExplicitWhoReference = /\bWHO\b/.test(value)
+    || /\bPHEIC\b|public health emergency of international concern/i.test(value);
+  const isWhoCovidMilestone = hasExplicitWhoReference
+    && /\bCOVID(?:-19)?\b/i.test(value)
+    && /\b(?:5\s+May\s+2023|2023-05-05)\b/i.test(value);
+  if (isWhoCovidMilestone) {
+    return {
+      id: "WHO_COVID_PHEIC_2023",
+      query: '"WHO Director-General" "5 May 2023" "no longer constitutes a public health emergency of international concern"',
+      domains: ["who.int"],
+      directSources: [
+        { url: "https://www.who.int/news/item/05-05-2023-statement-on-the-fifteenth-meeting-of-the-international-health-regulations-(2005)-emergency-committee-regarding-the-coronavirus-disease-(covid-19)-pandemic", host: "www.who.int" }
+      ]
+    };
+  }
+
+  const isFirstIphoneRelease = /\bfirst(?:[-\s]+generation)?\s+iPhone\b/i.test(value)
+    || /\biPhone\b.{0,60}\b(?:released|introduced|launched)\b.{0,35}\b2007\b/i.test(value);
+  if (isFirstIphoneRelease) {
+    return {
+      id: "FIRST_IPHONE",
+      query: '"first generation iPhone" launched in 2007 Apple newsroom Victoria and Albert Museum Smithsonian collection',
+      domains: ["apple.com", "vam.ac.uk", "si.edu"],
+      directSources: [
+        { url: "https://www.apple.com/newsroom/2007/01/09Apple-Reinvents-the-Phone-with-iPhone/", host: "www.apple.com" },
+        { url: "https://collections.vam.ac.uk/item/O1328358/iphone-1st-generation-apple-iphone-ive-jonathan/", host: "collections.vam.ac.uk" },
+        { url: "https://www.si.edu/object/iphone-model-2g:chndm_2009-29-1", host: "www.si.edu" }
+      ]
+    };
+  }
+
+  const isFirstHumanHeartTransplant = /\bfirst\b.{0,35}\b(?:human\s+)?heart transplant\b/i.test(value)
+    || /\bChristiaan Barnard\b.{0,100}\b(?:1967|heart transplant)\b/i.test(value);
+  if (isFirstHumanHeartTransplant) {
+    return {
+      id: "FIRST_HUMAN_HEART_TRANSPLANT",
+      query: '"first human heart transplant" "Christiaan Barnard" "3 December 1967" Groote Schuur University of Cape Town hospital history',
+      domains: ["health.uct.ac.za", "gshfb.co.za", "gov.za"],
+      directSources: [
+        { url: "https://health.uct.ac.za/cardiothoracic-surgery/historical/first-human-heart-transplant", host: "health.uct.ac.za" },
+        { url: "https://www.gshfb.co.za/groote-schuur-hospital", host: "www.gshfb.co.za" }
+      ]
+    };
+  }
+
+  return null;
+}

@@ -101,6 +101,15 @@ export function decomposeClaimForAssessment(claim) {
 }
 
 export function isLikelyTemporal(claim) { return TEMPORAL_PATTERNS.some(pattern => pattern.test(claim)); }
+
+// Lexical cues are a retrieval hint, not the sole authority on temporal meaning.
+// A complete advisory semantic classification can identify implicit current-state
+// propositions whose wording contains no explicit temporal keyword.
+export function resolveTemporalSensitivity(lexicalSignal, semanticAssessment = null) {
+  return Boolean(lexicalSignal
+    || (semanticAssessment?.status === "COMPLETED_ADVISORY"
+      && semanticAssessment?.claim_assessment?.claim_type === "CURRENT_STATE"));
+}
 // Non-temporal propositions search the full index: an older authoritative record
 // can remain decisive for a stable fact. Explicitly dynamic claims retain a recent window.
 export function searchTimeRangeForClaim(claim) {
@@ -1124,9 +1133,9 @@ export default {
       for (const claim of claims) {
         const retrievalDiagnostics = [];
         activeRetrievalDiagnostics = retrievalDiagnostics;
-        const temporalSensitive = isLikelyTemporal(claim);
+        let temporalSensitive = isLikelyTemporal(claim);
         const searchTimeRange = searchTimeRangeForClaim(claim);
-        const temporal_assessment = {
+        let temporal_assessment = {
           status: temporalSensitive ? "TEMPORAL_REVIEW_REQUIRED" : "NOT_TIME_SENSITIVE",
           is_time_sensitive: temporalSensitive,
           explanation: temporalSensitive
@@ -1394,6 +1403,23 @@ export default {
             } else {
               retrievalDiagnostics.push({ provider: "LOCAL_RULES", stage: "SEMANTIC_ASSESSMENT", status: "NOT_APPLICABLE", advisory_only: true });
             }
+          }
+          const semanticallyTemporal = resolveTemporalSensitivity(temporalSensitive, semantic_assessment);
+          if (semanticallyTemporal && !temporalSensitive) {
+            temporalSensitive = true;
+            temporal_assessment = {
+              status: "TEMPORAL_REVIEW_REQUIRED",
+              is_time_sensitive: true,
+              detection_method: "SEMANTIC_CURRENT_STATE_CLASSIFICATION",
+              explanation: "The complete advisory semantic assessment classified this proposition as a current state, despite no explicit lexical time cue."
+            };
+            retrievalDiagnostics.push({
+              provider: semantic_assessment.provider || "cloudflare",
+              stage: "TEMPORAL_CLASSIFICATION",
+              status: "CURRENT_STATE_DETECTED",
+              method: "SEMANTIC_CLAIM_CLASSIFICATION",
+              advisory_only: true
+            });
           }
           const domain_result = domainAdapter?.adjudicate?.(sources, { retrievalDiagnostics }) || { status: null, evidence: null };
           const rawAdjudication = adjudicateEvidence({ claim: retrievalClaim, claimComponents: claimStructure.components, sources, semanticAssessment: semantic_assessment, domainResult: domain_result, crossSourceConflicts: cross_source_conflicts, retrievalCount: sources.length, temporalSensitive });

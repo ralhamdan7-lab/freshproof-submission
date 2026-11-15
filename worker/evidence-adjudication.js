@@ -44,6 +44,24 @@ function recentDated(source, now, maxAgeDays) {
   const date = validDate(source.published_date);
   return date !== null && date <= now + DAY && now - date <= maxAgeDays * DAY;
 }
+
+// An older first-party record can establish the date of a formal transition,
+// but it cannot establish the present state by itself. It is admitted only as
+// a historical anchor when a complete semantic assessment binds it directly
+// to the exact current-state claim and identifies the originating authority.
+function isHistoricalTransitionAnchor(source, semanticSource, claimAssessment, now) {
+  if (claimAssessment?.claim_type !== "CURRENT_STATE"
+    || source?.source_reliability !== "PRIMARY_OR_OFFICIAL_DOMAIN"
+    || semanticSource?.directness !== "DIRECT"
+    || semanticSource?.scope_match !== "EXACT"
+    || semanticSource?.authority_role !== "ORIGINATING_AUTHORITY") return false;
+  const eventDate = validDate(source?.event_date_candidate);
+  const publicationDate = validDate(source?.published_date);
+  return eventDate !== null && publicationDate !== null
+    && eventDate <= publicationDate
+    && eventDate <= now + DAY
+    && publicationDate <= now + DAY;
+}
 function uniqueHosts(items) {
   return new Set(items.map(x => registrableDomain(x.url)).filter(Boolean));
 }
@@ -254,10 +272,11 @@ export function adjudicateEvidence({
   // Only HIGH relevance can support a generic verdict. MEDIUM relevance is
   // retained as a review lead so strict domain filtering does not erase retrieval.
   const eligible = reviewCandidates.filter(x => x.source?.relevance_assessment?.relevance === "HIGH");
-  const qualified = eligible.filter(x =>
-    ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(x.source.source_reliability)
-    && (!temporalSensitive || recentDated(x.source, now, maxEvidenceAgeDays))
-  );
+  const qualified = eligible.filter(x => {
+    if (!["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(x.source.source_reliability)) return false;
+    if (!temporalSensitive || recentDated(x.source, now, maxEvidenceAgeDays)) return true;
+    return isHistoricalTransitionAnchor(x.source, x.semanticSource, relations?.claimAssessment, now);
+  });
   const supporting = qualified.filter(x => x.relation === "SUPPORTS");
   const contradicting = qualified.filter(x => x.relation === "CONTRADICTS");
   const scopeConflict = crossSourceConflicts.some(item => String(item.signal || "").includes("SCOPE"));
@@ -335,19 +354,25 @@ export function adjudicateEvidence({
     );
   };
   const hasSufficientCorroboration = items => {
-    const primaryHosts = uniqueHosts(items.filter(x =>
-      ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(x.source.source_reliability)).map(x => x.source));
-    if (primaryHosts.size >= 2) return true;
     const allHosts = uniqueHosts(items.map(x => x.source));
+    if (allHosts.size < 2) return secondaryOnlyEligible(items);
     const hasPrimaryOrInstitutional = items.some(x =>
       ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(x.source.source_reliability));
-    return allHosts.size >= 2 && hasPrimaryOrInstitutional || secondaryOnlyEligible(items);
+    if (!hasPrimaryOrInstitutional && !secondaryOnlyEligible(items)) return false;
+    if (!temporalSensitive) return true;
+    // For current-state claims, any historical transition anchor must be paired
+    // with at least one independently published recent source. Retrieval time
+    // alone never upgrades an old publication into current evidence.
+    return items.some(x => recentDated(x.source, now, maxEvidenceAgeDays));
   };
   if (relations && !mixed && hasSufficientCorroboration(contradicting)) {
     const secondary = secondaryOnlyEligible(contradicting);
+    const hasHistoricalAnchor = contradicting.some(x => isHistoricalTransitionAnchor(
+      x.source, x.semanticSource, relations.claimAssessment, now
+    ));
     return {
       status: "CONTRADICTED",
-      method: secondary ? "CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE" : "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE",
+      method: hasHistoricalAnchor ? "TEMPORAL_TRANSITION_CORROBORATION" : secondary ? "CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE" : "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE",
       rationale: secondary
         ? "Two independent curated secondary publishers directly match the exact scope of a narrow, low-risk historical/record claim."
         : "Two independent, recent, high-relevance primary/institutional domains were semantically assessed as contradicting the exact claim.",

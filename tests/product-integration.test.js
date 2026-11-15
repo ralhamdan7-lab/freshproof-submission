@@ -103,7 +103,7 @@ test("v0.2.59 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe ab
   assert.equal(positive.response.status, 200);
   assert.equal(positive.body.version, "0.2.76");
   assert.equal(positive.body.claims.length, 1);
-  assert.deepEqual(positive.body.extraction, { detected_count: 1, processed_count: 1, truncated_count: 0, is_truncated: false, maximum_processed_claims: 5 });
+  assert.deepEqual(positive.body.extraction, { detected_count: 1, processed_count: 1, truncated_count: 0, is_truncated: false, maximum_processed_claims: 3 });
   const result = positive.body.claims[0];
   assert.equal(result.status, "CONTRADICTED");
   assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");

@@ -4,10 +4,15 @@ compatibility_date = "2026-11-09"
 workers_dev = true
 preview_urls = false
 
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "20261115"
+simple = { limit = 10, period = 60 }
+
 [vars]
 ALLOWED_ORIGIN = "https://freshproof-submission-demo.ralhamdan7.workers.dev"
 ENABLE_SEMANTIC_TRIAGE = "true"
-ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
+ENABLE_CORRECTION_CANDIDATE_REVIEW = "false"
 
 [ai]
 binding = "AI"

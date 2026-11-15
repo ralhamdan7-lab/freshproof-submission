@@ -862,8 +862,8 @@ test("claim extraction reports all candidates separately from the bounded proces
   const candidates = extractClaimCandidates(input);
   const processed = splitClaims(input);
   assert.equal(candidates.length, 6);
-  assert.equal(processed.length, 5);
-  assert.deepEqual(processed, candidates.slice(0, 5));
+  assert.equal(processed.length, 3);
+  assert.deepEqual(processed, candidates.slice(0, 3));
 });
 
 

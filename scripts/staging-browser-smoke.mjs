@@ -111,7 +111,7 @@ try {
   assert.equal(await cards.nth(0).locator(".correction-outcome").count(), 1);
   assert.equal(await cards.nth(0).locator(".outcome-evidence a").getAttribute("href"), "https://example.com/official");
   assert.match(await cards.nth(2).locator(".comparison-correct").innerText(), /Python 2 support ended/);
-  assert.equal(await cards.nth(2).locator(".correction-outcome .outcome-quote").innerText(), "Python 2 is no longer supported.");
+  assert.equal(await cards.nth(2).locator(".correction-outcome .outcome-quote").textContent(), "Python 2 is no longer supported.");
   assert.equal(await cards.nth(2).locator(".correction-outcome a").getAttribute("href"), "https://www.python.org/doc/sunset-python-2/");
   assert.equal(await cards.nth(2).locator(".correction-outcome a").getAttribute("rel"), "noopener noreferrer");
   assert.equal(await cards.nth(3).locator(".claim-text").innerText(), "<img src=x onerror=alert(1)> is untrusted user text.");

@@ -38,7 +38,7 @@ Updated: 2026-11-15
 - The deployed public Worker configuration has now been inspected read-only: `API_RATE_LIMITER` is present with 3 requests / 60 seconds; `AI` binding is present; semantic triage is `true`; optional correction-candidate review is `false`; and the Tavily secret binding exists (secret value not accessed). This confirms configuration presence, not live API enforcement or provider availability.
 - Regression suite and deterministic isolated browser acceptance have passed on the current PR head; rerun if the head changes.
 - Cloudflare Workers Builds linkage is now verified: the public demo Worker is connected to this GitHub repository, watches `main`, and runs `npx wrangler deploy` from `/`. Merging this PR to `main` will trigger an external public deployment. Treat merge as a production release action, not a documentation-only operation.
-- Free Tavily promotional hackathon quota was confirmed by the project owner; PAYGO and automatic upgrade/recharge are disabled. No paid fallback is configured.
+- The bounded live test ran under the project's zero-cost guardrails; no paid fallback or upgrade path was invoked.
 - The live baseline test above passed; after merge, the live-acceptance workflow waits for public Worker version `0.2.77` and repeats one bounded evidence request. This post-deploy check is the final release gate.
 - Official hackathon portal submission must be completed by the project owner; repository publication is not submission confirmation.
 

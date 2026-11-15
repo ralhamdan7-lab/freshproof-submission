@@ -14,7 +14,7 @@ Use this checklist in the authenticated Global AI Hackathon event dashboard. A p
 
 ## Team
 
-The organizer's event page permits teams of 1–4. If participating solo, confirm that the dashboard shows a valid one-person team or solo entry before submitting. The registration email directs participants to Event Dashboard → Manage Team.
+If participating solo, confirm that the dashboard accepts a one-person team or solo entry before submitting. The registration email directs participants to Event Dashboard → Manage Team; it does not specify team-size rules.
 
 ## Final submission verification
 

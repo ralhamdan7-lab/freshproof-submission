@@ -99,13 +99,13 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
 }
 
 test("v0.2.59 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
-  assert.equal(VERSION, "0.2.77");
+  assert.equal(VERSION, "0.2.81");
 
   // Positive end-to-end path: deterministic retrieval + injected model fixture,
   // through Worker API, adjudication, explanation, correction, and response.
   const positive = await runApiScenario();
   assert.equal(positive.response.status, 200);
-  assert.equal(positive.body.version, "0.2.77");
+  assert.equal(positive.body.version, "0.2.81");
   assert.equal(positive.body.claims.length, 1);
   assert.deepEqual(positive.body.extraction, { detected_count: 1, processed_count: 1, truncated_count: 0, is_truncated: false, maximum_processed_claims: 3 });
   const result = positive.body.claims[0];
@@ -177,7 +177,7 @@ test("v0.2.59 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe ab
   assert.equal(lowRelevance.body.claims[0].correction.text, null);
 });
 
-test("claim-conditioned retrieval enriches the original query without replacing it or bypassing abstention", async () => {
+test("generic corporate-role retrieval preserves the original claim without keyword rewrites", async () => {
   const originalFetch = globalThis.fetch;
   const claim = "Satya Nadella is the current Chief Executive Officer of Microsoft.";
   const queries = [];
@@ -205,15 +205,14 @@ test("claim-conditioned retrieval enriches the original query without replacing 
     const result = body.claims[0];
     assert.equal(response.status, 200);
     assert.equal(queries[0], claim, "the exact original proposition must remain the baseline query");
-    assert.ok(queries.some(query => query !== claim && /official leadership page/.test(query)),
-      "a claim-conditioned official leadership query must be added when budget permits");
-    assert.ok(searchDomainRequests.some(domains => domains.includes("news.microsoft.com") || domains.includes("microsoft.com")),
-      "the additive query should target the known organization's first-party domain");
+    assert.ok(queries.every(query => query === claim || query === claim + " official primary institutional sources"),
+      "the generic path may only add a publisher-agnostic diversity suffix");
+    assert.ok(searchDomainRequests.every(domains => domains.length === 0),
+      "the generic path must not infer a publisher allowlist from a company/person keyword");
     assert.ok(["NEEDS_REVIEW", "UNVERIFIABLE"].includes(result.status),
-      "empty retrieval must abstain; query enrichment cannot manufacture a verdict");
+      "empty retrieval must abstain; query construction cannot manufacture a verdict");
     assert.equal(result.correction.status, "WITHHELD");
-    assert.ok(result.retrieval_diagnostics.some(item =>
-      item.stage === "CLAIM_CONDITIONED_SEARCH_ENRICHMENT" && item.status === "NO_RESULTS"));
+    assert.equal(result.retrieval_diagnostics.some(item => item.stage === "CLAIM_CONDITIONED_SEARCH_ENRICHMENT"), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -260,7 +259,7 @@ test("v0.2.59 factual verification runs for non-time-sensitive claims", async ()
     const body = await response.json();
     const result = body.claims[0];
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.77");
+    assert.equal(body.version, "0.2.81");
     assert.equal(result.temporal_assessment.status, "NOT_TIME_SENSITIVE");
     assert.equal(result.status, "CURRENT");
     assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");
@@ -374,7 +373,7 @@ test("multi-claim requests spend only spare search budget to diversify independe
     });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.77");
+    assert.equal(body.version, "0.2.81");
     assert.equal(body.claims.length, 2);
     assert.ok(searchCalls >= 2 && searchCalls <= 5, "baseline retrieval plus bounded diversity fallback must stay within the request-wide search budget");
     assert.equal(searchCalls <= 5, true, "the request-wide search budget must not be exceeded");

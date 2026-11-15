@@ -57,3 +57,64 @@ jobs:
         env:
           FRESH_PROOF_BASE_URL: http://127.0.0.1:8787
         run: node scripts/staging-browser-smoke.mjs
+      - name: Test deployed public UI and live verification flow
+        if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[live-browser-smoke]')
+        env:
+          FRESH_PROOF_PUBLIC_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
+        shell: bash
+        run: |
+          expected="$(node -p "require('./package.json').version")"
+          for attempt in $(seq 1 36); do
+            body="$(curl --silent --show-error --max-time 8 "$FRESH_PROOF_PUBLIC_URL/api/health" || true)"
+            actual="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(JSON.parse(s).version||'')}catch{}})")"
+            if [[ "$actual" == "$expected" ]]; then
+              echo "Public Worker health verified: $actual"
+              break
+            fi
+            if [[ "$attempt" == "36" ]]; then
+              echo "Expected public Worker $expected; observed ${actual:-unavailable}"
+              exit 1
+            fi
+            sleep 5
+          done
+          EXPECTED_VERSION="$expected" node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const base = process.env.FRESH_PROOF_PUBLIC_URL;
+          const browser = await chromium.launch({ headless: true });
+          try {
+            const page = await browser.newPage();
+            const pageErrors = [];
+            page.on('pageerror', error => pageErrors.push(error.message));
+            const response = await page.goto(base, { waitUntil: 'networkidle', timeout: 30000 });
+            if (!response?.ok()) throw new Error(`Public UI returned HTTP ${response?.status()}`);
+            if (!(await page.title()).includes('FreshProof')) throw new Error('Unexpected public page title');
+            if (!(await page.locator('#answer').isVisible())) throw new Error('Claim input is not visible');
+            if (!(await page.locator('#verify').isVisible())) throw new Error('Verify action is not visible');
+            await page.locator('#answer').fill('Node.js 20.x remains actively supported under LTS.');
+            await page.locator('#verify').click();
+            await page.waitForFunction(() => {
+              const results = document.querySelector('#results');
+              const status = document.querySelector('#claim-list .claim .status');
+              return results && !results.hidden && status && status.textContent.includes('OUTDATED');
+            }, null, { timeout: 60000 });
+            const card = page.locator('#claim-list .claim');
+            const status = await card.locator('.status').innerText();
+            const links = await card.locator('.evidence a').evaluateAll(items => items.map(item => item.href));
+            const officialNodeLinks = links.filter(url => {
+              try { return new URL(url).hostname === 'nodejs.org'; } catch { return false; }
+            });
+            if (!officialNodeLinks.length) throw new Error('No official Node.js evidence link was rendered');
+            if (pageErrors.length) throw new Error(`Browser runtime errors: ${pageErrors.join('; ')}`);
+            console.log(JSON.stringify({
+              browser_acceptance: 'PASS',
+              version: process.env.EXPECTED_VERSION,
+              page_title: await page.title(),
+              verification_status: status,
+              evidence_links: links.length,
+              official_nodejs_links: officialNodeLinks.length,
+              browser_runtime_errors: pageErrors.length
+            }, null, 2));
+          } finally {
+            await browser.close();
+          }
+          NODE

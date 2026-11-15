@@ -6,7 +6,7 @@ Updated: 2026-11-15
 - Repository: this public submission repository.
 - Current deployed release: `0.2.77` (0.2.81 parity candidate is under review; not deployed).
 - Release commit: `1eebb41c5699ae416ce990f168852593d0500d2f`.
-- Latest main commit adds the one-time deployed-browser acceptance gate: `59cc4414384910a69569dd7d14b6b63a58ce10ad`.
+- Latest public main release commit: `31dfc83516faae9fdb86611792ebdb601239e4e4` (PR #9).
 - Cloudflare Worker: `freshproof-submission-demo`.
 - Public demo: `https://freshproof-submission-demo.ralhamdan7.workers.dev`.
 
@@ -46,3 +46,13 @@ Updated: 2026-11-15
 
 ## Status
 Release `0.2.77` is **DEPLOYED**. Its public evidence-search API and actual public browser flow are **LIVE-ACCEPTANCE VERIFIED** for the bounded Node.js scenario above. The product is not yet generally accuracy-validated or officially submitted.
+
+
+## v0.2.81 public parity and deployment verification — 2026-11-15
+- PR #9 merged: [universal verification architecture parity](https://github.com/ralhamdan7-lab/freshproof-submission/pull/9).
+- Main CI [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): **321/321 tests passed in UTC and 321/321 in Asia/Riyadh**; Worker/adjudication/adapter/browser syntax and temporal smoke diagnostic passed.
+- Deterministic browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): PASS. The deployed live-browser step was skipped; no deployed browser result is claimed for 0.2.81.
+- Public live deployment/API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): exact public Worker health version **0.2.81** verified; one bounded POST /api/verify request returned HTTP 200 and processed one claim.
+- Test claim: Node.js 20.x remains actively supported under LTS. Actual result: **SUPERSEDED**, software_release adapter, official Node.js release table reports EOL; six evidence records, two Tavily searches. Freshness was FRESH and Evidence Confidence LIMITED. This is one specialist scenario, not a general accuracy result.
+- Public diff-scoped scan found no common credential patterns, private Staging hostname, or other-project names in PR #9 changes.
+- No paid fallback, billing/PAYG activation, or secret change.

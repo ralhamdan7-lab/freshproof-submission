@@ -4,22 +4,22 @@
 
 **Verify · Explain · Correct — with evidence, dates, and explicit uncertainty.**
 
-FreshProof evaluates claims in AI-generated answers individually. It extracts claim candidates, identifies potentially time-sensitive propositions, retrieves bounded source evidence, compares supporting and conflicting material, and returns conservative outcomes with traceable explanations.
+FreshProof checks AI-generated answers at the claim level. It extracts independent propositions, identifies potentially time-sensitive claims, retrieves bounded source evidence, compares supporting and conflicting material, and returns explainable outcomes with traceable sources.
 
-A central design principle is that a recently published page is not necessarily evidence of a recent event. FreshProof keeps **event date, source publication date, source update date, and retrieval time** distinct wherever the source makes those distinctions available.
+A recent publication date is not proof of a recent event. FreshProof distinguishes event date, source publication date, source update date, and retrieval time wherever evidence exposes them.
 
 ## What it does
 
-- **Claim-level analysis:** splits a submitted answer into bounded claim candidates while preserving the original wording.
-- **Temporal assessment:** identifies claims that may change over time without treating stable facts as exempt from factual verification.
-- **Evidence retrieval:** searches for relevant sources and records provenance, dates, and domain information.
-- **Evidence comparison:** distinguishes supporting, contradicting, mixed, irrelevant, and insufficient evidence.
-- **Conservative adjudication:** abstains when evidence is weak, conflicting, inaccessible, or insufficient.
-- **Explainable outcomes:** presents the claim, status, evidence, source context, and limitations.
-- **Evidence-gated correction:** offers a replacement only when the evidence supports it; otherwise it withholds correction.
-- **Arabic and English UI:** supports right-to-left and left-to-right presentation.
+- Extracts bounded claim candidates while preserving original wording and dependent clauses.
+- Separates temporal sensitivity from factual status: a stable claim is still assessed on evidence.
+- Retrieves claim-specific evidence, preferring primary and official sources when available.
+- Compares supporting, conflicting, mixed, irrelevant, and insufficient evidence.
+- Abstains when evidence is weak, conflicting, inaccessible, or insufficient.
+- Explains each result with source provenance and evidence references.
+- Offers corrections only when the correction contract is satisfied; otherwise withholds them.
+- Supports Arabic (RTL) and English (LTR).
 
-## Claim outcomes
+## Verification outcomes
 
 - `CURRENT`
 - `SUPERSEDED`
@@ -27,46 +27,44 @@ A central design principle is that a recently published page is not necessarily 
 - `NEEDS_REVIEW`
 - `UNVERIFIABLE`
 
-Temporal classification is a separate dimension. `NOT_TIME_SENSITIVE` does not mean factually verified and does not bypass evidence assessment.
-
-Evidence relation labels (`SUPPORTS`, `CONTRADICTS`, `MIXED`, `IRRELEVANT`, `INSUFFICIENT`) are not final verdicts. Freshness, evidence confidence, source reliability, and verification status are kept conceptually distinct; the prototype does not present an uncalibrated probability of truth.
+`NOT_TIME_SENSITIVE` is a temporal classification, not a factual verdict. Evidence relation labels are not final verdicts. Freshness, evidence confidence, source reliability, and verification status are separate dimensions. The prototype does not claim calibrated probabilities of truth.
 
 ## Architecture
 
 ```text
 Browser UI
-   |
-   v
-Cloudflare Worker API
-   |- Input validation and bounded claim extraction
-   |- Temporal triage and query planning
-   |- Evidence retrieval (Tavily)
-   |- Source normalization and provenance
-   |- Optional advisory semantic assessment (Cloudflare Workers AI)
-   |- Evidence adjudication and abstention
-   '- Explanation and evidence-gated correction
+  -> Cloudflare Worker API
+      -> bounded claim extraction and temporal triage
+      -> claim-specific Tavily evidence retrieval
+      -> source normalization and date/provenance handling
+      -> optional advisory Cloudflare Workers AI assessment
+      -> evidence adjudication, abstention, explanation
+      -> evidence-gated correction
 ```
 
-The semantic model is advisory. It cannot independently establish a claim or override the evidence adjudication policy.
+The semantic model is advisory; it cannot independently establish truth or override evidence adjudication.
 
 ## Public prototype
 
-- **Current deployed release:** `0.2.81` (Groq provider integration and non-public configuration are excluded).
-- **Runtime:** Cloudflare Worker and static browser application.
-- **Evidence search:** Tavily; its credential is configured as a server-side Worker secret.
-- **Optional semantic analysis:** Cloudflare Workers AI binding.
-- **No application database or user account system is required** for this prototype.
+- **Current deployed version:** `0.2.81`
+- **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
+- **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
+- **Runtime:** Cloudflare Worker with static browser assets
+- **Evidence retrieval:** Tavily, server-side credential only
+- **Optional semantic assessment:** Cloudflare Workers AI, advisory and fail-closed
+- **Storage:** no application database or durable user-submission storage is required
+- **Public release scope:** excludes Groq integration, private configuration, internal evaluation corpora, and internal audit records
 
-The public repository is an independently configured release candidate. It contains the general-purpose claim extraction, temporal retrieval, evidence adjudication, and explanation improvements reviewed from the private development line. It intentionally excludes Groq integration, private configuration, internal evaluation corpora, and audit records. The public build uses its own Worker name, allowed origin, and deployment configuration.
+The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
 
-## Public demo deployment
+## Verified release evidence (2026-11-15)
 
-- **Demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
-- **Health endpoint:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
-- **Deployment:** isolated Cloudflare Worker `freshproof-submission-demo`; the latest Workers Build from public `main` completed successfully and deployed 100% traffic.
-- **Health check:** the live endpoint returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
-
-The public `POST /api/verify` path passed one bounded live end-to-end acceptance request on 2026-11-15: the stale Node.js 20 LTS-support claim returned `SUPERSEDED` with official Node.js release-table evidence. Deterministic local browser acceptance also passed. A deployed-browser run specifically on v0.2.81 has not yet been recorded. This one specialist case does not establish general-domain accuracy. Do not submit confidential or personal information.
+- Public main CI [#43712624254](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43712624254): passed after the latest documentation update. The v0.2.81 release test run [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834) passed **321/321 tests in UTC and 321/321 in Asia/Riyadh**, plus syntax checks and the synthetic temporal diagnostic.
+- Deterministic local browser acceptance [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836): passed. Its deployed-browser substep was skipped.
+- Public live API acceptance [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878): the deployed health endpoint reported exact version `0.2.81`; one bounded `POST /api/verify` returned HTTP 200 and processed one claim.
+- Demonstrated claim: “Node.js 20.x remains actively supported under LTS.” The API returned `SUPERSEDED` using the official Node.js release/lifecycle table. Six evidence records were returned, two Tavily searches were used, Freshness was `FRESH`, and Evidence Confidence was `LIMITED`.
+- This is one specialist software-lifecycle scenario, not a general-domain accuracy study. No general precision, recall, false-positive rate, citation correctness, or cost-per-claim figure is claimed.
+- The 54-case held-out v2 evaluation is separate and remains pending final execution and review.
 
 ## Run locally
 
@@ -86,31 +84,29 @@ TAVILY_API_KEY=your_key
 ALLOWED_ORIGIN=http://localhost:8787
 ```
 
-The optional Workers AI binding is configured by Wrangler. Do not add provider keys to browser code, source files, screenshots, or logs.
+The optional Workers AI binding is configured by Wrangler. Never place provider keys in browser code, source files, screenshots, or logs.
 
 ## Limits and evaluation
 
-The Worker applies bounded input, claim, search, result, and source-fetch limits. The current prototype is intended for demonstration and review, not as a guarantee that every claim can be conclusively verified.
+The prototype applies bounded input, claim, search, result, and source-fetch limits. It is intended for demonstration and review, not as a guarantee that every claim can be conclusively verified.
 
-Automated tests and the synthetic temporal regression benchmark are engineering diagnostics. They are **not** a representative real-world accuracy study. No general precision, recall, false-positive rate, citation correctness, latency distribution, or cost-per-claim figure is claimed here. A live integration test is likewise not a substitute for a held-out evaluation with audited labels.
-
-A `NEEDS_REVIEW` or `UNVERIFIABLE` result is an intentional safe outcome when the evidence does not justify a stronger conclusion.
+Automated tests and synthetic temporal benchmarks are engineering diagnostics, not representative real-world accuracy studies. A single live integration test is not a substitute for a held-out evaluation with audited labels. Abstention is an intentional safe outcome.
 
 ## Security and privacy
 
-- Provider credentials belong in server-side Worker secrets only.
-- Submitted text is processed in the request flow; the prototype does not require durable storage of user submissions.
+- Provider credentials are server-side Worker secrets only.
+- Submitted text is processed in the request flow; durable storage is not required.
 - Retrieved content is untrusted evidence, never executable instructions.
 - Input and provider operations are bounded.
 - Configure an exact allowed browser origin; CORS is not authentication.
 - Native Cloudflare rate limiting is an approximate per-edge abuse guard, not a strict global quota.
-- Optional model-assisted correction review is disabled in the public configuration; semantic triage remains advisory.
-- Do not deploy a fork with real credentials until its configuration and secret handling have been reviewed.
+- Semantic triage is advisory; model-assisted correction review is disabled in the public configuration.
+- Do not submit confidential or personal information to the public demo.
 
-## Hackathon submission
+## Hackathon submission status
 
-This repository contains the public source snapshot for review. The official submission form must be completed by the project owner. A repository publication or passing CI run is not proof that a hackathon submission has been received.
+This repository is the public source snapshot. The official Global AI Hackathon prototype deadline is listed as **15 November 2026**; the portal listing indicates **23:59 India Standard Time (18:29 UTC)**. The organizer's event page lists judging on **29 November 2026**. Verify the portal's live countdown and complete the official submission form. Repository publication, deployment, and CI success do **not** prove that an entry was submitted or received.
 
-## License and ownership
+## Ownership
 
-No open-source license is granted by this repository unless a separate license file explicitly states otherwise. All rights are reserved by the project owner. Ownership and provenance information is not included as a separate file in this public snapshot.
+No open-source license is granted unless a separate license file explicitly states otherwise. All rights are reserved by the project owner.

@@ -49,7 +49,7 @@ The organizer's Geek Room page lists prototype submission on 15 November 2026 an
 **DEPLOYED:** v0.2.81.  
 **TESTED:** CI, deterministic local browser, and deployed public browser acceptance on v0.2.81.  
 **LIVE API VERIFIED:** one bounded Node.js lifecycle scenario.  
-**READY:** editable 10-slide pitch deck and demo-video recording script.  
+**READY:** editable 10-slide pitch deck, portal-ready project copy/checklist, and demo-video recording script.  
 **PENDING:** official portal submission receipt; optional demo recording.
 
 Do not claim general accuracy or official submission until the relevant evidence exists.

@@ -1,6 +1,7 @@
 import { resolveDomainAdapter, extractDomainContext, canonicalEvidenceTokens as canonicalEvidenceTokensForDomain, mergeUniqueSources, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 import { adjudicateEvidence, registrableDomain } from "./evidence-adjudication.js";
 import { buildProductOutcomes } from "./product-outcomes.js";
+import { serveEmbeddedAsset } from "./static-assets.js";
 export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 5, maxResultsPerClaim: 5, maxQueries: 5, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
 export const SEMANTIC_MODEL = "@cf/zai-org/glm-4.7-flash";
@@ -1418,6 +1419,6 @@ export default {
     }
     if (url.pathname.startsWith("/api/")) return json({ error: "Not found." }, 404, origin, allowed);
     if (request.method !== "GET" && request.method !== "HEAD") return json({ error: "Method not allowed." }, 405, origin, allowed);
-    return env.ASSETS.fetch(request);
+    return env.ASSETS?.fetch ? env.ASSETS.fetch(request) : serveEmbeddedAsset(request);
   }
 };

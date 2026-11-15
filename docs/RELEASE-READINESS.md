@@ -1,4 +1,4 @@
-# Public Release Readiness — FreshProof v0.2.76
+# Public Release Readiness — FreshProof v0.2.77
 
 ## Scope
 This document describes only the public submission candidate in this repository. Private development infrastructure, account identifiers, internal CI links, and private deployment endpoints are intentionally excluded.

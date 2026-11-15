@@ -51,7 +51,7 @@ The semantic model is advisory. It cannot independently establish a claim or ove
 
 ## Public prototype
 
-- **Public release candidate:** `0.2.76` (sanitized from the private `0.2.75` engine; Groq provider integration and private configuration are excluded).
+- **Public release candidate:** `0.2.76` (Groq provider integration and non-public configuration are excluded).
 - **Runtime:** Cloudflare Worker and static browser application.
 - **Evidence search:** Tavily; its credential is configured as a server-side Worker secret.
 - **Optional semantic analysis:** Cloudflare Workers AI binding.

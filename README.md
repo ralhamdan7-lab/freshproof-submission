@@ -53,16 +53,20 @@ The semantic model is advisory. It cannot independently establish a claim or ove
 
 - **Public release candidate:** `0.2.76` (sanitized from the private `0.2.75` engine; Groq provider integration and private configuration are excluded).
 - **Runtime:** Cloudflare Worker and static browser application.
-- **Evidence search:** Tavily; configure its API credential as a Worker secret.
+- **Evidence search:** Tavily; its credential is configured as a server-side Worker secret.
 - **Optional semantic analysis:** Cloudflare Workers AI binding.
 - **No application database or user account system is required** for this prototype.
 
 The public repository is an independently configured release candidate. It contains the general-purpose claim extraction, temporal retrieval, evidence adjudication, and explanation improvements reviewed from the private development line. It intentionally excludes Groq integration, private configuration, internal evaluation corpora, and audit records. The public build uses its own Worker name, allowed origin, and deployment configuration.
 
-
 ## Public demo deployment
 
-The isolated public demo is being prepared under the dedicated Worker name `freshproof-submission-demo`. It is not published as a working demo URL until deployment and health, browser, and API checks pass. The private development Staging Worker is not used as a substitute. Evidence-search availability will depend on the verified free provider quota. Do not submit confidential or personal information.
+- **Demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
+- **Health endpoint:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
+- **Deployment:** isolated Cloudflare Worker `freshproof-submission-demo`; the latest Workers Build from public `main` completed successfully and deployed 100% traffic.
+- **Health check:** the live endpoint returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
+
+The public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test, and full browser acceptance against the deployed public URL remains outstanding. Therefore the demo URL is live, but full verification readiness is not claimed. The private development Staging Worker is not used as a substitute. Do not submit confidential or personal information.
 
 ## Run locally
 

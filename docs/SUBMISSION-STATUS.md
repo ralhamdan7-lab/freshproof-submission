@@ -36,8 +36,8 @@ Updated: 2026-11-15
 ## Remaining acceptance gates
 - The rate-limit binding must be verified in the deployed Worker; a binding/configuration error fails verification requests closed with HTTP 503.
 - Regression suite and deterministic isolated browser acceptance have passed on the current PR head; rerun if the head changes.
-- Confirm whether merging to public `main` triggers an external Cloudflare Workers Build; do not merge or redeploy until the public release/security gate is explicitly cleared.
-- Perform a safe live smoke request against public `POST /api/verify` and record the actual result; do not infer it from health status.
+- Cloudflare Workers Builds linkage is now verified: the public demo Worker is connected to this GitHub repository, watches `main`, and runs `npx wrangler deploy` from `/`. Merging this PR to `main` will trigger an external public deployment. Treat merge as a production release action, not a documentation-only operation.
+- Before merge, complete a safe live smoke request against public `POST /api/verify` and record the actual result; do not infer it from health status.
 - Confirm free provider quota and billing controls before live evidence-search demonstrations.
 - Official hackathon portal submission must be completed by the project owner; repository publication is not submission confirmation.
 

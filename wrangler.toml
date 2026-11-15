@@ -2,6 +2,7 @@ name = "freshproof-submission-demo"
 main = "worker/index.js"
 compatibility_date = "2026-11-09"
 workers_dev = true
+preview_urls = false
 
 [vars]
 ALLOWED_ORIGIN = "https://freshproof-submission-demo.ralhamdan7.workers.dev"

@@ -80,7 +80,7 @@ jobs:
           if (body.version !== process.env.EXPECTED_VERSION) throw new Error(`Expected version ${process.env.EXPECTED_VERSION}, received ${body.version}`);
           if (!Array.isArray(body.claims) || body.claims.length !== 1) throw new Error('Expected exactly one processed claim');
           const claim = body.claims[0];
-          const allowed = new Set(['CURRENT','SUPERSEDED','CONTRADICTED','UNVERIFIABLE','NEEDS_REVIEW','NOT_TIME_SENSITIVE']);
+          const allowed = new Set(['CURRENT','SUPERSEDED','CONTRADICTED','UNVERIFIABLE','NEEDS_REVIEW','NOT_ASSESSED','NOT_TIME_SENSITIVE']);
           if (!allowed.has(claim.status)) throw new Error(`Unexpected verification status: ${claim.status}`);
           if (!Array.isArray(claim.sources) || claim.sources.length < 1) throw new Error('No live evidence sources returned');
           const hosts = [...new Set(claim.sources.map(source => {

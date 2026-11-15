@@ -173,11 +173,15 @@ test("enforces configured origin", async () => {
 test("normalizes mocked Tavily evidence without turning search presence into a truth verdict", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
-    assert.equal(url, "https://api.tavily.com/search");
+    // v0.2.82: candidate pages may be fetched directly; this fixture serves none.
+    if (url !== "https://api.tavily.com/search") return new Response("not found", { status: 404 });
     const sent = JSON.parse(init.body);
     assert.equal(sent.include_answer, false);
     assert.equal(sent.include_published_date, true);
-    assert.equal(sent.time_range, "year");
+    // v0.2.82: the baseline proposition searches the full index; only the
+    // claim-conditioned authority query of a temporal claim uses a recency window.
+    if (sent.query === "The latest policy took effect in 2026.") assert.equal(Object.hasOwn(sent, "time_range"), false);
+    else assert.equal(sent.time_range, "year");
     assert.equal(sent.filter_by_published_date, false);
     assert.equal(Object.hasOwn(sent, "max_age_hours"), false);
     return new Response(JSON.stringify({ results: [
@@ -310,13 +314,24 @@ test("semantic assessment fails closed when Workers AI is not configured", async
 
 test("semantic assessment validates advisory model output and never emits a final verdict", async () => {
   let calledModel = null;
-  const ai = { run: async (model, options) => { calledModel = model; assert.equal(options.temperature, 0); assert.deepEqual(options.chat_template_kwargs, { enable_thinking: false }); return { response: JSON.stringify({ assessments: [{ source_index: 0, relation: "SUPPORTS", rationale: "The source states the same policy scope." }] }) }; } };
+  let systemPrompt = "";
+  const ai = { run: async (model, options) => {
+    calledModel = model;
+    systemPrompt = options.messages.find(message => message.role === "system")?.content || "";
+    assert.equal(options.temperature, 0);
+    assert.deepEqual(options.chat_template_kwargs, { enable_thinking: false });
+    return { response: JSON.stringify({ assessments: [{ source_index: 0, relation: "SUPPORTS", rationale: "The source states the same policy scope." }] }) };
+  } };
   const result = await adjudicateEvidenceWithModel("The current policy applies", [{ url: "https://example.org", title: "Policy", snippet: "The policy applies." }], ai);
   assert.equal(calledModel, SEMANTIC_MODEL);
   assert.equal(result.status, "COMPLETED_ADVISORY");
   assert.equal(result.assessments[0].relation, "SUPPORTS");
   assert.equal(result.assessments[0].requires_review, true);
   assert.match(result.limitation, /uncalibrated advisory signals/);
+  assert.match(systemPrompt, /Temporal kind measures genuine time-dependence, not verb tense/);
+  assert.match(systemPrompt, /established chemical composition/);
+  assert.match(systemPrompt, /must be classified STABLE, not CURRENT_STATE/);
+  assert.match(systemPrompt, /Do not label a claim CURRENT_STATE merely because it is phrased in the present tense/);
 });
 
 test("semantic assessment parses the Cloudflare chat-completion response envelope", async () => {
@@ -743,18 +758,19 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.81");
-    assert.equal(body.claims.length, 2);
-    assert.equal(body.claims[1].text, "Its official brand name has not changed.");
-    assert.equal(body.claims[1].resolved_context.resolved_claim, "Twitter's official brand name has not changed.");
+    assert.equal(body.version, "0.2.84");
+    // v0.2.84: a pronoun-led sentence is bound to its antecedent sentence, so
+    // no orphan claim ("Its official brand name ...") is extracted.
+    assert.equal(body.claims.length, 1);
+    assert.equal(body.claims[0].text, answer);
     assert.match(queries[1], /Twitter/);
     assert.equal(queries.filter(query => query.includes("official platform name rebrand")).length, 1);
     assert.ok(queries.some(query => query.includes("site:about.x.com")));
     assert.equal(queries.filter(query => query.includes("social networking service renamed rebrand")).length, 1);
-    assert.ok(body.claims[1].sources.length <= 5);
-    assert.ok(body.claims[1].sources.some(source => source.title === "Brand toolkit"));
-    assert.ok(body.claims[1].excluded_sources.some(source => source.title === "Instagram"));
-    assert.equal(body.claims[1].status, "NEEDS_REVIEW");
+    assert.ok(body.claims[0].sources.length <= 5);
+    assert.ok(body.claims[0].sources.some(source => source.title === "Brand toolkit"));
+    assert.ok(body.claims[0].excluded_sources.some(source => source.title === "Instagram"));
+    assert.equal(body.claims[0].status, "NEEDS_REVIEW");
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -814,7 +830,9 @@ test("domain adapter registry is isolated and exposes bounded adapter contracts"
 test("domain-specific search is subject to a request-wide query budget", async () => {
   let calls = 0;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (input) => {
+    // Count search-provider calls only; direct page fetches have their own budget.
+    if (String(typeof input === "string" ? input : input.url) !== "https://api.tavily.com/search") return new Response("not found", { status: 404 });
     calls++;
     return new Response(JSON.stringify({ results: [{ title: "Evidence", url: "https://example.org/evidence", content: "The current policy applies to all agencies.", published_date: "2026-11-08", score: 0.9 }] }), { status: 200, headers: { "content-type": "application/json" } });
   };
@@ -831,6 +849,8 @@ test("domain-specific search is subject to a request-wide query budget", async (
     }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
     assert.equal(response.status, 200);
     assert.ok(calls <= LIMITS.maxQueries);
+    const body = await response.json();
+    assert.ok(body.methodology.direct_fetch_budget.used <= LIMITS.maxDirectFetches);
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -1030,7 +1050,7 @@ test("Node.js ongoing support abstains when official release row is stale or abs
   assert.equal(selectedRecent.evidence.source.published_date, "2026-11-09");
 });
 
-test("POST verification falls back to the official Node.js lifecycle page and retains it beyond the generic result cap", async () => {
+test("POST verification withholds Node.js EOL when the official release row update date is stale", async () => {
   const originalFetch = globalThis.fetch;
   const searchResults = Array.from({ length: 7 }, (_, i) => ({
     title: `Node.js release background result ${i + 1}`,
@@ -1067,10 +1087,8 @@ test("POST verification falls back to the official Node.js lifecycle page and re
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(officialFallbackFetched, true);
-    assert.equal(body.claims[0].status, "SUPERSEDED");
-    assert.equal(body.claims[0].domain_evidence.method, "OFFICIAL_NODEJS_RELEASE_TABLE_STATUS");
-    assert.equal(body.claims[0].domain_evidence.support_status, "EOL", JSON.stringify(body.claims[0]));
-    assert.equal(body.claims[0].domain_evidence.last_updated, "2023-08-08");
+    assert.equal(body.claims[0].status, "NEEDS_REVIEW", JSON.stringify(body.claims[0]));
+    assert.equal(body.claims[0].domain_evidence, null, "stale row metadata must not be surfaced as decisive adapter evidence");
     assert.equal(body.claims[0].sources.some(source => source.url === "https://nodejs.org/en/about/previous-releases"), true);
   } finally { globalThis.fetch = originalFetch; }
 });
@@ -1226,7 +1244,10 @@ test("temporal retrieval failures are surfaced as diagnostics and never converte
     const body = await response.json();
     const claim = body.claims[0];
     assert.equal(response.status, 200);
-    assert.equal(claim.status, "NEEDS_REVIEW");
+    // v0.2.84: search provider outage with no evidence is an execution failure.
+    assert.equal(claim.status, "NOT_ASSESSED");
+    assert.equal(claim.execution.status, "PROVIDER_LIMITED");
+    assert.equal(claim.execution.stages.search, "FAILED");
     assert.equal(claim.domain_evidence.retrieval_status, "HTTP_ERROR");
     assert.equal(claim.retrieval_diagnostics.some(item => item.provider === "TAVILY" && item.status === "UPSTREAM_FAILED"), true);
     assert.equal(claim.retrieval_diagnostics.some(item => item.provider === "PYTHON_ORG" && item.status === "HTTP_ERROR"), true);

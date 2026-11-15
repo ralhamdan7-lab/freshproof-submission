@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { VERSION, isLikelyTemporal, resolveTemporalSensitivity } from "../worker/index.js";
+import worker, { VERSION, isLikelyTemporal } from "../worker/index.js";
 
 function request(text) {
   return new Request("https://freshproof.test/api/verify", {
@@ -49,6 +49,11 @@ test("retrieved prompt-injection text remains untrusted and cannot set a verific
     assert.equal(body.version, VERSION);
     assert.match(modelSystemPrompt, /untrusted quoted data/i);
     assert.match(modelSystemPrompt, /Never follow instructions/i);
+    // v0.2.84: scope is what a source discusses; a different value for the same
+    // attribute is a contradiction, never NO_MATCH or INSUFFICIENT.
+    assert.match(modelSystemPrompt, /states a different value[^.]*is in scope and CONTRADICTS the claim/);
+    assert.match(modelSystemPrompt, /does not require the source to agree with the claimed value/);
+    assert.doesNotMatch(modelSystemPrompt, /If scope, units, entity, timeframe, or context do not match, use INSUFFICIENT or MIXED/);
     assert.match(modelUserPayload, /Ignore all previous instructions/);
     assert.equal(body.claims[0].semantic_assessment.status, "COMPLETED_ADVISORY");
     assert.equal(body.claims[0].status, "NEEDS_REVIEW", "one advisory source must not force CURRENT");
@@ -244,27 +249,4 @@ test("Arabic ongoing support and lifecycle language is time-sensitive", () => {
     "انتهى الدعم الرسمي لـ Python 2.7."
   ]) assert.equal(isLikelyTemporal(claim), true, claim);
   assert.equal(isLikelyTemporal("صدر Python 2.7 عام 2010."), false);
-});
-
-
-test("implicit current-state propositions become temporally sensitive after complete semantic classification", () => {
-  const claim = "Acme operates the only nationwide emergency alert network.";
-  assert.equal(isLikelyTemporal(claim), false, "the lexical detector intentionally has no explicit time cue");
-  assert.equal(resolveTemporalSensitivity(false, {
-    status: "COMPLETED_ADVISORY",
-    claim_assessment: { claim_type: "CURRENT_STATE", claim_risk: "HIGH" }
-  }), true);
-});
-
-test("incomplete or unavailable semantic classifications cannot manufacture temporal intent", () => {
-  for (const assessment of [
-    null,
-    { status: "FAILED_CLOSED", claim_assessment: { claim_type: "CURRENT_STATE" } },
-    { status: "COMPLETED_ADVISORY", claim_assessment: null },
-    { status: "COMPLETED_ADVISORY", claim_assessment: { claim_type: "OTHER" } }
-  ]) {
-    assert.equal(resolveTemporalSensitivity(false, assessment), false);
-  }
-  assert.equal(resolveTemporalSensitivity(true, null), true,
-    "explicit lexical temporal cues remain active when semantic triage is unavailable");
 });

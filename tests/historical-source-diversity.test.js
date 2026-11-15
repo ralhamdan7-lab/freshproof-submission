@@ -107,7 +107,10 @@ test("historical retrieval supplements concentrated result clusters and retains 
     assert.equal(sourceReliability("https://www.si.edu/object/iphone-model-2g:chndm_2009-29-1"), "PRIMARY_OR_OFFICIAL_DOMAIN");
     assert.equal(body.methodology.search_budget.used, 4,
       "the shared request budget preserves both unrestricted baselines and permits bounded historical enrichment queries");
-    assert.equal(body.methodology.direct_fetch_budget.used, 5);
+    // Five validated historical-source fetches remain; v0.2.82 generic page
+    // acquisition may use the remaining shared budget but never exceeds it.
+    assert.ok(body.methodology.direct_fetch_budget.used >= 5);
+    assert.ok(body.methodology.direct_fetch_budget.used <= body.methodology.direct_fetch_budget.limit);
     assert.ok(iphone.retrieval_diagnostics.some(x => x.stage === "DIRECT_HISTORICAL_SOURCE" && x.status === "VALIDATED"));
     assert.ok(transplant.retrieval_diagnostics.some(x => x.stage === "DIRECT_HISTORICAL_SOURCE" && x.status === "VALIDATED"));
     assert.ok(new Set(iphone.sources.map(x => registrableDomain(x.url))).size >= 3);

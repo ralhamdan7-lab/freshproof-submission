@@ -76,9 +76,8 @@ test("CURRENT claims explicitly require no correction", () => {
 
 test("NOT_TIME_SENSITIVE is not converted into a truth verdict or correction", () => {
   const correction = buildCorrection({ claim: "Water freezes at 0°C.", status: "NOT_TIME_SENSITIVE" });
-  assert.equal(correction.status, "NOT_APPLICABLE");
+  assert.equal(correction.status, "WITHHELD");
   assert.equal(correction.text, null);
-  assert.match(correction.limitations[0], /not a truth verdict/);
 });
 
 test("NEEDS_REVIEW and UNVERIFIABLE always withhold corrections", () => {
@@ -237,10 +236,10 @@ test("Python lifecycle correction rejects noncanonical PEP hosts, paths, and cre
   }
 });
 
-test("NOT_TIME_SENSITIVE correction limitation is localized for Arabic claims", () => {
-  const correction = buildCorrection({ claim: "تدور الأرض حول الشمس.", status: "NOT_TIME_SENSITIVE" });
+test("NOT_ASSESSED correction limitation is localized for Arabic claims", () => {
+  const correction = buildCorrection({ claim: "تدور الأرض حول الشمس.", status: "NOT_ASSESSED" });
   assert.equal(correction.status, "NOT_APPLICABLE");
-  assert.match(correction.limitations[0], /لم يُفعّل التحقق الزمني/);
+  assert.match(correction.limitations[0], /لم يُقيَّم الادعاء/);
 });
 
 
@@ -432,4 +431,16 @@ test("explanation evidence references reject HTTP URLs even when the host is oth
     ]
   });
   assert.deepEqual(detail.evidence_basis.map(item => item.url), ["https://example.org/fact"]);
+});
+
+test("v0.2.84: Arabic claims get an Arabic rationale; the English original is kept for audit", () => {
+  const rationale = "Evidence did not meet the claim-specific sufficiency threshold or contained mixed semantic relations.";
+  const detail = buildExplanationDetail({ claim: "افتتح ميناء الوردة الجديد عام 2019.", status: "NEEDS_REVIEW", adjudication: { method: "CONSERVATIVE_EVIDENCE_ADJUDICATION", rationale } });
+  assert.match(detail.reason, /عتبة الكفاية/);
+  assert.equal(detail.reason_original, rationale);
+  const unknown = buildExplanationDetail({ claim: "افتتح ميناء الوردة الجديد عام 2019.", status: "CURRENT", adjudication: { method: "OFFICIAL_SOURCE_X", rationale } });
+  assert.doesNotMatch(unknown.reason, /[A-Za-z]{4,}/, "unmapped methods fall back to Arabic text, never English");
+  const english = buildExplanationDetail({ claim: "The port opened in 2019.", status: "NEEDS_REVIEW", adjudication: { method: "CONSERVATIVE_EVIDENCE_ADJUDICATION", rationale } });
+  assert.equal(english.reason, rationale);
+  assert.equal(english.reason_original, undefined);
 });

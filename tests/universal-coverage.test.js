@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { classifyClaimFrame } from "../worker/claim-frame.js";
+import { buildResearchPlan } from "../worker/research-plan.js";
 import worker, { buildClaimSearchQuery, sourceDomainHints, scoreSourceRelevance } from "../worker/index.js";
+import { buildAuthorityQuery as authorityQueryFor, isLikelyTemporal as lexicalTemporal } from "../worker/index.js";
 import { resolveDomainAdapter, resolveHistoricalSourceAdapter } from "../worker/domain-adapters.js";
 
 test("unknown-domain claims retain a general unconstrained retrieval path", () => {
@@ -119,7 +122,7 @@ test("unregistered topics receive bounded publisher-agnostic diversity enrichmen
   const claim = "The newly adopted coastal resilience custom took effect last Thursday.";
   const requests = [];
   globalThis.fetch = async (input, init = {}) => {
-    assert.equal(typeof input === "string" ? input : input.url, "https://api.tavily.com/search");
+    if ((typeof input === "string" ? input : input.url) !== "https://api.tavily.com/search") return new Response("not found", { status: 404 });
     const request = JSON.parse(init.body);
     requests.push(request);
     const source = requests.length === 1
@@ -158,13 +161,15 @@ test("unregistered topics receive bounded publisher-agnostic diversity enrichmen
     assert.equal(requests.length, 2);
     assert.equal(requests[0].query, claim, "the first request remains the original publisher-agnostic proposition");
     assert.equal(Object.hasOwn(requests[0], "include_domains"), false);
-    assert.match(requests[1].query, /official primary institutional sources/i);
+    // v0.2.82: the second query is a claim-conditioned authority query built
+    // only from the claim's own entities, quantities and dates.
+    assert.equal(requests[1].query, authorityQueryFor(claim, { temporal: classifyClaimFrame(claim).seeks_latest_sources }));
     assert.equal(Object.hasOwn(requests[1], "include_domains"), false,
       "unknown topics must not receive a guessed publisher allowlist");
     assert.equal(body.methodology.search_budget.used, 2);
     assert.equal(body.claims[0].retrieval_diagnostics.some(item =>
       item.stage === "INDEPENDENT_DOMAIN_FALLBACK"
-      && item.strategy === "PUBLISHER_AGNOSTIC_SECONDARY_QUERY"
+      && item.strategy === "CLAIM_CONDITIONED_AUTHORITY_QUERY"
       && item.result_count === 1
     ), true);
     assert.ok(["NEEDS_REVIEW", "UNVERIFIABLE"].includes(body.claims[0].status),
@@ -181,7 +186,7 @@ test("known-topic claims retain the original text through generic retrieval", as
   assert.equal(buildClaimSearchQuery(claim), claim);
   assert.deepEqual(sourceDomainHints(claim), []);
   globalThis.fetch = async (input, init = {}) => {
-    assert.equal(typeof input === "string" ? input : input.url, "https://api.tavily.com/search");
+    if ((typeof input === "string" ? input : input.url) !== "https://api.tavily.com/search") return new Response("not found", { status: 404 });
     requests.push(JSON.parse(init.body));
     return new Response(JSON.stringify({ results: [] }), { status: 200, headers: { "content-type": "application/json" } });
   };
@@ -204,8 +209,10 @@ test("known-topic claims retain the original text through generic retrieval", as
     assert.ok(requests.every(request => !Object.hasOwn(request, "include_domains")),
       "the generic path must never constrain publishers from a topic/entity keyword list");
     assert.ok(requests.every(request => request.query === claim
-      || request.query === claim + " official primary institutional sources"),
-      "generic retrieval may only add the publisher-agnostic diversity suffix");
+      || request.query === authorityQueryFor(claim, { temporal: classifyClaimFrame(claim).seeks_latest_sources })
+      || buildResearchPlan(claim, classifyClaimFrame(claim)).some(step => step.query === request.query)
+      || buildResearchPlan(claim, classifyClaimFrame(claim)).some(step => step.query === query)),
+      "generic retrieval may only add the claim-conditioned authority query");
     assert.equal(body.methodology.search_budget.used, requests.length);
     assert.ok(requests.length <= 5);
   } finally {

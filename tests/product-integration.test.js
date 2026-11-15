@@ -1,7 +1,10 @@
 import test from "node:test";
+import { classifyClaimFrame } from "../worker/claim-frame.js";
+import { buildResearchPlan } from "../worker/research-plan.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import worker, { VERSION } from "../worker/index.js";
+import { buildAuthorityQuery as authorityQueryFor, isLikelyTemporal as lexicalTemporal } from "../worker/index.js";
 
 const claim = "The Acme service is currently available to customers.";
 const published = new Date().toISOString().slice(0, 10);
@@ -99,13 +102,13 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
 }
 
 test("v0.2.59 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
-  assert.equal(VERSION, "0.2.81");
+  assert.equal(VERSION, "0.2.84");
 
   // Positive end-to-end path: deterministic retrieval + injected model fixture,
   // through Worker API, adjudication, explanation, correction, and response.
   const positive = await runApiScenario();
   assert.equal(positive.response.status, 200);
-  assert.equal(positive.body.version, "0.2.81");
+  assert.equal(positive.body.version, "0.2.84");
   assert.equal(positive.body.claims.length, 1);
   assert.deepEqual(positive.body.extraction, { detected_count: 1, processed_count: 1, truncated_count: 0, is_truncated: false, maximum_processed_claims: 3 });
   const result = positive.body.claims[0];
@@ -183,7 +186,7 @@ test("generic corporate-role retrieval preserves the original claim without keyw
   const queries = [];
   const searchDomainRequests = [];
   globalThis.fetch = async (input, init = {}) => {
-    assert.equal(typeof input === "string" ? input : input.url, "https://api.tavily.com/search");
+    if ((typeof input === "string" ? input : input.url) !== "https://api.tavily.com/search") return new Response("not found", { status: 404 });
     const body = JSON.parse(init.body);
     queries.push(body.query);
     searchDomainRequests.push(body.include_domains || []);
@@ -205,8 +208,9 @@ test("generic corporate-role retrieval preserves the original claim without keyw
     const result = body.claims[0];
     assert.equal(response.status, 200);
     assert.equal(queries[0], claim, "the exact original proposition must remain the baseline query");
-    assert.ok(queries.every(query => query === claim || query === claim + " official primary institutional sources"),
-      "the generic path may only add a publisher-agnostic diversity suffix");
+    assert.ok(queries.every(query => query === claim || query === authorityQueryFor(claim, { temporal: classifyClaimFrame(claim).seeks_latest_sources })
+      || buildResearchPlan(claim, classifyClaimFrame(claim)).some(step => step.query === query)),
+      "the generic path may only add the claim-conditioned authority query");
     assert.ok(searchDomainRequests.every(domains => domains.length === 0),
       "the generic path must not infer a publisher allowlist from a company/person keyword");
     assert.ok(["NEEDS_REVIEW", "UNVERIFIABLE"].includes(result.status),
@@ -236,7 +240,7 @@ test("v0.2.59 factual verification runs for non-time-sensitive claims", async ()
   const stableClaim = "Water is composed of hydrogen and oxygen.";
   const stableSources = [
     { title: "Water molecule reference", url: "https://chemistry.example.edu/water-molecule", score: 0.99, content: "Water molecules consist of two hydrogen atoms bonded to one oxygen atom." },
-    { title: "Science education reference", url: "https://science.example.ac.uk/chemical-composition-water", score: 0.98, content: "A water molecule contains two hydrogen atoms and one oxygen atom, with formula H2O." }
+    { title: "Science education reference", url: "https://science.northfield.ac.uk/chemical-composition-water", score: 0.98, content: "A water molecule contains two hydrogen atoms and one oxygen atom, with formula H2O." }
   ];
   const ai = { async run(_model, input) {
     const system = input?.messages?.[0]?.content || "";
@@ -244,7 +248,7 @@ test("v0.2.59 factual verification runs for non-time-sensitive claims", async ()
     return { response: JSON.stringify({ assessments: stableSources.map((_, source_index) => ({ source_index, relation: "SUPPORTS", rationale: "Controlled synthetic support fixture." })) }) };
   }};
   globalThis.fetch = async (input, init = {}) => {
-    assert.equal(typeof input === "string" ? input : input.url, "https://api.tavily.com/search");
+    if ((typeof input === "string" ? input : input.url) !== "https://api.tavily.com/search") return new Response("not found", { status: 404 });
     assert.equal(init.method, "POST");
     return new Response(JSON.stringify({ results: stableSources }), { status: 200, headers: { "content-type": "application/json" } });
   };
@@ -259,7 +263,7 @@ test("v0.2.59 factual verification runs for non-time-sensitive claims", async ()
     const body = await response.json();
     const result = body.claims[0];
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.81");
+    assert.equal(body.version, "0.2.84");
     assert.equal(result.temporal_assessment.status, "NOT_TIME_SENSITIVE");
     assert.equal(result.status, "CURRENT");
     assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");
@@ -273,7 +277,7 @@ test("v0.2.59 non-time-sensitive claim still abstains when semantic assessment i
   const stableClaim = "Water is composed of hydrogen and oxygen.";
   const stableSources = [
     { title: "Water molecule reference", url: "https://chemistry.example.edu/water-molecule", content: "Water molecules consist of two hydrogen atoms bonded to one oxygen atom." },
-    { title: "Science education reference", url: "https://science.example.ac.uk/chemical-composition-water", content: "A water molecule contains two hydrogen atoms and one oxygen atom." }
+    { title: "Science education reference", url: "https://science.northfield.ac.uk/chemical-composition-water", content: "A water molecule contains two hydrogen atoms and one oxygen atom." }
   ];
   globalThis.fetch = async () => new Response(JSON.stringify({ results: stableSources }), { status: 200, headers: { "content-type": "application/json" } });
   try {
@@ -373,7 +377,7 @@ test("multi-claim requests spend only spare search budget to diversify independe
     });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.81");
+    assert.equal(body.version, "0.2.84");
     assert.equal(body.claims.length, 2);
     assert.ok(searchCalls >= 2 && searchCalls <= 5, "baseline retrieval plus bounded diversity fallback must stay within the request-wide search budget");
     assert.equal(searchCalls <= 5, true, "the request-wide search budget must not be exceeded");
@@ -383,6 +387,109 @@ test("multi-claim requests spend only spare search budget to diversify independe
       assert.equal(result.sources.length, 2);
       assert.equal(result.adjudication.adjudication_signals.independent_supporting_domains, 2);
     }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test("generic SUPERSEDED is reachable through POST /api/verify from source snippets and semantic current-state classification", async () => {
+  const originalFetch = globalThis.fetch;
+  const snippets = [
+    "On January 20, 2025, Acme announced that John Doe was replaced by Jane Roe as CEO of Acme.",
+    "On January 22, 2025, Acme's board confirmed that John Doe was replaced by Jane Roe as CEO of Acme."
+  ];
+  const sourceSet = [
+    { title: "Acme official leadership notice", url: "https://acme.gov/leadership", published_date: "2026-03-01", score: 0.99, content: snippets[0] },
+    { title: "Independent institutional board record", url: "https://records.gov/leadership", published_date: "2026-03-01", score: 0.98, content: snippets[1] }
+  ];
+  let aiCalls = 0;
+  const ai = {
+    async run(_model, input) {
+      aiCalls++;
+      const system = input?.messages?.[0]?.content || "";
+      assert.match(system, /evidence relation classifier/);
+      return { response: JSON.stringify({
+        claim_assessment: {
+          claim_type: "CURRENT_STATE",
+          claim_risk: "HIGH",
+          temporal_claim_kind: "CURRENT_STATE"
+        },
+        source_assessments: sourceSet.map((source, source_index) => ({
+          source_index,
+          directness: "DIRECT",
+          scope_match: "EXACT",
+          authority_role: "ORIGINATING_AUTHORITY",
+          temporal_role: "CHANGE_NOTICE",
+          change_type: "REPLACED",
+          event_date_mention_index: 0,
+          change_statement_quote: source.content,
+          old_state_quote: "John Doe",
+          new_state_quote: "Jane Roe as CEO of Acme"
+        })),
+        assessments: sourceSet.map((_, source_index) => ({
+          source_index,
+          relation: "CONTRADICTS",
+          rationale: "The official change notice records replacement of the named office-holder."
+        })),
+        component_assessments: sourceSet.map((_, source_index) => ({
+          component_id: 1,
+          source_index,
+          relation: "CONTRADICTS"
+        }))
+      }) };
+    }
+  };
+  globalThis.fetch = async (input, init = {}) => {
+    const url = typeof input === "string" ? input : input.url;
+    assert.equal(url, "https://api.tavily.com/search");
+    assert.equal(init.method, "POST");
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get("authorization"), "Bearer synthetic-test-key");
+    const tavilyBody = JSON.parse(init.body);
+    assert.equal(Object.hasOwn(tavilyBody, "api_key"), false);
+    return new Response(JSON.stringify({
+      results: sourceSet.map(source => ({
+        title: source.title,
+        url: source.url,
+        published_date: source.published_date,
+        score: source.score,
+        content: source.content
+      }))
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    const request = new Request("https://freshproof.test/api/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://freshproof.test" },
+      body: JSON.stringify({ text: "John Doe is CEO of Acme." })
+    });
+    const response = await worker.fetch(request, {
+      ALLOWED_ORIGIN: "https://freshproof.test",
+      TAVILY_API_KEY: "synthetic-test-key",
+      ENABLE_SEMANTIC_TRIAGE: "true",
+      ENABLE_CORRECTION_CANDIDATE_REVIEW: "false",
+      AI: ai
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.version, "0.2.84");
+    assert.equal(body.claims.length, 1);
+    const result = body.claims[0];
+    assert.equal(result.temporal_assessment.is_time_sensitive, true);
+    // v0.2.84: "X is CEO of Y" is a typed mutable state, so the current-state
+    // frame is now deterministic; the model label is advisory and agrees.
+    assert.equal(result.temporal_assessment.classification_source, "DETERMINISTIC");
+    assert.equal(result.temporal_assessment.frame, "CURRENT_STATE");
+    assert.equal(result.temporal_assessment.status, "TEMPORAL_REVIEW_REQUIRED");
+    assert.equal(result.status, "SUPERSEDED");
+    assert.equal(result.adjudication.method, "CORROBORATED_TEMPORAL_CHANGE_EVENT");
+    assert.equal(result.adjudication.temporal_evidence.event_date, "2025-01-22");
+    assert.equal(result.adjudication.temporal_evidence.source.published_date, "2026-03-01");
+    assert.equal(result.adjudication.adjudication_signals.publication_date_used_as_event_date, false);
+    assert.equal(result.adjudication.adjudication_signals.temporal_transition_corroborated, true);
+    assert.equal(result.adjudication.evidence.length, 2);
+    assert.equal(aiCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

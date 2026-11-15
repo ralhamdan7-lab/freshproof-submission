@@ -19,14 +19,14 @@ Updated: 2026-11-15
 - Public documentation sanitized to remove private operational history
 
 ## Verified on the public source baseline
-- Node regression suite: **324 passed, 0 failed in UTC**. A date-parsing test fails when the suite is run in a positive local timezone such as Asia/Riyadh; see the timezone-specific issue in the review record.
+- Node regression suite: **325 passed, 0 failed** on the latest verified public baseline (run #43676443268). An earlier failed run (#43676355647) was caused by a stale test expectation of five processed claims while the configured request cap was three; the test expectation was corrected. No timezone-specific failure is established by that run.
 - Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
 - Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
 - Public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test.
 - Full browser acceptance against the deployed public URL remains outstanding.
 
 ## Guardrails in this PR
-- Bind the native Cloudflare rate limiter as `API_RATE_LIMITER` at 10 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
+- Bind the native Cloudflare rate limiter as `API_RATE_LIMITER` at 3 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
 - Keep semantic triage enabled for the public evidence-adjudication path.
 - Disable optional model-assisted correction candidate review to reduce inference consumption.
 - Align security documentation with the actual configuration and its limitations.

@@ -4,7 +4,7 @@ Updated: 2026-11-15
 
 ## Public candidate
 - Repository: this public submission repository.
-- Candidate version: 0.2.76 on `main`; this PR adds a timezone-safe Node.js release-table date parser without changing the public version until release approval.
+- Main remains at 0.2.76; proposed public candidate is 0.2.77 with timezone-safe date parsing and Tavily Bearer authentication.
 - Public source baseline: `b8b525a5977d1a082b053ab057c9a04f28ea812c`; this PR adds release guardrails and documentation corrections.
 - Public demo: `https://freshproof-submission-demo.ralhamdan7.workers.dev`.
 
@@ -19,15 +19,16 @@ Updated: 2026-11-15
 - Public documentation sanitized to remove private operational history
 
 ## Verified on the public source baseline
-- Node regression suite: **325 passed, 0 failed** on the latest main baseline (run #43676443268). The UTC/Asia-Riyadh matrix in PR #7 reproduced a one-day shift for the Node.js release-table date `Aug 08, 2023` under Asia/Riyadh; the current PR branch replaces local-time parsing with validated UTC calendar parsing. Both matrix jobs passed 325/325 on commit `10d023620c0e58919af3dac5e170ffc089323ece` (run #43696904081).
+- Node regression suite: **325 passed, 0 failed** on the latest main baseline (run #43676443268). The UTC/Asia-Riyadh matrix in PR #7 reproduced a one-day shift for the Node.js release-table date `Aug 08, 2023` under Asia/Riyadh; the PR branch replaces local-time parsing with validated UTC calendar parsing. It also moves the Tavily key to the Authorization Bearer header and removes it from the JSON body. Both matrix jobs passed 325/325 on the pre-auth-hardening head; final CI for the current 0.2.77 head is pending.
 - Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
 - Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
 - Public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test.
 - Full browser acceptance against the deployed public URL remains outstanding.
 
-## Guardrails and timezone fix in this PR
+## Guardrails, timezone and credential-transport fixes in this PR
 - Correct public documentation to match the deployed `API_RATE_LIMITER` configuration: 3 requests per 60 seconds per client IP per edge location; this is approximate, not a global quota.
 - Parse English Node.js release-table calendar dates with `Date.UTC` and validate the calendar components, avoiding local-time day shifts.
+- Send the Tavily key only in `Authorization: Bearer ...`; never include it in the JSON body.
 - Keep semantic triage enabled for the public evidence-adjudication path.
 - Disable optional model-assisted correction candidate review to reduce inference consumption.
 - Align security documentation with the actual configuration and its limitations.

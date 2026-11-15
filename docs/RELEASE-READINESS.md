@@ -42,7 +42,7 @@ This document covers only the public submission repository and its public Worker
 
 ## Remaining gates
 
-- Deployed-browser acceptance specifically against version 0.2.81 must pass before claiming full live UI acceptance.
+- Deployed-browser acceptance specifically against version 0.2.81: **PASS** [#43713578554](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43713578554). Playwright verified the exact live Worker version, submitted the Node.js 20 claim through the real UI, observed OUTDATED, rendered six evidence links including two official Node.js links, and recorded zero browser runtime errors.
 - The 54-case held-out v2 run must complete and its report must be audited before publishing its metrics. The recorded gold review is owner-approved assistant audit, not independent external adjudication.
 - General real-world accuracy is not established. Do not publish precision, recall, false-positive rate, citation correctness, or cost-per-claim unless the relevant audited denominators and measurements are valid.
 - Prepare and check the actual pitch deck and 2–4 minute demo recording against the live product.

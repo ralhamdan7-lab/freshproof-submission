@@ -19,7 +19,7 @@ Updated: 2026-11-15
 - Public documentation sanitized to remove private operational history
 
 ## Verified on the public source baseline
-- Node regression suite: **325 passed, 0 failed** on the latest main baseline (run #43676443268). The UTC/Asia-Riyadh matrix in PR #7 reproduced a one-day shift for the Node.js release-table date `Aug 08, 2023` under Asia/Riyadh; the PR branch replaces local-time parsing with validated UTC calendar parsing. It also moves the Tavily key to the Authorization Bearer header and removes it from the JSON body. Both matrix jobs passed 325/325 on the pre-auth-hardening head; final CI for the current 0.2.77 head is pending.
+- Public candidate head `d2a0d92ad1bdf0e3a96764c75b3686a23d8b1ab2`: **327/327 tests passed in UTC and 327/327 in Asia/Riyadh** (workflow run #43701704267). Added regression coverage for leap-day acceptance, preservation of `Aug 08, 2023` as `2023-08-08`, and rejection of impossible dates such as `Feb 30, 2024`. Worker/adjudication/adapter/browser syntax checks and temporal smoke benchmark passed in both jobs. The same head passed deterministic isolated browser acceptance (run #43701704209); this is fixture-based, not a live deployed-URL test.
 - Synthetic temporal smoke benchmark passed; it is an engineering diagnostic, not a real-world accuracy evaluation.
 - Public Worker health endpoint previously returned `ok: true`, service `FreshProof`, version `0.2.76`, mode `evidence-triage`.
 - Public `POST /api/verify` evidence-search path has not yet passed a live end-to-end request test.
@@ -35,7 +35,7 @@ Updated: 2026-11-15
 
 ## Remaining acceptance gates
 - The rate-limit binding must be verified in the deployed Worker; a binding/configuration error fails verification requests closed with HTTP 503.
-- Re-run the complete regression suite and browser acceptance on the final PR head.
+- Regression suite and deterministic isolated browser acceptance have passed on the current PR head; rerun if the head changes.
 - Confirm whether merging to public `main` triggers an external Cloudflare Workers Build; do not merge or redeploy until the public release/security gate is explicitly cleared.
 - Perform a safe live smoke request against public `POST /api/verify` and record the actual result; do not infer it from health status.
 - Confirm free provider quota and billing controls before live evidence-search demonstrations.

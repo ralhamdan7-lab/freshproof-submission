@@ -87,15 +87,32 @@ jobs:
             try { return new URL(source.url).hostname; } catch { return 'invalid-url'; }
           }))];
           if (hosts.includes('invalid-url')) throw new Error('A returned evidence URL is invalid');
+          const sourceSummary = claim.sources.map(source => ({
+            title: source.title,
+            url: source.url,
+            reliability: source.source_reliability ?? null,
+            published_date: source.published_date ?? null,
+            retrieved_at: source.retrieved_at ?? null,
+            relevance: source.relevance_assessment?.relevance ?? null,
+            evidence_kind: source.evidence_kind ?? null
+          }));
           console.log(JSON.stringify({
             acceptance: 'PASS',
             version: body.version,
             processed_claims: body.claims.length,
+            claim: claim.text,
             verification_status: claim.status,
-            evidence_sources: claim.sources.length,
-            source_hosts: hosts,
-            freshness: claim.freshness?.label ?? null,
+            domain_adapter: claim.domain_adapter ?? null,
+            domain_evidence: claim.domain_evidence ?? null,
+            adjudication: {
+              method: claim.adjudication?.method ?? null,
+              rationale: claim.adjudication?.rationale ?? claim.explanation ?? null
+            },
+            evidence_sources: sourceSummary,
+            freshness: claim.freshness ?? null,
             evidence_confidence: claim.evidence_confidence ?? null,
+            source_reliability: claim.source_reliability ?? null,
+            retrieval_diagnostics: claim.retrieval_diagnostics ?? [],
             search_budget: body.methodology?.search_budget ?? null
           }, null, 2));
           NODE

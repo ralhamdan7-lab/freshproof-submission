@@ -33,7 +33,7 @@ This document covers only the public submission repository and its public Worker
 ## Verified release gates
 
 1. **CI — PASS:** release run [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): 321/321 tests in UTC and 321/321 in Asia/Riyadh; syntax checks and synthetic temporal diagnostic passed.
-2. **Latest documentation CI — PASS:** [#43712624254](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43712624254).
+2. **Latest documentation CI — PASS:** [#43713794632](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43713794632).
 3. **Deterministic local browser acceptance — PASS:** [#43711250836](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250836). This test's deployed-browser step was skipped.
 4. **Live public API acceptance — PASS:** [#43711250878](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250878). Health returned exact version 0.2.81; one bounded POST /api/verify returned HTTP 200 and processed one claim.
 5. **Live scenario — PASS, narrow scope:** Node.js 20.x continuing LTS support was classified SUPERSEDED using the official Node.js release table. Six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED. This is not a general accuracy result.

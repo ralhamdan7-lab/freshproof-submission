@@ -1,6 +1,6 @@
 # Public Verification Log — FreshProof v0.2.76
 
-This log records evidence for the public candidate only. It intentionally excludes private Staging URLs, private repository links, account identifiers, deployment IDs, and internal operational history.
+This log records only public release evidence. It contains no credentials or personal data.
 
 ## 2026-11-15 — Public candidate preparation
 - Ported the general-purpose temporal verification engine modules into the public release branch.
@@ -8,7 +8,7 @@ This log records evidence for the public candidate only. It intentionally exclud
 - Updated public package/runtime version to 0.2.76.
 - Updated browser application assets from the current reviewed product line.
 - Replaced the public live-smoke workflow with a health-only check that does not submit evidence-search requests.
-- Reworked browser acceptance to run against an isolated local Worker with a deterministic API fixture; it does not call a private Staging endpoint or consume provider quota.
+- Reworked browser acceptance to run against an isolated local Worker with a deterministic API fixture; it does not call external evidence providers or consume provider quota.
 
 ## Validation evidence
 - Exact-commit GitHub Actions runs are recorded in the repository's Actions page.

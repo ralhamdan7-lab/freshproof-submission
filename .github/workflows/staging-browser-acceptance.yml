@@ -80,7 +80,6 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           FRESH_PROOF_PUBLIC_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
-          EXPECTED_VERSION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main' || 'skip' }}
         shell: bash
         run: |
           EXPECTED_VERSION="$(node -p "require('./package.json').version")" node --input-type=module <<'NODE'

@@ -4,7 +4,8 @@
 This document describes only the public submission candidate in this repository. Private development infrastructure, account identifiers, internal CI links, and private deployment endpoints are intentionally excluded.
 
 ## Release candidate
-- Version: 0.2.76
+- Current deployed baseline: 0.2.76
+- Proposed candidate: 0.2.77
 - Runtime: Cloudflare Worker with static browser assets
 - Evidence retrieval: Tavily, server-side only
 - Optional semantic triage: Cloudflare Workers AI; advisory and fail-closed
@@ -28,6 +29,7 @@ This document describes only the public submission candidate in this repository.
 5. Secret and private-resource scan passes.
 6. Independent public demo deployment health check passes.
 7. Bounded live retrieval is tested only after the free provider quota and secret binding are verified.
+8. Cloudflare Workers Builds linkage is verified: merging to `main` automatically invokes `npx wrangler deploy` for the public demo Worker. Merge is therefore a public release action and must occur only after all live acceptance gates pass.
 
 ## Current limitations
 - No general accuracy metrics are claimed without an audited held-out evaluation.

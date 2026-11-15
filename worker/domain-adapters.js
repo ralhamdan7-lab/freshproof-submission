@@ -249,7 +249,7 @@ function parseNodeScheduleJson(content) {
 }
 
 function parseEnglishCalendarDate(value) {
-  const match = String(value || "").trim().match(/^([A-Z][a-z]{2,8})\\s+(\\d{1,2}),?\\s+(\\d{4})$/i);
+  const match = String(value || "").trim().match(/^([A-Z][a-z]{2,8})\s+(\d{1,2}),?\s+(\d{4})$/i);
   if (!match) return null;
   const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
   const month = months.indexOf(match[1].slice(0, 3).toLowerCase());
@@ -265,7 +265,7 @@ function parseEnglishCalendarDate(value) {
 function parseNodeReleaseRows(content) {
   const text = String(content || "");
   const rows = [];
-  const pattern = /\\|?\\s*v?(\\d+)(?:\\.x)?\\s*\\|\\s*([^|]*)\\|\\s*([A-Z][a-z]{2,8}\\s+\\d{1,2},?\\s+\\d{4})\\s*\\|\\s*([A-Z][a-z]{2,8}\\s+\\d{1,2},?\\s+\\d{4})\\s*\\|\\s*(LTS|EOL|Current|Alpha)\\b/gi;
+  const pattern = /\|?\s*v?(\d+)(?:\.x)?\s*\|\s*([^|]*)\|\s*([A-Z][a-z]{2,8}\s+\d{1,2},?\s+\d{4})\s*\|\s*([A-Z][a-z]{2,8}\s+\d{1,2},?\s+\d{4})\s*\|\s*(LTS|EOL|Current|Alpha)\b/gi;
   for (const match of text.matchAll(pattern)) {
     const firstReleased = parseEnglishCalendarDate(match[3]);
     const lastUpdated = parseEnglishCalendarDate(match[4]);

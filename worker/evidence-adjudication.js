@@ -248,6 +248,21 @@ export function adjudicateEvidence({
       }
     };
   }
+  // A lexical LOCAL_RULES fallback is not a semantic relation assessment.
+  // Never let co-occurring entity/year/action tokens produce a decisive verdict.
+  if (semanticAssessment?.provider === "LOCAL_RULES") {
+    return {
+      status: "NEEDS_REVIEW",
+      method: "SEMANTIC_PROVIDER_UNAVAILABLE",
+      rationale: "The semantic provider was unavailable; local lexical anchors are non-decisive review leads and cannot establish entailment.",
+      evidence: [],
+      adjudication_signals: {
+        semantic_assessment_status: semanticAssessment?.status || "LOCAL_RULES",
+        semantic_provider: "LOCAL_RULES",
+        review_reason: "MODEL_UNAVAILABLE"
+      }
+    };
+  }
   if (!Array.isArray(sources) || sources.length === 0) {
     const attempted = Number.isFinite(retrievalCount) && retrievalCount > 0;
     return {

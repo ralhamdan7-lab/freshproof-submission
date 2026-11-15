@@ -1256,3 +1256,24 @@ test("social, marketplace, and search-provider pages are excluded from factual e
   assert.equal(isLowSignalSourceHost("https://www.britannica.com/science/water"), false);
 });
 
+
+test("LOCAL_RULES outage fallback can never produce a decisive generic verdict", () => {
+  const result = adjudicateEvidence({
+    claim: "Apollo 13 landed on the Moon in 1970.",
+    sources: [
+      { url: "https://www.nasa.gov/example", title: "Apollo 13", snippet: "The landing was aborted." },
+      { url: "https://www.si.edu/example", title: "Apollo 13", snippet: "The landing was cancelled." }
+    ],
+    semanticAssessment: {
+      status: "COMPLETED_ADVISORY",
+      provider: "LOCAL_RULES",
+      assessments: [
+        { source_index: 0, relation: "SUPPORTS" },
+        { source_index: 1, relation: "SUPPORTS" }
+      ]
+    }
+  });
+  assert.equal(result.status, "NEEDS_REVIEW");
+  assert.equal(result.method, "SEMANTIC_PROVIDER_UNAVAILABLE");
+  assert.equal(result.adjudication_signals.review_reason, "MODEL_UNAVAILABLE");
+});

@@ -32,3 +32,31 @@ test("comparison styles keep original, validated correction, and unresolved stat
   assert.match(css, /\.comparison-correct/);
   assert.match(css, /\.comparison-unresolved/);
 });
+
+test("the first screen prioritizes a plain-language verdict while keeping diagnostics collapsed", () => {
+  assert.match(app, /const auditDetails = node\("details", "audit-details"\)/);
+  assert.match(app, /Evidence, sources & audit details/);
+  assert.match(app, /auditDetails\.append\(evidence\)/);
+  assert.match(app, /auditDetails\.append\(semanticBox\)/);
+  assert.match(css, /\.claim > \.metric-row/);
+  assert.match(css, /\.audit-details\[open\]/);
+});
+
+test("contradicted office-holder claims surface the current holder when the adapter provides it", () => {
+  assert.match(app, /Officially reported current office holder:/);
+  assert.match(app, /reported_current_holder/);
+});
+
+test("Arabic status labels avoid presenting evidence conflict as absolute certainty", () => {
+  assert.match(app, /CURRENT: "مدعوم كما ورد"/);
+  assert.match(app, /لا يعني ذلك أن الحدث حديث أو مستمر/);
+  assert.match(app, /CONTRADICTED: "يتعارض مع الأدلة"/);
+});
+
+test("failed semantic triage exposes bounded HTTP diagnostics without provider identity", () => {
+  assert.match(app, /semantic\.status === "FAILED_CLOSED" && semantic\.failure_details/);
+  assert.match(app, /PROVIDER DIAGNOSTIC/);
+  assert.match(app, /failure\.http_status/);
+  assert.match(app, /failure\.safe_message/);
+  assert.match(app, /replace\(\/\^Groq/);
+});

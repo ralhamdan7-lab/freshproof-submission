@@ -1,16 +1,20 @@
-name: FreshProof Staging Browser Acceptance
+name: FreshProof Public Demo Browser Acceptance
 
 on:
   push:
-    branches: [main]
+    branches: [main, release/public-0.2.76-sanitized]
     paths:
       - 'src/**'
+      - 'worker/**'
+      - 'wrangler.toml'
       - 'scripts/staging-browser-smoke.mjs'
       - '.github/workflows/staging-browser-acceptance.yml'
   pull_request:
     branches: [main]
     paths:
       - 'src/**'
+      - 'worker/**'
+      - 'wrangler.toml'
       - 'scripts/staging-browser-smoke.mjs'
       - '.github/workflows/staging-browser-acceptance.yml'
   workflow_dispatch:
@@ -29,11 +33,27 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Install browser test dependency
+      - name: Install dependencies
+        run: npm install --no-package-lock
+      - name: Install Playwright
         run: npm install --no-save --no-package-lock playwright
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Test live Staging UI with deterministic API fixture
+      - name: Serve isolated static UI for deterministic browser test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8787 --bind 127.0.0.1 --directory src > /tmp/freshproof-http.log 2>&1 &
+          echo $! > /tmp/freshproof-http.pid
+          for attempt in $(seq 1 15); do
+            if curl --fail --silent http://127.0.0.1:8787/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/freshproof-http.log
+          exit 1
+      - name: Test isolated Worker UI with deterministic API fixture
         env:
-          FRESH_PROOF_BASE_URL: https://freshproof-staging.ralhamdan7.workers.dev
+          FRESH_PROOF_BASE_URL: http://127.0.0.1:8787
         run: node scripts/staging-browser-smoke.mjs

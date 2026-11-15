@@ -32,14 +32,14 @@ function node(tag, className, text) {
 }
 function render(data) {
   const statusLabel = (status, arabic) => arabic ? ({
-    CURRENT: "صحيح وفق الأدلة",
+    CURRENT: "مدعوم كما ورد",
     SUPERSEDED: "معلومة قديمة",
-    CONTRADICTED: "غير صحيح وفق الأدلة",
+    CONTRADICTED: "يتعارض مع الأدلة",
     UNVERIFIABLE: "تعذر التحقق",
     NEEDS_REVIEW: "يحتاج إلى مراجعة",
     NOT_TIME_SENSITIVE: "غير حساس زمنياً — ليس حكماً على الصحة"
   }[status] || status.replaceAll("_", " ")) : ({
-    CURRENT: "SUPPORTED BY EVIDENCE",
+    CURRENT: "SUPPORTED AS STATED",
     SUPERSEDED: "OUTDATED",
     CONTRADICTED: "CONTRADICTED BY EVIDENCE",
     UNVERIFIABLE: "UNVERIFIABLE",
@@ -52,10 +52,12 @@ function render(data) {
   list.replaceChildren();
   const counts = data.claims.reduce((acc, claim) => (acc[claim.status] = (acc[claim.status] || 0) + 1, acc), {});
   const providedCorrections = data.claims.filter(claim => claim.correction?.status === "PROVIDED").length;
-  const arabicReport = data.claims[0] ? detectTextDirection(data.claims[0].text).lang === "ar" : false;
-  summary.textContent = arabicReport
-    ? `${data.claims.length} ادعاءات · ${counts.CURRENT || 0} مدعوم · ${counts.CONTRADICTED || 0} متعارض · ${counts.SUPERSEDED || 0} قديم · ${counts.NEEDS_REVIEW || 0} للمراجعة · ${counts.UNVERIFIABLE || 0} تعذر التحقق · ${providedCorrections} تصحيح معتمد`
-    : `${data.claims.length} CLAIMS · ${counts.CURRENT || 0} SUPPORTED · ${counts.CONTRADICTED || 0} CONTRADICTED · ${counts.SUPERSEDED || 0} OUTDATED · ${counts.NEEDS_REVIEW || 0} REVIEW · ${counts.UNVERIFIABLE || 0} UNVERIFIABLE · ${providedCorrections} CORRECTIONS PROVIDED`;
+  const extractionNote = data.extraction?.is_truncated
+    ? " · PARTIAL REVIEW: FIRST " + data.extraction.processed_count + " OF " + data.extraction.detected_count + " CLAIMS PROCESSED; " + data.extraction.truncated_count + " NOT REVIEWED"
+    : "";
+  // Keep the judge-facing report language English regardless of claim language.
+  // Individual claim text and evidence retain their detected RTL/LTR direction.
+  summary.textContent = data.claims.length + " CLAIMS · " + (counts.CURRENT || 0) + " SUPPORTED · " + (counts.CONTRADICTED || 0) + " CONTRADICTED · " + (counts.SUPERSEDED || 0) + " OUTDATED · " + (counts.NEEDS_REVIEW || 0) + " REVIEW · " + (counts.UNVERIFIABLE || 0) + " UNVERIFIABLE · " + providedCorrections + " CORRECTIONS PROVIDED" + extractionNote;
   data.claims.forEach((claim, index) => {
     const { lang, dir } = detectTextDirection(claim.text);
     const arabic = lang === "ar";
@@ -65,6 +67,9 @@ function render(data) {
     top.append(node("span", "meta", arabic ? `الادعاء ${String(index + 1).padStart(2, "0")}` : `CLAIM ${String(index + 1).padStart(2, "0")}`), node("span", `status ${statusTone(claim.status)}`, statusLabel(claim.status, arabic)));
     const claimText = node("p", "claim-text", claim.text); claimText.dir = dir; claimText.lang = lang;
     card.append(top, claimText);
+    const auditDetails = node("details", "audit-details");
+    const auditSummary = node("summary", "audit-summary", arabic ? "تفاصيل الأدلة والمصادر وسجل التدقيق" : "Evidence, sources & audit details");
+    auditDetails.append(auditSummary);
     if (claim.resolved_context?.entity) {
       const contextLine = node("div", "meta", arabic ? `الكيان المحدد · ${claim.resolved_context.entity} · تم الحفاظ على نص الادعاء الأصلي` : `RESOLVED ENTITY CONTEXT · ${claim.resolved_context.entity} · ORIGINAL CLAIM PRESERVED`); contextLine.dir = dir; contextLine.lang = lang; card.append(contextLine);
     }
@@ -79,6 +84,13 @@ function render(data) {
         : (temporal.status === "NOT_TIME_SENSITIVE" ? "TEMPORAL ASSESSMENT: NOT TIME-SENSITIVE · FACTUAL REVIEW STILL RUNS" : "TEMPORAL ASSESSMENT: TIME-SENSITIVE REVIEW");
       const temporalNode = node("div", "temporal-note", temporalText);
       temporalNode.dir = dir; temporalNode.lang = lang; card.append(temporalNode);
+    }
+    if (claim.status === "CURRENT") {
+      const meaning = arabic
+        ? "مدعوم كما ورد ضمن النطاق المتحقق؛ لا يعني ذلك أن الحدث حديث أو مستمر. تاريخ الحدث وحداثة النشر بُعدان منفصلان."
+        : "SUPPORTED AS STATED WITHIN THE REVIEWED SCOPE · This does not mean the event is recent or ongoing; event date and publication freshness are separate.";
+      const meaningNode = node("div", "temporal-note", meaning);
+      meaningNode.dir = dir; meaningNode.lang = lang; card.append(meaningNode);
     }
     const metrics = node("div", "metric-row");
     metrics.append(node("span", "metric", arabic ? `موثوقية الأدلة · ${{MULTI_SOURCE:"مصادر متعددة",MULTI_SOURCE_WITH_DATES:"مصادر متعددة مؤرخة",LIMITED:"محدودة",NONE:"لا توجد",NOT_ASSESSED:"لم تُقيّم"}[claim.evidence_confidence] || claim.evidence_confidence || "لم تُقيّم"}` : `EVIDENCE CONFIDENCE · ${claim.evidence_confidence || "NOT ASSESSED"}`));
@@ -111,7 +123,7 @@ function render(data) {
       (detail.limitations || []).forEach(item => {
         const note = node("p", "outcome-limitation", item); note.dir = dir; note.lang = lang; explainBox.append(note);
       });
-      card.append(explainBox);
+      auditDetails.append(explainBox);
     }
     // Plain-language comparison: preserve the exact submitted claim and never invent a replacement.
     {
@@ -126,7 +138,7 @@ function render(data) {
       original.dir = dir; original.lang = lang; comparison.append(original);
       const findingMap = arabic ? {
         CURRENT: "النتيجة: تدعم الأدلة هذا الادعاء ضمن النطاق والتاريخ الموضحين أدناه.",
-        CONTRADICTED: "النتيجة: الادعاء يتعارض مع الأدلة المؤهلة المرتبطة به.",
+        CONTRADICTED: "النتيجة: الادعاء يتعارض مع الأدلة المؤهلة المرتبطة به؛ راجع التصحيح والمصادر قبل اعتباره حقيقة محسومة.",
         SUPERSEDED: "النتيجة: المعلومة أصبحت قديمة وتجاوزها تغير موثق.",
         NEEDS_REVIEW: "النتيجة: الأدلة الحالية لا تكفي لإثبات صحة الادعاء أو نفيه.",
         UNVERIFIABLE: "النتيجة: لم تتوفر أدلة قابلة للاستخدام للتحقق من الادعاء.",
@@ -146,6 +158,7 @@ function render(data) {
       let correctText = "";
       if (correction.status === "PROVIDED" && typeof correction.text === "string" && correction.text.trim()) correctText = correction.text;
       else if (claim.status === "CURRENT") correctText = arabic ? "المعلومة الواردة في الادعاء أعلاه مدعومة بالأدلة ضمن النطاق المتحقق؛ لا يلزم استبدالها." : "The original statement above is supported within the reviewed scope; no replacement is needed.";
+      else if ((claim.status === "CONTRADICTED" || claim.status === "SUPERSEDED") && (claim.officeholder_evidence || claim.domain_evidence)?.reported_current_holder) { const holderEvidence = claim.officeholder_evidence || claim.domain_evidence; const officeLabel = String(holderEvidence.office || "office").replaceAll("_", " "); correctText = arabic ? `المعلومة البديلة التي يذكرها المصدر الرسمي: ${holderEvidence.reported_current_holder} هو شاغل منصب ${officeLabel}.` : `Officially reported current office holder: ${holderEvidence.reported_current_holder} (${officeLabel}).`; }
       else if (claim.status === "CONTRADICTED" || claim.status === "SUPERSEDED") correctText = arabic ? "لم يعتمد المحرك حتى الآن صياغة بديلة مستوفية لشروط الإثبات المستقل وتطابق النطاق والزمن. لذلك لن يخمّن المعلومة الصحيحة. راجع الأدلة الأصلية أدناه." : "No replacement has yet passed the independent-evidence, scope, and timeframe checks. FreshProof will not guess the correct statement. Review the original sources below.";
       else if (claim.status === "NEEDS_REVIEW") correctText = arabic ? "لا يمكن الجزم بالمعلومة الصحيحة حالياً؛ توجد أدلة لكنها غير كافية أو تحتاج إلى حسم التعارض." : "The correct statement cannot yet be established; evidence is incomplete or conflicting.";
       else if (claim.status === "UNVERIFIABLE") correctText = arabic ? "لا يمكن تحديد المعلومة الصحيحة لعدم توفر أدلة قابلة للاستخدام." : "The correct statement cannot be determined because no usable evidence was obtained.";
@@ -190,7 +203,7 @@ function render(data) {
       (correction.limitations || []).forEach(item => {
         const note = node("p", "outcome-limitation", item); note.dir = dir; note.lang = lang; correctionBox.append(note);
       });
-      card.append(correctionBox);
+      auditDetails.append(correctionBox);
     }
     if (claim.domain_evidence || claim.officeholder_evidence) {
       const domainEvidence = claim.domain_evidence || claim.officeholder_evidence;
@@ -223,7 +236,7 @@ function render(data) {
         verdict.append(facts);
       }
       const domainNote = node("p", "alignment-note", arabic ? (domainEvidence.method === "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE" ? "تنص صفحة Python.org الرسمية على أن Python 2 انتهى دعمه في 1 يناير 2020. تاريخ نشر الصفحة غير متاح؛ وسُجل وقت الاسترجاع بصورة مستقلة." : domainEvidence.method === "FIRST_PARTY_OFFICIAL_WEBSITE_LINK" ? "يربط الموقع الرسمي للبيت الأبيض مباشرةً بحساب X هذا. يثبت ذلك الارتباط المؤسسي، ولا يثبت صحة كل منشور أو الحالة الأمنية للحساب." : domainEvidence.limitation || "دليل متخصص؛ راجع المصدر الأصلي وحدود الاستدلال.") : domainEvidence.limitation || "Domain-specific evidence; inspect the original sources and limitations."); domainNote.dir = arabic ? "rtl" : "ltr"; domainNote.lang = lang; verdict.append(domainNote);
-      card.append(verdict);
+      auditDetails.append(verdict);
     }
     (claim.sources || []).forEach(source => {
       const evidence = node("div", "evidence");
@@ -265,7 +278,7 @@ function render(data) {
         overlap.append(node("p", "alignment-note", "Lexical overlap only — this does not mean the source supports or contradicts the claim."));
         evidence.append(overlap);
       }
-      card.append(evidence);
+      auditDetails.append(evidence);
     });
     if (claim.excluded_sources?.length) {
       const excludedBox = node("div", "alignment"); excludedBox.dir = "ltr";
@@ -277,15 +290,28 @@ function render(data) {
         row.append(link, document.createTextNode(" · retained for audit, not treated as claim evidence"));
         excludedBox.append(row);
       });
-      card.append(excludedBox);
+      auditDetails.append(excludedBox);
     }
     const semantic = claim.semantic_assessment;
     if (semantic) {
       const semanticBox = node("div", "alignment"); semanticBox.dir = "ltr";
       semanticBox.append(node("div", "meta", `SEMANTIC TRIAGE · ${semantic.status.replaceAll("_", " ")}`));
       semantic.assessments?.forEach(item => semanticBox.append(node("p", "alignment-note", `SOURCE ${item.source_index + 1} · ${item.relation.replaceAll("_", " ")} — ${item.rationale}`)));
+      if (semantic.status === "FAILED_CLOSED" && semantic.failure_details) {
+        const failure = semantic.failure_details;
+        const detail = String(failure.safe_message || "")
+          .replace(/^Groq (?:model \S+ )?(?:returned|request rejected with) HTTP \d+\.?\s*:?\s*/i, "")
+          .replace(/https?:\/\/\S+/gi, "[URL]")
+          .slice(0, 140);
+        const diagnostics = [
+          failure.failure_code || semantic.failure_code || "UPSTREAM_FAILURE",
+          failure.http_status ? `HTTP ${failure.http_status}` : null,
+          detail || null
+        ].filter(Boolean).join(" · ");
+        semanticBox.append(node("p", "alignment-note", `PROVIDER DIAGNOSTIC · ${diagnostics}`));
+      }
       semanticBox.append(node("p", "alignment-note", semantic.limitation || "Advisory model output only; no final verdict."));
-      card.append(semanticBox);
+      auditDetails.append(semanticBox);
     }
     if (claim.cross_source_conflicts?.length) {
       const conflictBox = node("div", "alignment"); conflictBox.dir = "ltr";
@@ -294,7 +320,7 @@ function render(data) {
         const item = node("p", "alignment-note", `${conflict.signal.replaceAll("_", " ")} — ${conflict.warning}`);
         conflictBox.append(item);
       });
-      card.append(conflictBox);
+      auditDetails.append(conflictBox);
     }
     const retrievalIssues = (claim.retrieval_diagnostics || []).filter(item => !["RESULTS_FOUND", "HTTP_OK", "VALIDATED", "EVIDENCE_FOUND"].includes(item.status));
     if (retrievalIssues.length) {
@@ -302,9 +328,10 @@ function render(data) {
       retrievalBox.append(node("div", "meta", "RETRIEVAL DIAGNOSTICS · REVIEW"));
       retrievalIssues.forEach(item => retrievalBox.append(node("p", "alignment-note", `${item.provider || "EVIDENCE PROVIDER"} · ${item.stage || "DIRECT_EVIDENCE"} · ${item.status}${item.http_status ? ` · HTTP ${item.http_status}` : ""}`)));
       retrievalBox.append(node("p", "alignment-note", "Retrieval diagnostics explain evidence acquisition only; they are not evidence for or against the claim."));
-      card.append(retrievalBox);
+      auditDetails.append(retrievalBox);
     }
-    if (!claim.sources?.length) { const empty = node("div", "empty", arabic ? "لم يتم استرجاع أدلة قابلة للاستخدام لهذا الادعاء." : "No usable evidence was retrieved for this claim."); empty.dir = dir; empty.lang = lang; card.append(empty); }
+    if (!claim.sources?.length) { const empty = node("div", "empty", arabic ? "لم يتم استرجاع أدلة قابلة للاستخدام لهذا الادعاء." : "No usable evidence was retrieved for this claim."); empty.dir = dir; empty.lang = lang; auditDetails.append(empty); }
+    if (auditDetails.childElementCount > 1) card.append(auditDetails);
     list.append(card);
   });
   results.hidden = false;

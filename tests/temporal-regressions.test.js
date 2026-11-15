@@ -93,7 +93,7 @@ test("multi-claim verification keeps evidence isolated and temporal classificati
     assert.deepEqual(body.claims[1].sources.map(source => source.url), ["https://policy.example.gov/current"]);
     assert.ok(!body.claims[0].sources.some(source => source.url.includes("/current")));
     assert.ok(!body.claims[1].sources.some(source => source.url.includes("/water")));
-    assert.equal(queries.length, 2);
+    assert.ok(queries.length >= 2 && queries.length <= 5, "baseline retrieval and bounded diversity fallbacks must remain within the request-wide search budget without leaking evidence");
   } finally {
     globalThis.fetch = originalFetch;
   }

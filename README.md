@@ -51,20 +51,18 @@ The semantic model is advisory. It cannot independently establish a claim or ove
 
 ## Public prototype
 
-- **Public source snapshot:** `0.2.47`.
+- **Public release candidate:** `0.2.76` (sanitized from the private `0.2.75` engine; Groq provider integration and private configuration are excluded).
 - **Runtime:** Cloudflare Worker and static browser application.
 - **Evidence search:** Tavily; configure its API credential as a Worker secret.
 - **Optional semantic analysis:** Cloudflare Workers AI binding.
 - **No application database or user account system is required** for this prototype.
 
-The public repository is a standalone submission snapshot. It does not expose private development workflows, internal evaluation corpora, audit records, or private deployment configuration. The public snapshot's version is the version of this repository; no claim of source parity with a separate private development repository is made.
+The public repository is an independently configured release candidate. It contains the general-purpose claim extraction, temporal retrieval, evidence adjudication, and explanation improvements reviewed from the private development line. It intentionally excludes Groq integration, private configuration, internal evaluation corpora, and audit records. The public build uses its own Worker name, allowed origin, and deployment configuration.
 
 
-## Live demo (Staging)
+## Public demo deployment
 
-[Open the FreshProof demo](https://freshproof-staging.ralhamdan7.workers.dev/)
-
-This is a Staging preview, not a production service. Its health endpoint independently reported FreshProof `0.2.75` on 15 November 2026. The public source repository remains snapshot `0.2.47`; the demo is therefore not represented as running this repository's exact source commit. Evidence-search availability depends on free provider quota and is not guaranteed. Do not submit confidential or personal information.
+The isolated public demo is being prepared under the dedicated Worker name `freshproof-submission-demo`. It is not published as a working demo URL until deployment and health, browser, and API checks pass. The private development Staging Worker is not used as a substitute. Evidence-search availability will depend on the verified free provider quota. Do not submit confidential or personal information.
 
 ## Run locally
 

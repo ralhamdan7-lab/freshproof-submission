@@ -1,79 +1,37 @@
-# FreshProof — Submission Status
+# FreshProof — Public Submission Status
 
-Updated: 2026-11-12
+Updated: 2026-11-15
 
-## Public submission repository
-This sanitized submission repository contains the product source, regression tests, benchmark fixtures, and core technical documentation. The development repository remains private.
+## Public candidate
+- Repository: this public submission repository.
+- Candidate version: 0.2.76.
+- Release branch: `release/public-0.2.76-sanitized`.
+- Pull request: #3 (sanitized public release candidate).
 
-## Verified implementation snapshot
-- Staging runtime release: FreshProof v0.2.46. The sanitized application source and regression tests have been synchronized to v0.2.46 and merged to the public default branch. Changed files were checked against the private verified source; a targeted secret-pattern scan found no credential matches. The public repository did not produce an independently observed CI result for this merge.
-- Automated Node regression suite: 181 passed, 0 failed.
-- Worker, adjudication, domain-adapter, and browser syntax checks passed.
-- 32-case bilingual synthetic temporal diagnostic passed its expected classifications; this is a regression diagnostic, not a real-world accuracy estimate.
-- Evidence-confidence guard: confidence is not inferred from source count or publication dates alone; corroboration candidates require completed relation assessment and distinct qualified domains.
-- Staging deployment: successful through the dedicated Staging-only workflow. Live Staging acceptance workflow #43241870828 verified v0.2.46 on 2026-11-12; see the exact run link in the public README.
+## Implemented
+- Claim extraction and temporal assessment
+- Bounded evidence retrieval and source diversity
+- Evidence adjudication and conservative abstention
+- Explanation and evidence-gated correction
+- English/Arabic browser UI
+- Standalone embedded-asset fallback for an independent Worker deployment
+- Regression tests and synthetic temporal smoke benchmark
+- Public documentation sanitized to remove private operational history
+- Browser acceptance now targets an isolated local Worker and deterministic API fixture; it does not call private Staging or consume provider quota
 
-## Live Staging acceptance
-The latest successful live acceptance run checked:
-- Current US office-holder claim: CONTRADICTED with White House evidence.
-- Arabic Python 2.7 support claim: SUPERSEDED; correction tied to Python.org sunset page, with direct-fetch HTTP 403 and indexed first-party excerpt fallback explicitly disclosed.
-- Node.js v20 lifecycle: SUPERSEDED using official lifecycle evidence; no invented end-of-life date.
-- ChatGPT Plus pricing: NEEDS_REVIEW; official article retrieved without overclaiming a factual verdict.
-- Apollo 11 historical claim: NOT_TIME_SENSITIVE as a secondary temporal assessment, while factual verdict remains NEEDS_REVIEW and correction is withheld.
-- One three-claim request: three independent claim cards; Water and Apollo 11 remained NEEDS_REVIEW, Python 2.7 was SUPERSEDED. Each claim retained its own evidence and correction decision.
+## Verified on candidate commit
+- Node regression suite: **319 passed, 0 failed**.
+- Worker syntax, evidence-adjudication syntax, and domain-adapter syntax: passed.
+- Browser application syntax and temporal smoke benchmark are included in the same workflow and must remain green on the final head commit.
+- A repository code search for private Staging hostnames and Groq secret identifiers returned zero matches.
 
-These are bounded acceptance cases, not representative accuracy evaluation. No broad precision, recall, false-positive rate, citation correctness, latency, or cost-per-claim claims are made.
+## Remaining acceptance gates
+- Browser acceptance must pass on the final head commit.
+- Independent public Worker deployment and health/version verification remain pending.
+- The Cloudflare Git integration currently reports a disconnected Git account for Pages and Workers Builds, so Git-connected deployment could not be completed through the available integration.
+- A public Worker needs its own server-side Tavily secret. The private Worker secret cannot be read or copied; the public binding must be set independently before live evidence retrieval can be tested.
+- Live evidence search must be tested only after verifying the free provider quota.
+- Hackathon portal submission must be completed by the project owner; repository publication is not submission confirmation.
 
-## Presentation media prepared
-- A 10-slide editable pitch deck and matching 10-page PDF export have been generated.
-- A 2-minute-08-second, 1920x1080 narrated product walkthrough has been generated with the newly approved clear English Mario voice and English subtitles.
-- The walkthrough combines validated pitch visuals with five supplied product-interface test captures. It is a narrated walkthrough, not an uninterrupted live browser recording; the supplied UI captures are genuine screenshots, while staging deployment and automated acceptance were verified separately.
-- The video narration distinguishes engineering/regression evidence from real-world accuracy and does not claim broad precision or recall.
-- The complete media pack ZIP includes the pitch deck, PDF, updated MP4, English SRT, narration script, WAV source audio, and README. It is available as a downloadable file in the project workspace and must be uploaded/linked in the organizer submission form as its fields require.
-
-## Deployment boundary
-Only the isolated Staging Worker was deployed. Production remains unapproved and unchanged. This public repository is not configured for deployment to the private Staging environment.
-
-## Additional v0.2.46 verification
-- Live acceptance workflow [#43241870828](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43241870828) completed SUCCESS on commit `890dc81362ca05828c843e1d36825d39c0ed94f4`.
-- Staging explicitly enables advisory semantic relation analysis and evidence-gated correction-candidate review. The model cannot independently set the final verdict.
-- Live assertions passed for a current office-holder contradiction, Arabic Python 2 supersession/correction, Node lifecycle, pricing abstention, historical/stable claim abstention, and three-claim correction isolation.
-- Conservative `NEEDS_REVIEW` outcomes were retained when evidence was insufficient or conflicting.
-- **Source synchronization:** the public default branch now contains the sanitized v0.2.46 source, package version, regression tests, and security/test documentation. A targeted secret-pattern scan found no credential matches; public-repository CI was not independently observed.
-
-## Remaining before final submission
-1. Confirm current official portal fields and required acknowledgements directly in the organizer portal.
-2. Confirm that the participant has joined the official hackathon Discord; this is listed as required by the event information.
-3. Synchronize the sanitized public implementation with the verified v0.2.46 source and rerun the public repository tests/security scan.
-4. Upload the public repository URL, working Staging demo URL, pitch deck, and walkthrough wherever the portal requests them.
-5. Submit through the organizer portal and retain its official receipt.
-
-No organizer submission is claimed by this status file.
-
-
-## Latest randomized QA — 2026-11-12
-
-- Automated Node regression suite: 200 passed, 0 failed; includes 1,950 seeded generated property iterations.
-- Live randomized Staging acceptance [#43248554981](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43248554981) passed seven randomized-order cases plus two smoke controls, within the existing request limit.
-- Covered Arabic/English Python 2 lifecycle corrections, person-first US office-holder contradiction, Node.js v20 lifecycle supersession, official pricing abstention, stable factual claims, and multi-claim isolation.
-- Browser acceptance [#43247308055](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43247308055) passed bilingual rendering, correction and source quote presentation, safe links, inert HTML-like input, mobile layout, keyboard submission, and live API integration.
-- No real-world precision/recall or production readiness is claimed. Production remains unchanged; organizer submission remains NOT SUBMITTED.
-
-
-
-## Public repository verification — 2026-11-12
-- Public CI [#43250280181](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280181): **200/200 tests passed**.
-- Public browser acceptance [#43250280219](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280219): **SUCCESS**.
-- Public live Staging acceptance [#43250280631](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43250280631): **SUCCESS**.
-- The public v0.2.46 Worker source, domain adapters, regression tests, randomized test script, and acceptance workflows were compared byte-for-byte with the private development repository after synchronization.
-
-
-## 2026-11-14 — latest private Staging verification and public-source boundary
-
-- Private development candidate **0.2.75** is deployed to the isolated Staging Worker and exact health verification passed. Cloudflare confirms Worker version 177, version ID `45e97bb1-9a54-4bc2-824e-8a9eec04c145`, deployment ID `83ef6446-8915-4e6f-9ff5-9417915a5066`, 100% traffic.
-- Private main CI [#43643448239](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448239): **334/334 tests passed**; syntax, temporal smoke, and v1/v2 corpus integrity checks passed.
-- Private Staging deployment [#43643448251](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643448251): **SUCCESS**; exact health response confirmed 0.2.75.
-- Browser acceptance [#43643497434](https://github.com/ralhamdan7-lab/freshproof/actions/runs/43643497434): **SUCCESS**, including real browser-to-Worker API integration, keyboard submission, bilingual RTL/LTR rendering, evidence/correction rendering, and mobile checks.
-- **Public source boundary:** this repository remains a sanitized **0.2.47** source snapshot. It has not been synchronized or independently tested against private v0.2.75. The private CI results above must not be represented as public-repository CI or public source parity.
-- **Not run on v0.2.75:** randomized 26-claim live acceptance and 54-case held-out live evaluation. The workflows require confirmed free Workers AI and Tavily quota availability; Tavily quota is not accessible through the connected account tools, so the live batches were not dispatched.
-- Production remains unchanged. This repository update does not submit the project to the organizer. The owner must complete the official portal and retain its receipt.
+## Status
+The source candidate has passed its 319-test regression suite. It is **not yet a verified deployed demo or fully accepted submission package**. Do not describe it as deployed or submitted until the remaining gates pass.

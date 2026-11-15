@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release/public-0.2.76-sanitized
       - feat/general-temporal-retrieval
       - fix/nodejs-ongoing-lts-support
   pull_request:

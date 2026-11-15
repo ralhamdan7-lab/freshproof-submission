@@ -32,3 +32,17 @@
 .comparison-finding{font-size:12px!important;line-height:1.65!important;color:#e0c9a4!important;margin:8px 0!important}
 .comparison-correct{padding:11px 13px;border-inline-start:3px solid var(--mint);background:#14251e;border-radius:5px;color:#e2f5eb!important;font-size:14px!important;font-weight:700;line-height:1.75!important;margin:6px 0!important;overflow-wrap:anywhere}
 .comparison-unresolved{padding:10px 12px;border-inline-start:3px solid var(--amber);background:#211f19;border-radius:5px;color:#f1dfb7!important;font-size:12px!important;line-height:1.7!important;margin:6px 0!important;overflow-wrap:anywhere}
+
+/* Keep the user-facing decision concise; detailed diagnostics stay available on demand. */
+.claim > .meta,.claim > .temporal-note,.claim > .metric-row,.claim > .explanation{display:none}
+.audit-details{margin-top:14px;border-top:1px solid var(--line);padding-top:11px}
+.audit-summary{cursor:pointer;color:var(--mint);font:11px/1.5 monospace;letter-spacing:.35px;list-style-position:inside}
+.audit-details[open] .audit-summary{margin-bottom:12px}
+.audit-details .evidence{display:block}
+.claim-comparison{margin-top:14px}
+.comparison-label{font:10px/1.5 monospace;letter-spacing:.6px;color:var(--muted);margin-top:12px}
+.comparison-original{font-weight:600}
+.comparison-finding{color:#e4e9ee}
+.comparison-correct{border-left:3px solid var(--mint);padding:10px 12px;background:#14231f;border-radius:0 8px 8px 0}
+.comparison-unresolved{border-left:3px solid var(--amber);padding:10px 12px;background:#242117;border-radius:0 8px 8px 0}
+@media(max-width:600px){.audit-summary{font-size:10px}.claim{padding:14px}}

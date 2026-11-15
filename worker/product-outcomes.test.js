@@ -174,6 +174,69 @@ test("Python correction can use the validated official indexed source when domai
   assert.match(correction.limitations[0], /page itself was not fetched/);
 });
 
+test("Python correction accepts validated first-party PEP 373 evidence and cites its exact canonical URL", () => {
+  const pepUrl = "https://peps.python.org/pep-0373/";
+  const pepEvidence = {
+    method: "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE",
+    event_date: "2020-01-01",
+    source: {
+      title: "PEP 373 — Python 2.7 Release Schedule",
+      url: pepUrl,
+      publication_date: null,
+      retrieved_at: "2026-11-14T20:30:00.000Z",
+      acquisition_method: "DIRECT_FIRST_PARTY_PEP"
+    },
+    limitation: "PEP 373 is a first-party Python Enhancement Proposal recording the Python 2.7 end-of-life date and official support stop."
+  };
+  const correction = buildCorrection({
+    claim: "Python 2.7 is still officially supported.",
+    status: "SUPERSEDED",
+    domainAdapter: "python2_lifecycle",
+    domainEvidence: pepEvidence,
+    explanationDetail: { evidence_basis: [{ url: pepUrl }] }
+  });
+  assert.equal(correction.status, "PROVIDED");
+  assert.match(correction.text, /Python 2 is no longer supported/);
+  assert.equal(correction.evidence_refs[0].url, pepUrl);
+  assert.equal(correction.evidence_refs[0].title, "PEP 373 — Python 2.7 Release Schedule");
+});
+
+test("Python correction can use a validated indexed PEP 373 source when adapter source metadata is absent", () => {
+  const pepUrl = "https://peps.python.org/pep-0373/";
+  const correction = buildCorrection({
+    claim: "Python 2.7 is still officially supported.",
+    status: "SUPERSEDED",
+    domainAdapter: "python2_lifecycle",
+    domainEvidence: { method: pythonEvidence.method, event_date: "2020-01-01", limitation: "First-party PEP 373 excerpt validated." },
+    sources: [{
+      title: "PEP 373 — Python 2.7 Release Schedule",
+      url: pepUrl,
+      evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
+      acquisition_method: "TAVILY_INDEXED_FIRST_PARTY_PAGE"
+    }],
+    explanationDetail: { evidence_basis: [{ url: pepUrl }] }
+  });
+  assert.equal(correction.status, "PROVIDED");
+  assert.equal(correction.evidence_refs[0].url, pepUrl);
+});
+
+test("Python lifecycle correction rejects noncanonical PEP hosts, paths, and credentials", () => {
+  for (const url of [
+    "https://peps.python.org.attacker.example/pep-0373/",
+    "https://peps.python.org/pep-0373/extra",
+    "https://user@peps.python.org/pep-0373/"
+  ]) {
+    const correction = buildCorrection({
+      claim: "Python 2.7 is still officially supported.",
+      status: "SUPERSEDED",
+      domainAdapter: "python2_lifecycle",
+      domainEvidence: { ...pythonEvidence, source: { ...pythonEvidence.source, url } },
+      explanationDetail: { evidence_basis: [{ url }] }
+    });
+    assert.equal(correction.status, "WITHHELD", url);
+  }
+});
+
 test("NOT_TIME_SENSITIVE correction limitation is localized for Arabic claims", () => {
   const correction = buildCorrection({ claim: "تدور الأرض حول الشمس.", status: "NOT_TIME_SENSITIVE" });
   assert.equal(correction.status, "NOT_APPLICABLE");
@@ -356,4 +419,17 @@ test("generic correction exposes the exact validated supporting quote beside eac
   assert.equal(correction.status, "PROVIDED");
   assert.equal(correction.evidence_refs[0].supporting_quote, genericCorrectionCandidate.evidence[0].supporting_quote);
   assert.equal(correction.evidence_refs[1].supporting_quote, genericCorrectionCandidate.evidence[1].supporting_quote);
+});
+
+
+test("explanation evidence references reject HTTP URLs even when the host is otherwise valid", () => {
+  const detail = buildExplanationDetail({
+    claim: "A claim that needs review",
+    status: "NEEDS_REVIEW",
+    sources: [
+      { title: "insecure", url: "http://example.org/fact", snippet: "not secure" },
+      { title: "secure", url: "https://example.org/fact", snippet: "secure review lead" }
+    ]
+  });
+  assert.deepEqual(detail.evidence_basis.map(item => item.url), ["https://example.org/fact"]);
 });

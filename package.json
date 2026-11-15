@@ -1,6 +1,6 @@
 {
   "name": "freshproof",
-  "version": "0.2.47",
+  "version": "0.2.76",
   "private": true,
   "scripts": {
     "dev": "wrangler dev",

@@ -20,7 +20,7 @@ test("Python 2 adapter accepts a validated official first-party indexed excerpt 
     fetch: async () => new Response("Forbidden", { status: 403 }),
     search: async (query, domains, options) => {
       searchCalls++;
-      assert.deepEqual(domains, ["python.org"]);
+      assert.deepEqual(domains, ["python.org", "peps.python.org", "docs.python.org"]);
       assert.equal(options.timeRange, null);
       return [{ title: "Sunsetting Python 2 | Python.org", url: PYTHON_URL, snippet: VALID_EXCERPT }];
     }
@@ -33,6 +33,33 @@ test("Python 2 adapter accepts a validated official first-party indexed excerpt 
   assert.equal(result.sources[0].event_date_candidate, "2020-01-01");
   assert.match(result.sources[0].acquisition_limitation, /page itself was not fetched/i);
   assert.equal(adapter.adjudicate(result.sources).status, "SUPERSEDED");
+});
+
+test("Python 2 adapter accepts exact official PEP and current documentation pages", async () => {
+  const adapter = pythonAdapter();
+  const officialCases = [
+    {
+      title: "PEP 373 – Python 2.7 Release Schedule",
+      url: "https://peps.python.org/pep-0373/",
+      snippet: "The End Of Life date (EOL, sunset date) for Python 2.7 has been moved to 2020. Support officially stopped January 1 2020."
+    },
+    {
+      title: "How to port Python 2 Code to Python 3",
+      url: "https://docs.python.org/3/howto/pyporting.html",
+      snippet: "Python 2 reached its official end-of-life at the start of 2020. No new bug reports, fixes, or changes will be made to Python 2; it is no longer supported."
+    }
+  ];
+  for (const candidate of officialCases) {
+    const result = await adapter.additionalEvidence({
+      fetch: async () => new Response("Forbidden", { status: 403 }),
+      search: async () => [candidate]
+    });
+    assert.equal(result.sources.length, 1, candidate.url);
+    assert.equal(result.sources[0].url, candidate.url);
+    assert.equal(result.sources[0].evidence_kind, "OFFICIAL_PYTHON2_SUNSET_NOTICE");
+    assert.equal(result.sources[0].event_date_candidate, "2020-01-01");
+    assert.equal(adapter.adjudicate(result.sources).status, "SUPERSEDED");
+  }
 });
 
 test("Python 2 adapter rejects lookalike hosts, unrelated paths, and incomplete indexed excerpts", async () => {

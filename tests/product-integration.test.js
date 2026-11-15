@@ -94,15 +94,16 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
   }
 }
 
-test("v0.2.47 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
-  assert.equal(VERSION, "0.2.47");
+test("v0.2.59 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
+  assert.equal(VERSION, "0.2.76");
 
   // Positive end-to-end path: deterministic retrieval + injected model fixture,
   // through Worker API, adjudication, explanation, correction, and response.
   const positive = await runApiScenario();
   assert.equal(positive.response.status, 200);
-  assert.equal(positive.body.version, "0.2.47");
+  assert.equal(positive.body.version, "0.2.76");
   assert.equal(positive.body.claims.length, 1);
+  assert.deepEqual(positive.body.extraction, { detected_count: 1, processed_count: 1, truncated_count: 0, is_truncated: false, maximum_processed_claims: 5 });
   const result = positive.body.claims[0];
   assert.equal(result.status, "CONTRADICTED");
   assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");
@@ -172,19 +173,62 @@ test("v0.2.47 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe ab
   assert.equal(lowRelevance.body.claims[0].correction.text, null);
 });
 
+test("claim-conditioned retrieval enriches the original query without replacing it or bypassing abstention", async () => {
+  const originalFetch = globalThis.fetch;
+  const claim = "Satya Nadella is the current Chief Executive Officer of Microsoft.";
+  const queries = [];
+  const searchDomainRequests = [];
+  globalThis.fetch = async (input, init = {}) => {
+    assert.equal(typeof input === "string" ? input : input.url, "https://api.tavily.com/search");
+    const body = JSON.parse(init.body);
+    queries.push(body.query);
+    searchDomainRequests.push(body.include_domains || []);
+    return new Response(JSON.stringify({ results: [] }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  };
+  try {
+    const response = await worker.fetch(new Request("https://freshproof.test/api/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://freshproof.test" },
+      body: JSON.stringify({ text: claim })
+    }), {
+      ALLOWED_ORIGIN: "https://freshproof.test",
+      TAVILY_API_KEY: "synthetic-test-key",
+      ENABLE_SEMANTIC_TRIAGE: "false"
+    });
+    const body = await response.json();
+    const result = body.claims[0];
+    assert.equal(response.status, 200);
+    assert.equal(queries[0], claim, "the exact original proposition must remain the baseline query");
+    assert.ok(queries.some(query => query !== claim && /official leadership page/.test(query)),
+      "a claim-conditioned official leadership query must be added when budget permits");
+    assert.ok(searchDomainRequests.some(domains => domains.includes("news.microsoft.com") || domains.includes("microsoft.com")),
+      "the additive query should target the known organization's first-party domain");
+    assert.ok(["NEEDS_REVIEW", "UNVERIFIABLE"].includes(result.status),
+      "empty retrieval must abstain; query enrichment cannot manufacture a verdict");
+    assert.equal(result.correction.status, "WITHHELD");
+    assert.ok(result.retrieval_diagnostics.some(item =>
+      item.stage === "CLAIM_CONDITIONED_SEARCH_ENRICHMENT" && item.status === "NO_RESULTS"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("frontend renders supporting excerpts as text, not executable HTML", async () => {
   const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert.match(app, /el\.textContent = text/);
   assert.match(app, /node\("blockquote", "outcome-quote", item\.supporting_quote\)/);
   assert.match(app, /link\.rel = "noopener noreferrer"/);
   assert.match(app, /correction\.evidence_refs/);
-  assert.match(app, /SUPPORTED BY EVIDENCE/);
+  assert.match(app, /SUPPORTED AS STATED/);
+  assert.match(app, /This does not mean the event is recent or ongoing/);
   assert.match(app, /NOT TIME-SENSITIVE · FACTUAL REVIEW STILL RUNS/);
   assert.match(app, /statusTone/);
 });
 
 
-test("v0.2.47 factual verification runs for non-time-sensitive claims", async () => {
+test("v0.2.59 factual verification runs for non-time-sensitive claims", async () => {
   const originalFetch = globalThis.fetch;
   const stableClaim = "Water is composed of hydrogen and oxygen.";
   const stableSources = [
@@ -212,7 +256,7 @@ test("v0.2.47 factual verification runs for non-time-sensitive claims", async ()
     const body = await response.json();
     const result = body.claims[0];
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.47");
+    assert.equal(body.version, "0.2.76");
     assert.equal(result.temporal_assessment.status, "NOT_TIME_SENSITIVE");
     assert.equal(result.status, "CURRENT");
     assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");
@@ -221,7 +265,7 @@ test("v0.2.47 factual verification runs for non-time-sensitive claims", async ()
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test("v0.2.47 non-time-sensitive claim still abstains when semantic assessment is disabled", async () => {
+test("v0.2.59 non-time-sensitive claim still abstains when semantic assessment is disabled", async () => {
   const originalFetch = globalThis.fetch;
   const stableClaim = "Water is composed of hydrogen and oxygen.";
   const stableSources = [
@@ -240,4 +284,103 @@ test("v0.2.47 non-time-sensitive claim still abstains when semantic assessment i
     assert.equal(result.correction.status, "WITHHELD");
     assert.equal(result.sources.length, 2);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+
+test("multi-claim requests spend only spare search budget to diversify independent publishers", async () => {
+  const originalFetch = globalThis.fetch;
+  const sourcesByDomain = {
+    "usgs.gov": {
+      title: "USGS — Water molecule",
+      url: "https://www.usgs.gov/water-science-school/science/water-molecule",
+      published_date: "2026-11-10",
+      score: 0.99,
+      content: "Water is composed of molecules with two hydrogen atoms and one oxygen atom, H2O."
+    },
+    "rsc.org": {
+      title: "Royal Society of Chemistry — Water",
+      url: "https://www.rsc.org/periodic-table/compound/7732/water",
+      published_date: "2026-11-09",
+      score: 0.98,
+      content: "Water has the chemical formula H2O: each molecule contains two hydrogen atoms and one oxygen atom."
+    },
+    "nasa.gov": {
+      title: "NASA — Apollo 11",
+      url: "https://www.nasa.gov/history/apollo-11-mission-overview/",
+      published_date: "2026-11-10",
+      score: 0.99,
+      content: "Apollo 11 landed the first humans on the Moon in July 1969."
+    },
+    "si.edu": {
+      title: "Smithsonian — Apollo 11",
+      url: "https://www.si.edu/spotlight/apollo-11",
+      published_date: "2026-11-09",
+      score: 0.98,
+      content: "The Apollo 11 mission landed astronauts on the Moon in 1969."
+    }
+  };
+  let searchCalls = 0;
+  let aiCalls = 0;
+  const ai = {
+    async run(_model, input) {
+      aiCalls++;
+      const user = input?.messages?.find(message => message.role === "user")?.content || "";
+      const payload = JSON.parse(user);
+      return { response: JSON.stringify({
+        assessments: (payload.sources || []).map((source, source_index) => ({
+          source_index,
+          relation: "SUPPORTS",
+          rationale: "Controlled independent-publisher fixture."
+        }))
+      }) };
+    }
+  };
+  globalThis.fetch = async (input, init = {}) => {
+    const url = typeof input === "string" ? input : input.url;
+    assert.equal(url, "https://api.tavily.com/search");
+    assert.equal(init.method, "POST");
+    const request = JSON.parse(init.body);
+    const domains = request.include_domains || [];
+    let results;
+    if (domains.length) {
+      const source = sourcesByDomain[domains[0]];
+      results = source ? [source] : [];
+    } else if (/water|hydrogen|oxygen/i.test(request.query)) {
+      results = [sourcesByDomain["usgs.gov"], sourcesByDomain["rsc.org"]];
+    } else if (/apollo|moon/i.test(request.query)) {
+      results = [sourcesByDomain["nasa.gov"], sourcesByDomain["si.edu"]];
+    } else {
+      results = [];
+    }
+    searchCalls++;
+    return new Response(JSON.stringify({ results }), {
+      status: 200, headers: { "content-type": "application/json" }
+    });
+  };
+  try {
+    const response = await worker.fetch(new Request("https://freshproof.test/api/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://freshproof.test" },
+      body: JSON.stringify({ text: "Water is composed of hydrogen and oxygen.\nApollo 11 landed on the Moon in 1969." })
+    }), {
+      ALLOWED_ORIGIN: "https://freshproof.test",
+      TAVILY_API_KEY: "synthetic-test-key",
+      ENABLE_SEMANTIC_TRIAGE: "true",
+      AI: ai
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.version, "0.2.76");
+    assert.equal(body.claims.length, 2);
+    assert.ok(searchCalls >= 2 && searchCalls <= 5, "baseline retrieval plus bounded diversity fallback must stay within the request-wide search budget");
+    assert.equal(searchCalls <= 5, true, "the request-wide search budget must not be exceeded");
+    assert.equal(aiCalls, 2);
+    for (const result of body.claims) {
+      assert.equal(result.status, "CURRENT");
+      assert.equal(result.sources.length, 2);
+      assert.equal(result.adjudication.adjudication_signals.independent_supporting_domains, 2);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

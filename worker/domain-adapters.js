@@ -264,10 +264,11 @@ function parseNodeReleaseRows(content) {
 export function assessNodeReleaseLifecycle(claim, sources, now = Date.now()) {
   const text = String(claim || "");
   const wantsLts = /\b(?:LTS|long[ -]term support)\b/i.test(text);
+  const wantsReleaseSupport = /\b(?:supported|maintained|active)\s+release\s+line\b/i.test(text);
   const wantsLatestTrack = /\b(?:current|latest|newest)\b/i.test(text);
-  const assertsOngoingSupport = wantsLts && /(?:\b(?:remains?|remain|still)\s+(?:actively\s+)?(?:supported|maintained|active)\b|\b(?:is|are)\s+(?:(?:currently|still)\s+)?(?:an?\s+)?(?:actively\s+)?(?:supported|maintained|active)\b)/i.test(text);
+  const assertsOngoingSupport = (wantsLts || wantsReleaseSupport) && /(?:\b(?:remains?|remain|still)\s+(?:actively\s+)?(?:supported|maintained|active)\b|\b(?:is|are)\s+(?:(?:currently|still)\s+)?(?:an?\s+)?(?:actively\s+)?(?:supported|maintained|active)\b)/i.test(text);
   const claimedMajorMatch = text.match(/\bNode\.?js\s+v?(\d+)(?:\.x|(?:\.\d+){0,2})?/i);
-  if (!wantsLts || (!wantsLatestTrack && !assertsOngoingSupport) || !claimedMajorMatch) return { status: null, evidence: null };
+  if ((!wantsLts && !wantsReleaseSupport) || (!wantsLatestTrack && !assertsOngoingSupport) || !claimedMajorMatch) return { status: null, evidence: null };
   const claimedMajor = Number(claimedMajorMatch[1]);
   const candidates = [];
   for (const source of sources || []) {
@@ -348,6 +349,7 @@ export function assessNodeReleaseLifecycle(claim, sources, now = Date.now()) {
 
 
 const PYTHON_SUNSET_URL = "https://www.python.org/doc/sunset-python-2/";
+const PYTHON_PEP373_URL = "https://peps.python.org/pep-0373/";
 function extractVisibleHtmlText(html) {
   return String(html || "")
     .replace(/<(script|style|noscript|svg)[^>]*>[\s\S]*?<\/\1>/gi, " ")
@@ -367,28 +369,87 @@ function validatesPython2SunsetText(value) {
     || /no new bug reports, fixes, or changes will be made to Python 2/i.test(text);
   return hasSunsetDate && hasNoSupportStatement;
 }
+function validatesPython2OfficialExcerpt(url, value) {
+  const text = String(value || "");
+  const host = safeHost(url);
+  let path = "";
+  try { path = new URL(url).pathname.toLowerCase(); } catch { return false; }
+  if (host === "python.org" && path.startsWith("/doc/sunset-python-2")) {
+    return validatesPython2SunsetText(text);
+  }
+  if (host === "peps.python.org" && path === "/pep-0373/") {
+    return /python\s*2\.7/i.test(text)
+      && /end of life date|eol date/i.test(text)
+      && /2020/i.test(text)
+      && /support officially stopped/i.test(text);
+  }
+  if (host === "docs.python.org" && path === "/3/howto/pyporting.html") {
+    return /python\s*2 reached its official end.of.life/i.test(text)
+      && /2020/i.test(text)
+      && /no longer supported/i.test(text);
+  }
+  return false;
+}
+function isValidatedPython2OfficialEvidence(source) {
+  return source?.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE"
+    && validatesPython2OfficialExcerpt(source.url, source.content || source.snippet || "");
+}
 export async function fetchPython2SunsetEvidenceDetailed(fetchImpl = fetch, now = Date.now()) {
-  const fetched = await fetchOfficialHtml(fetchImpl, PYTHON_SUNSET_URL, "python.org", 500000);
-  if (!fetched.ok) return { sources: [], diagnostics: [{ provider: "PYTHON_ORG", ...fetched.diagnostic }] };
-  if (!new URL(fetched.finalUrl).pathname.toLowerCase().startsWith("/doc/sunset-python-2")) {
-    return { sources: [], diagnostics: [{ provider: "PYTHON_ORG", status: "PATH_REJECTED" }] };
-  }
-  const text = extractVisibleHtmlText(fetched.html);
-  if (!validatesPython2SunsetText(text)) {
-    return { sources: [], diagnostics: [{ provider: "PYTHON_ORG", status: "CONTENT_NOT_VALIDATED" }] };
-  }
+  const diagnostics = [];
   const retrievedAt = new Date(now).toISOString();
-  return {
-    sources: [{
-      title: "Sunsetting Python 2 | Python.org", url: fetched.finalUrl,
-      snippet: text.slice(0, 1800), content: text, published_date: null,
-      retrieved_at: retrievedAt, source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
-      evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
-      event_date_candidate: "2020-01-01", event_date_basis: "OFFICIAL_SUNSET_STATEMENT",
-      publication_date_semantics: "NOT_PROVIDED"
-    }],
-    diagnostics: [{ provider: "PYTHON_ORG", status: "VALIDATED", evidence_count: 1 }]
-  };
+  const pythonOrg = await fetchOfficialHtml(fetchImpl, PYTHON_SUNSET_URL, "python.org", 500000);
+  if (pythonOrg.ok) {
+    if (!new URL(pythonOrg.finalUrl).pathname.toLowerCase().startsWith("/doc/sunset-python-2")) {
+      diagnostics.push({ provider: "PYTHON_ORG", status: "PATH_REJECTED" });
+    } else {
+      const text = extractVisibleHtmlText(pythonOrg.html);
+      if (validatesPython2SunsetText(text)) {
+        return {
+          sources: [{
+            title: "Sunsetting Python 2 | Python.org", url: pythonOrg.finalUrl,
+            snippet: text.slice(0, 1800), content: text, published_date: null,
+            retrieved_at: retrievedAt, source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
+            evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
+            event_date_candidate: "2020-01-01", event_date_basis: "OFFICIAL_SUNSET_STATEMENT",
+            publication_date_semantics: "NOT_PROVIDED"
+          }],
+          diagnostics: [{ provider: "PYTHON_ORG", status: "VALIDATED", evidence_count: 1 }]
+        };
+      }
+      diagnostics.push({ provider: "PYTHON_ORG", status: "CONTENT_NOT_VALIDATED" });
+    }
+  } else {
+    diagnostics.push({ provider: "PYTHON_ORG", ...pythonOrg.diagnostic });
+  }
+
+  // Python.org may deny edge fetches. PEP 373 is a separate first-party
+  // Python Enhancement Proposal that records the Python 2.7 EOL date and
+  // explicitly states when support officially stopped. Fetch and validate
+  // its exact host/path/content before using it as lifecycle evidence.
+  const pep = await fetchOfficialHtml(fetchImpl, PYTHON_PEP373_URL, "peps.python.org", 500000);
+  if (pep.ok) {
+    let path = "";
+    try { path = new URL(pep.finalUrl).pathname.toLowerCase(); } catch { /* rejected below */ }
+    const text = extractVisibleHtmlText(pep.html);
+    if (path === "/pep-0373/" && validatesPython2OfficialExcerpt(pep.finalUrl, text)) {
+      return {
+        sources: [{
+          title: "PEP 373 — Python 2.7 Release Schedule", url: pep.finalUrl,
+          snippet: text.slice(0, 1800), content: text, published_date: null,
+          retrieved_at: retrievedAt, source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN",
+          evidence_kind: "OFFICIAL_PYTHON2_SUNSET_NOTICE",
+          event_date_candidate: "2020-01-01", event_date_basis: "PEP_373_END_OF_LIFE_DATE",
+          publication_date_semantics: "NOT_PROVIDED",
+          acquisition_method: "DIRECT_FIRST_PARTY_PEP"
+        }],
+        diagnostics: [...diagnostics, { provider: "PYTHON_PEP_0373", status: "VALIDATED", evidence_count: 1 }]
+      };
+    }
+    diagnostics.push({ provider: "PYTHON_PEP_0373", status: path === "/pep-0373/" ? "CONTENT_NOT_VALIDATED" : "PATH_REJECTED" });
+  } else {
+    diagnostics.push({ provider: "PYTHON_PEP_0373", ...pep.diagnostic });
+  }
+  return { sources: [], diagnostics };
 }
 export async function fetchPython2SunsetEvidence(fetchImpl = fetch, now = Date.now()) {
   return (await fetchPython2SunsetEvidenceDetailed(fetchImpl, now)).sources;
@@ -401,6 +462,20 @@ function isPython2EndOfLifeClaim(claim) {
   // Keep Arabic matching explicit so historical mentions of Python 2.7 alone do not activate the lifecycle adapter.
   const arabicSupportSignal = /(?:لا\s*يزال|لا\s*زالت|ما\s*زال|ما\s*زالت|مدعوم(?:اً|ا|ة)?|مدعومة|الدعم|انتهى\s+الدعم|لم\s+يعد\s+مدعوم|غير\s+مدعوم)/i.test(value);
   return namesPython2 && (englishSupportSignal || arabicSupportSignal);
+}
+function classifyPython2SupportClaim(claim) {
+  const value = String(claim || "");
+  const ongoingEnglish = /\b(?:(?:still|currently|officially|actively)\s+){1,2}(?:being\s+)?supported\b/i.test(value)
+    || /\b(?:is|are|remains?|remain)\s+(?:(?:still|currently|officially|actively)\s+){0,2}(?:an?\s+)?(?:supported|maintained|active)\b/i.test(value);
+  const endedEnglish = /\b(?:support|support\s+for\s+python\s*2(?:\.7)?)\s+(?:has\s+)?ended\b/i.test(value)
+    || /\bpython\s*2(?:\.7)?\s+(?:is\s+)?(?:no\s+longer\s+supported|not\s+supported|unsupported|has\s+reached\s+(?:its\s+)?end\s+of\s+life|reached\s+(?:its\s+)?end\s+of\s+life|was\s+sunset(?:ted)?|was\s+discontinued)\b/i.test(value)
+    || /\b(?:end\s+of\s+life|eol|sunset)\b.{0,50}\bpython\s*2(?:\.7)?\b/i.test(value);
+  const ongoingArabic = /(?:لا\s*يزال|لا\s*زالت|ما\s*زال|ما\s*زالت).{0,40}(?:مدعوم|مدعومة)|(?:مدعوم|مدعومة).{0,30}(?:حتى\s+الآن|حالياً|حاليا)/i.test(value);
+  const endedArabic = /(?:انتهى\s+(?:دعم|الدعم)|لم\s+يعد\s+(?:مدعوماً|مدعوم|مدعومة)|غير\s+مدعوم|توقف\s+(?:دعم|الدعم)|خرج\s+من\s+الدعم)/i.test(value);
+  const ongoing = ongoingEnglish || ongoingArabic;
+  const ended = endedEnglish || endedArabic;
+  if (ongoing === ended) return "AMBIGUOUS";
+  return ongoing ? "ONGOING_SUPPORT" : "SUPPORT_ENDED";
 }
 const WHITE_HOUSE_SOCIAL_URL = "https://www.whitehouse.gov/";
 export async function fetchWhiteHouseXIdentityEvidenceDetailed(fetchImpl = fetch, now = Date.now()) {
@@ -445,19 +520,13 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
           // first-party sunset page and a snippet that contains the event date
           // and explicit end-of-support wording.
           const fallbackResults = await search(
-            'site:python.org/doc/sunset-python-2 "January 1, 2020" "Python 2 is no longer supported"',
-            ["python.org"],
+            '"Python 2.7" official end of life support ended January 1 2020',
+            ["python.org", "peps.python.org", "docs.python.org"],
             { timeRange: null }
           );
-          const candidate = fallbackResults.find(source => {
-            const url = String(source.url || "");
-            try {
-              const parsed = new URL(url);
-              return safeHost(url) === "python.org"
-                && parsed.pathname.toLowerCase().startsWith("/doc/sunset-python-2")
-                && validatesPython2SunsetText(source.snippet || source.content || "");
-            } catch { return false; }
-          });
+          const candidate = fallbackResults.find(source =>
+            validatesPython2OfficialExcerpt(source.url, source.snippet || source.content || "")
+          );
           if (!candidate) return {
             sources: [],
             diagnostics: [...(direct.diagnostics || []), {
@@ -493,13 +562,20 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
           };
         },
         strictSourceEligibility: true,
-        rankSource: source => source.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE" && safeHost(source.url) === "python.org"
-          ? { relevance: "HIGH", matched_terms: ["python 2", "end of life", "january 1 2020"], unmatched_terms: [], matched_term_count: 3, claim_term_count: 3, lexical_coverage: null, method: "OFFICIAL_PYTHON_ORG_EOL_NOTICE" }
+        rankSource: source => isValidatedPython2OfficialEvidence(source)
+          ? { relevance: "HIGH", matched_terms: ["python 2", "end of life", "2020"], unmatched_terms: [], matched_term_count: 3, claim_term_count: 3, lexical_coverage: null, method: "OFFICIAL_PYTHON_EOL_DOCUMENTATION" }
           : null,
         priority: source => source.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE" ? 5 : 0,
         adjudicate: (sources, context = {}) => {
-          const official = sources.find(source => source.evidence_kind === "OFFICIAL_PYTHON2_SUNSET_NOTICE" && safeHost(source.url) === "python.org" && validatesPython2SunsetText(source.content || source.snippet || ""));
-          if (official) return { status: "SUPERSEDED", evidence: { method: "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE", event_date: "2020-01-01", source: { title: official.title, url: official.url, publication_date: null, retrieved_at: official.retrieved_at, acquisition_method: official.acquisition_method || "DIRECT_FIRST_PARTY_FETCH" }, limitation: official.acquisition_limitation || "Python.org explicitly states that Python 2 was sunset on January 1, 2020 and is no longer supported. The source publication date is not provided; retrieval time is recorded separately." } };
+          const official = sources.find(isValidatedPython2OfficialEvidence);
+          if (official) {
+            const claimPolarity = classifyPython2SupportClaim(claim);
+            const status = claimPolarity === "ONGOING_SUPPORT" ? "SUPERSEDED"
+              : claimPolarity === "SUPPORT_ENDED" ? "CURRENT" : "NEEDS_REVIEW";
+            const claimRelation = claimPolarity === "ONGOING_SUPPORT" ? "CONTRADICTS"
+              : claimPolarity === "SUPPORT_ENDED" ? "SUPPORTS" : "INSUFFICIENT";
+            return { status, evidence: { method: "OFFICIAL_PYTHON_ORG_SUNSET_NOTICE", claim_polarity: claimPolarity, claim_relation: claimRelation, event_date: "2020-01-01", source: { title: official.title, url: official.url, publication_date: null, retrieved_at: official.retrieved_at, acquisition_method: official.acquisition_method || "DIRECT_FIRST_PARTY_FETCH" }, limitation: official.acquisition_limitation || "Python.org explicitly states that Python 2 was sunset on January 1, 2020 and is no longer supported. The source publication date is not provided; retrieval time is recorded separately." } };
+          }
           const retrievalStatus = context.retrievalDiagnostics?.find(item => item.provider === "PYTHON_ORG")?.status || "NOT_RECORDED";
           return { status: "NEEDS_REVIEW", evidence: { method: "OFFICIAL_SOURCE_NOT_OBTAINED", retrieval_status: retrievalStatus, limitation: `The official Python.org notice was not validated (retrieval status: ${retrievalStatus}); no lifecycle verdict is inferred.` } };
         }
@@ -560,27 +636,30 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
   },
   {
     id: "software_release",
-    scope: "current/latest Node.js releases and LTS lifecycle claims",
-    verdict_policy: "Official Node.js lifecycle listing may support a narrow latest-LTS-major comparison; patch-level and general release claims remain review-only.",
+    scope: "current/latest Node.js releases and release-line support lifecycle claims",
+    verdict_policy: "The immutable official Node.js release schedule may adjudicate major-version support lifecycle claims; patch-level currency remains review-only.",
     resolve: (claim) => {
       const text = String(claim || "");
+      const wantsLts = /\b(?:LTS|long[ -]term support)\b/i.test(text);
       const latestReleaseClaim = /\b(?:latest|newest|current|stable)\b/i.test(text);
-      const ongoingLtsSupportClaim = /\b(?:LTS|long[ -]term support)\b/i.test(text) && /(?:\b(?:remains?|remain|still)\s+(?:actively\s+)?(?:supported|maintained|active)\b|\b(?:is|are)\s+(?:(?:currently|still)\s+)?(?:an?\s+)?(?:actively\s+)?(?:supported|maintained|active)\b)/i.test(text);
-      if ((!latestReleaseClaim && !ongoingLtsSupportClaim) || !/\b(?:version|release|LTS|long[ -]term support)\b/i.test(text) || !/\bnode\.?js\b/i.test(text)) return null;
+      const supportSignal = /(?:\b(?:remains?|remain|still)\s+(?:actively\s+)?(?:supported|maintained|active)\b|\b(?:is|are)\s+(?:(?:currently|still)\s+)?(?:an?\s+)?(?:actively\s+)?(?:supported|maintained|active)\b)/i.test(text);
+      const ongoingLtsSupportClaim = /\b(?:LTS|long[ -]term support)\b/i.test(text) && supportSignal;
+      const ongoingReleaseSupportClaim = /\b(?:supported|maintained|active)\s+release\s+line\b/i.test(text) && supportSignal;
+      if ((!latestReleaseClaim && !ongoingLtsSupportClaim && !ongoingReleaseSupportClaim) || !/\b(?:version|release|LTS|long[ -]term support)\b/i.test(text) || !/\bnode\.?js\b/i.test(text)) return null;
       return {
         id: "software_release",
         resolvedContext: { original_claim: text, resolved_claim: text, entity: "Node.js", resolution: "SOFTWARE_RELEASE_PATTERN_MATCH" },
         primaryQuery: () => {
           const major = text.match(/\bnode\.?js\s+v?(\d+)/i)?.[1] || "22";
-          return /\b(?:LTS|long[ -]term support)\b/i.test(text)
-            ? `Node.js v${major} official release schedule LTS maintenance end of life`
+          return (wantsLts || ongoingLtsSupportClaim || ongoingReleaseSupportClaim)
+            ? `Node.js v${major} official release schedule support status LTS maintenance end of life`
             : "Node.js latest stable release current version official downloads release notes";
         },
         primaryDomains: ["nodejs.org"],
         // Retrieve the canonical machine-readable schedule directly. Search snippets
         // are intentionally short and cannot be treated as complete JSON documents.
         additionalEvidence: async ({ fetch: fetchImpl }) => {
-          if (!/\b(?:LTS|long[ -]term support)\b/i.test(text)) return [];
+          if (!wantsLts && !ongoingLtsSupportClaim && !ongoingReleaseSupportClaim) return [];
           const commitsUrl = "https://api.github.com/repos/nodejs/Release/commits?path=schedule.json&per_page=1";
           try {
             // Resolve the schedule commit first, then fetch the file from that exact
@@ -713,7 +792,35 @@ const DOMAIN_ADAPTER_DEFINITIONS = [
         rankSource: (source, relevance) => {
           const text = String(source.title || "") + " " + String(source.snippet || "");
           const officialRelease = isOfficialNodeReleaseSource(source.url) && /\b(?:release|download|version|LTS|Current|schedule)\b/i.test(text);
-          return officialRelease ? { ...relevance, relevance: relevance.relevance === "LOW" ? "MEDIUM" : relevance.relevance, method: "OFFICIAL_SOFTWARE_RELEASE_SOURCE", limitation: "Official project source lead; verify release channel (Current vs LTS) and release date before adjudication." } : null;
+          if (!officialRelease) return null;
+          // Only adapter-fetched, structurally parsed first-party lifecycle data
+          // earns HIGH relevance. Search-index snippets remain MEDIUM review leads.
+          let parsedUrl = null;
+          try { parsedUrl = new URL(source.url); } catch { return null; }
+          const schedulePath = parsedUrl.protocol === "https:"
+            && parsedUrl.hostname === "raw.githubusercontent.com"
+            && /^\/nodejs\/Release\/[a-f0-9]{40}\/schedule\.json$/i.test(parsedUrl.pathname);
+          const scheduleRows = schedulePath && source.evidence_kind === "IMMUTABLE_OFFICIAL_RELEASE_SCHEDULE"
+            ? parseNodeScheduleJson(source.content || source.snippet)
+            : [];
+          const releaseRows = source.evidence_kind === "OFFICIAL_NODEJS_RELEASE_TABLE"
+            && parsedUrl.hostname === "nodejs.org"
+            && parsedUrl.pathname.toLowerCase().startsWith("/en/about/previous-releases")
+            ? parseNodeReleaseRows(source.content || source.snippet)
+            : [];
+          const publishedAt = Date.parse(source.published_date || "");
+          const retrievedAt = Date.parse(source.retrieved_at || "");
+          const scheduleIsRecent = Number.isFinite(publishedAt) && publishedAt <= Date.now() + 86400000 && Date.now() - publishedAt <= 365 * 86400000;
+          const tableIsRecent = Number.isFinite(retrievedAt) && retrievedAt <= Date.now() + 86400000 && Date.now() - retrievedAt <= 365 * 86400000;
+          const structuredOfficialEvidence = (scheduleRows.length > 0 && scheduleIsRecent) || (releaseRows.length > 0 && tableIsRecent);
+          return {
+            ...relevance,
+            relevance: structuredOfficialEvidence ? "HIGH" : (relevance.relevance === "LOW" ? "MEDIUM" : relevance.relevance),
+            method: structuredOfficialEvidence ? "VALIDATED_OFFICIAL_SOFTWARE_LIFECYCLE_DATA" : "OFFICIAL_SOFTWARE_RELEASE_SOURCE",
+            limitation: structuredOfficialEvidence
+              ? "First-party lifecycle data was fetched and structurally parsed; the exact source URL, date basis, and release-channel semantics remain attached."
+              : "Official project search lead only; snippets do not establish release channel or lifecycle status."
+          };
         },
         priority: source => isOfficialNodeReleaseSource(source.url) ? 2 : 0,
         adjudicate: (sources, context = {}) => assessNodeReleaseLifecycle(text, sources, context.now || Date.now())

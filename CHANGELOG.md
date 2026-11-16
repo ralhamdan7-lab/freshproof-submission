@@ -1,3 +1,7 @@
+# v0.2.99 — clearer key evidence (2026-11-16)
+
+- The verdict box lists classified publishers first and quotes the sentence that best matches the claim.
+
 # v0.2.98 — present-state evidence (2026-11-16)
 
 - **Uncontested present-state support.** After a latest-status search, a present-state claim that no assessed source disputes can be supported by older or undated sources. This needs three independent lineages including a classified publisher.

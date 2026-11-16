@@ -90,6 +90,28 @@ function node(tag, className, text) {
   if (text !== undefined) el.textContent = text;
   return el;
 }
+// v0.2.99: the sentence of an evidence passage that best matches the claim,
+// skipping navigation and wiki markup, for the verdict box.
+const excerptWords = value => new Set((String(value || "").normalize("NFKC").toLowerCase().replace(/[\u064B-\u0652\u0640]/g, "").replace(/^(?:ال|و|ب|ل)(?=[\u0621-\u064A]{3,})/gu, "").match(/[\p{L}\p{N}]{3,}/gu) || []));
+export function bestExcerpt(snippet, claimText) {
+  const text = String(snippet || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const claimWords = excerptWords(claimText);
+  const sentences = text.split(/(?<=[.!?؟。])\s+|\s*[|•·]\s*|\s{2,}/u)
+    .map(item => item.replace(/\[\[[^\]]{0,60}\]\]/g, " ").replace(/\s+/g, " ").trim()).filter(item => item.length >= 25);
+  let best = null;
+  let bestScore = -1;
+  for (const sentence of sentences) {
+    const noisy = /\[\[|\]\]|==|\{\{|https?:\/\//.test(sentence) || (sentence.match(/[\[\]|]/g) || []).length > 2;
+    const words = excerptWords(sentence);
+    let overlap = 0;
+    for (const word of claimWords) if (words.has(word) || [...words].some(other => other.length >= 4 && word.length >= 4 && (other.startsWith(word.slice(0, 4)) || word.startsWith(other.slice(0, 4))))) overlap++;
+    const score = overlap - (noisy ? 3 : 0) - (sentence.length > 320 ? 1 : 0);
+    if (score > bestScore) { bestScore = score; best = sentence; }
+  }
+  const chosen = best || text;
+  return chosen.length > 240 ? chosen.slice(0, 237) + "…" : chosen;
+}
 let lastReport = null;
 const STATUS_TEXT = { CURRENT: "SUPPORTED", CONTRADICTED: "CONTRADICTED", SUPERSEDED: "OUTDATED", NEEDS_REVIEW: "NEEDS REVIEW", UNVERIFIABLE: "UNVERIFIABLE", NOT_ASSESSED: "NOT ASSESSED", NOT_CHECKABLE: "NOT A CHECKABLE FACT" };
 export function reportText(data) {
@@ -190,8 +212,13 @@ function render(data, { scroll = true } = {}) {
         if (decisive) {
           const evidence = Array.isArray(claim.adjudication?.evidence) ? claim.adjudication.evidence : [];
           const seen = new Set();
+          // v0.2.99: classified publishers first, then the rest in verdict order.
+          const tierRank = source => ({ PRIMARY_OR_OFFICIAL_DOMAIN: 0, INSTITUTIONAL: 1, SECONDARY_REPUTABLE: 2 }[source?.source_reliability] ?? 3);
           const keySources = evidence.map(item => (claim.sources || [])[item.source_index])
-            .filter(source => source?.url && !seen.has(source.url) && seen.add(source.url)).slice(0, 3);
+            .filter(source => source?.url && !seen.has(source.url) && seen.add(source.url))
+            .map((source, order) => ({ source, order }))
+            .sort((a, b) => tierRank(a.source) - tierRank(b.source) || a.order - b.order)
+            .map(item => item.source).slice(0, 3);
           if (keySources.length) {
             hero.append(node("div", "hero-label", arabic ? "أبرز الأدلة:" : "Key evidence:"));
             const list = node("ul", "hero-evidence");
@@ -202,9 +229,9 @@ function render(data, { scroll = true } = {}) {
               link.href = source.url; link.target = "_blank"; link.rel = "noopener noreferrer";
               link.textContent = host || source.url;
               li.append(link);
-              const excerpt = String(source.snippet || "").replace(/\s+/g, " ").trim();
+              const excerpt = bestExcerpt(source.snippet, claim.text);
               if (excerpt) {
-                const quote = node("span", "hero-quote", ` — “${excerpt.length > 220 ? excerpt.slice(0, 217) + "…" : excerpt}”`);
+                const quote = node("span", "hero-quote", ` — “${excerpt}”`);
                 quote.dir = "auto"; li.append(quote);
               }
               list.append(li);

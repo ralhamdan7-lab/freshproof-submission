@@ -497,6 +497,24 @@
       "accept": [
         "CONTRADICTED"
       ]
+    },
+    {
+      "id": "D55",
+      "lang": "ar",
+      "group": "office-holder-current",
+      "claim": "ملك السعودية الحالي هو سلمان آل سعود.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D56",
+      "lang": "en",
+      "group": "office-holder-current",
+      "claim": "Salman bin Abdulaziz is the current King of Saudi Arabia.",
+      "accept": [
+        "CURRENT"
+      ]
     }
   ],
   "long_texts": [

@@ -151,6 +151,70 @@ function render(data, { scroll = true } = {}) {
     top.append(node("span", "meta", arabic ? `الادعاء ${String(index + 1).padStart(2, "0")}` : `CLAIM ${String(index + 1).padStart(2, "0")}`), node("span", `status ${statusTone(claim.status)}`, statusLabel(claim.status, arabic)));
     const claimText = node("p", "claim-text", claim.text); claimText.dir = dir; claimText.lang = lang;
     card.append(top, claimText);
+    // v0.2.96: the verdict first, in plain words, with the key evidence. The
+    // audit trail stays available below for anyone who wants every detail.
+    {
+      const decisive = ["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(claim.status);
+      const tone = { CURRENT: "true", CONTRADICTED: "false", SUPERSEDED: "outdated" }[claim.status] || (claim.status === "NOT_ASSESSED" ? "limited" : "open");
+      const headline = arabic ? ({
+        CURRENT: "✓ الادعاء صحيح — الأدلة تؤكده",
+        CONTRADICTED: "✗ الادعاء غير صحيح — الأدلة تنفيه",
+        SUPERSEDED: "↻ الادعاء لم يعد صحيحاً — تغيّر الوضع",
+        NEEDS_REVIEW: "الأدلة غير حاسمة بعد",
+        UNVERIFIABLE: "ليس حقيقة قابلة للتحقق بالأدلة",
+        NOT_CHECKABLE: "ليس حقيقة قابلة للتحقق بالأدلة",
+        NOT_ASSESSED: "تعذّر التقييم الآن بسبب حدود الخدمة المجانية — أعد المحاولة لاحقاً"
+      })[claim.status] : ({
+        CURRENT: "✓ TRUE — the evidence supports this claim",
+        CONTRADICTED: "✗ FALSE — the evidence contradicts this claim",
+        SUPERSEDED: "↻ OUTDATED — this is no longer true",
+        NEEDS_REVIEW: "Evidence is not conclusive yet",
+        UNVERIFIABLE: "Not a fact that evidence can check",
+        NOT_CHECKABLE: "Not a fact that evidence can check",
+        NOT_ASSESSED: "Could not be assessed right now (free-tier service limit) — please retry"
+      })[claim.status];
+      if (headline) {
+        const hero = node("section", `verdict-hero hero-${tone}`);
+        hero.dir = dir; hero.lang = lang;
+        hero.append(node("div", "hero-headline", headline));
+        if (decisive && ["STRONG", "MODERATE"].includes(claim.confidence_tier)) {
+          hero.append(node("div", "hero-sub", arabic
+            ? (claim.confidence_tier === "STRONG" ? "ثقة مرتفعة · مصدر رسمي أو تأييد مؤهل" : "ثقة متوسطة · مصادر مستقلة متفقة")
+            : (claim.confidence_tier === "STRONG" ? "High confidence · official source or qualified corroboration" : "Moderate confidence · independent sources agree")));
+        }
+        if (claim.correction?.status === "PROVIDED" && claim.correction.text) {
+          const fix = node("div", "hero-correction");
+          fix.append(node("span", "hero-label", arabic ? "الصحيح:" : "Correct:"), node("span", "hero-correction-text", claim.correction.text));
+          hero.append(fix);
+        }
+        if (decisive) {
+          const evidence = Array.isArray(claim.adjudication?.evidence) ? claim.adjudication.evidence : [];
+          const seen = new Set();
+          const keySources = evidence.map(item => (claim.sources || [])[item.source_index])
+            .filter(source => source?.url && !seen.has(source.url) && seen.add(source.url)).slice(0, 3);
+          if (keySources.length) {
+            hero.append(node("div", "hero-label", arabic ? "أبرز الأدلة:" : "Key evidence:"));
+            const list = node("ul", "hero-evidence");
+            keySources.forEach(source => {
+              const li = document.createElement("li");
+              let host = ""; try { host = new URL(source.url).hostname.replace(/^www\./, ""); } catch {}
+              const link = document.createElement("a");
+              link.href = source.url; link.target = "_blank"; link.rel = "noopener noreferrer";
+              link.textContent = host || source.url;
+              li.append(link);
+              const excerpt = String(source.snippet || "").replace(/\s+/g, " ").trim();
+              if (excerpt) {
+                const quote = node("span", "hero-quote", ` — “${excerpt.length > 220 ? excerpt.slice(0, 217) + "…" : excerpt}”`);
+                quote.dir = "auto"; li.append(quote);
+              }
+              list.append(li);
+            });
+            hero.append(list);
+          }
+        }
+        card.append(hero);
+      }
+    }
     // v0.2.84: what kind of temporal claim this is, and whether it needs recent
     // evidence. Shown because it governs which evidence can count.
     if (claim.claim_frame?.frame) {
@@ -185,6 +249,7 @@ function render(data, { scroll = true } = {}) {
       card.append(frameRow);
     }
     // Execution is reported separately from the factual verdict.
+    const deferredNotes = [];
     if (claim.execution && claim.execution.status !== "COMPLETED") {
       const stageLabels = arabic
         ? { search: "البحث", fetch: "جلب الصفحات", semantic: "تقييم العلاقة" }
@@ -196,7 +261,9 @@ function render(data, { scroll = true } = {}) {
         ? ({ PARTIAL: "اكتمل التشغيل جزئياً", PROVIDER_LIMITED: "تقيّد التشغيل بحدود مزوّد الخدمة", FAILED: "تعذّر التشغيل" }[claim.execution.status] || claim.execution.status)
         : ({ PARTIAL: "RUN PARTIALLY COMPLETED", PROVIDER_LIMITED: "RUN LIMITED BY A PROVIDER", FAILED: "RUN FAILED" }[claim.execution.status] || claim.execution.status);
       const executionNode = node("div", "execution-note", executionText + (stageText ? " · " + stageText : "") + (arabic ? " — هذا وضع تشغيلي وليس دليلاً على صحة الادعاء أو خطئه." : " — operational state only, not evidence about the claim."));
-      executionNode.dir = dir; executionNode.lang = lang; card.append(executionNode);
+      executionNode.dir = dir; executionNode.lang = lang;
+      // A decisive verdict's operational notes belong in the audit trail.
+      if (["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(claim.status)) deferredNotes.push(executionNode); else card.append(executionNode);
     }
     if (claim.asked_as_question) {
       const askedNode = node("div", "execution-note", arabic
@@ -212,6 +279,7 @@ function render(data, { scroll = true } = {}) {
       cacheNode.dir = dir; cacheNode.lang = lang; card.append(cacheNode);
     }
     const auditDetails = node("details", "audit-details");
+    deferredNotes.forEach(item => auditDetails.append(item));
     const auditSummary = node("summary", "audit-summary", arabic ? "تفاصيل الأدلة والمصادر وسجل التدقيق" : "Evidence, sources & audit details");
     auditDetails.append(auditSummary);
     if (claim.resolved_context?.entity) {
@@ -307,7 +375,8 @@ function render(data, { scroll = true } = {}) {
       auditDetails.append(explainBox);
     }
     // Plain-language comparison: preserve the exact submitted claim and never invent a replacement.
-    {
+    // v0.2.96: a supported claim needs no "what is wrong" panel; the verdict box says it.
+    if (claim.status !== "CURRENT") {
       const comparison = node("section", "outcome-box claim-comparison");
       comparison.dir = dir; comparison.lang = lang;
       comparison.append(node("div", "outcome-heading", arabic ? "الخلاصة المباشرة · ما الخطأ وما الصحيح؟" : "PLAIN-LANGUAGE RESULT · WHAT IS WRONG AND WHAT IS CORRECT"));

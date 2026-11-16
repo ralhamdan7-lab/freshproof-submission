@@ -1,3 +1,11 @@
+# v0.2.96 — verdict first (2026-11-16)
+
+- Each claim opens with a plain verdict box: TRUE, FALSE or OUTDATED, with the confidence, the correction where one applies, and key evidence links with quoted excerpts. The full audit trail stays one click away.
+
+# v0.2.95 — official reference prior, timings (2026-11-16)
+
+- `saudipedia.com` (the Saudi Ministry of Media's official encyclopedia) is added to the institutional reliability prior. Each claim now reports its timings.
+
 # v0.2.94 — UI fix (2026-11-16)
 
 - Specialist-adapter verdicts (for example, software lifecycle) render again. The v0.2.92 counted-source grouping assumed a list-shaped evidence field. The public browser acceptance caught the regression and now reports what the page showed on timeout.

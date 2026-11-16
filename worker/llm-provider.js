@@ -397,11 +397,11 @@ export function createResilientAi(env, dependencies = {}) {
       if (cloudflareBlockedUntil > now()) {
         return groqCascade(model, input, cloudflareFallbackReason || "cloudflare_breaker_open");
       }
-      // v0.2.92: light tasks (claim decomposition, search planning) go to the
-      // smallest Groq model first when it is configured, keeping the shared
-      // Workers AI daily allocation for evidence assessment. Any Groq failure
-      // falls back to Workers AI as before.
-      if (input._freshproof_tier === "light" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY && env.LIGHT_TASKS_PREFER_GROQ !== "false") {
+      // Opt-in (LIGHT_TASKS_PREFER_GROQ=true): light tasks go to the smallest
+      // Groq model first. Off by default since v0.2.93: Groq calls are paced and
+      // serialized per isolate, so a rate-limited light call could delay the
+      // evidence assessment queued behind it.
+      if (input._freshproof_tier === "light" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY && env.LIGHT_TASKS_PREFER_GROQ === "true") {
         try { return await groqCascade(model, input, "light_task_routing"); } catch {}
       }
       try {

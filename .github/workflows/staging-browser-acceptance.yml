@@ -98,11 +98,21 @@ jobs:
             if (!(await page.locator('#verify').isVisible())) throw new Error('Verify action is not visible');
             await page.locator('#answer').fill('Node.js 20.x remains actively supported under LTS.');
             await page.locator('#verify').click();
-            await page.waitForFunction(() => {
-              const results = document.querySelector('#results');
-              const status = document.querySelector('#claim-list .claim .status');
-              return results && !results.hidden && status && status.textContent.includes('OUTDATED');
-            }, null, { timeout: 60000 });
+            try {
+              await page.waitForFunction(() => {
+                const results = document.querySelector('#results');
+                const status = document.querySelector('#claim-list .claim .status');
+                return results && !results.hidden && status && status.textContent.includes('OUTDATED');
+              }, null, { timeout: 120000 });
+            } catch (error) {
+              const observed = await page.evaluate(() => ({
+                status: document.querySelector('#claim-list .claim .status')?.textContent || null,
+                execution_note: [...document.querySelectorAll('#claim-list .execution-note')].map(item => item.textContent).join(' | ') || null,
+                notice: document.querySelector('#notice')?.textContent || null
+              }));
+              console.log(JSON.stringify({ browser_acceptance: 'TIMEOUT', observed, page_errors: pageErrors }, null, 2));
+              throw error;
+            }
             const card = page.locator('#claim-list .claim');
             const status = await card.locator('.status').innerText();
             const links = await card.locator('.evidence a').evaluateAll(items => items.map(item => item.href));

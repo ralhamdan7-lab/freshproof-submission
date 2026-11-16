@@ -303,13 +303,17 @@ test("generic correction rejects duplicate hosts and non-independent corroborati
   assert.equal(correction.status, "WITHHELD");
 });
 
-test("generic correction requires at least one primary source and eligible evidence excerpts", () => {
-  const noPrimary = genericCorrectionSources.map(item => ({ ...item, source_reliability: "INSTITUTIONAL" }));
+test("generic correction requires a classified publisher and eligible evidence excerpts (v0.2.91)", () => {
+  const institutional = genericCorrectionSources.map(item => ({ ...item, source_reliability: "INSTITUTIONAL" }));
+  const provided = buildCorrection({ claim: "The service is currently available.", status: "SUPERSEDED", correctionCandidate: genericCorrectionCandidate, sources: institutional });
+  assert.equal(provided.status, "PROVIDED");
+  assert.equal(provided.basis, "INDEPENDENT_CLASSIFIED_SOURCES");
+  const unclassified = genericCorrectionSources.map(item => ({ ...item, source_reliability: "UNASSESSED" }));
   const correction = buildCorrection({
     claim: "The service is currently available.",
     status: "SUPERSEDED",
     correctionCandidate: genericCorrectionCandidate,
-    sources: noPrimary
+    sources: unclassified
   });
   assert.equal(correction.status, "WITHHELD");
   const noExcerpt = genericCorrectionSources.map(item => ({ ...item, snippet: "" }));

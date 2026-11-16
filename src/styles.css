@@ -57,3 +57,5 @@
 .source-group-0{color:var(--mint)}.source-group-1{color:#ffbd83}
 .evidence .source-exclusion{font-size:11px!important;color:var(--amber)!important;margin:6px 0 0!important}
 @media(max-width:360px){.frame-chip{font-size:9px}}
+.frame-chip.confidence-strong{color:var(--mint);border-color:#2f5a4a}
+.frame-chip.confidence-moderate{color:#f1dfb7;border-color:#6b5a2c}

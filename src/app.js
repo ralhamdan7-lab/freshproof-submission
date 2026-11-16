@@ -8,19 +8,68 @@ const list = document.querySelector("#claim-list");
 const summary = document.querySelector("#summary");
 
 input.addEventListener("input", () => counter.textContent = `${input.value.length.toLocaleString()} / 12,000`);
+// v0.2.90: long or multi-claim text is first split into atomic claims
+// (/api/extract), then each factual claim is verified in its own request so
+// every claim gets the full evidence budget. Results render as they arrive.
+async function postJson(path, payload, attempt = 0) {
+  const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+  if (response.status === 429 && attempt < 4) {
+    const wait = Math.min(30, Number(response.headers.get("retry-after")) || 12 + attempt * 6);
+    notice.textContent = `Pacing requests to stay within free limits… resuming in ${wait} s.`;
+    await new Promise(resolve => setTimeout(resolve, wait * 1000));
+    return postJson(path, payload, attempt + 1);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Verification request failed.");
+  return data;
+}
 verify.addEventListener("click", async () => {
   const text = input.value.trim();
   if (!text) { notice.textContent = "Paste an answer first."; input.focus(); return; }
   verify.disabled = true;
   verify.querySelector("span").textContent = "Checking evidence…";
-  notice.textContent = "Searching for recent evidence. Search results are leads, not verdicts.";
+  notice.textContent = "Identifying the claims in the text…";
   results.hidden = true;
   try {
-    const response = await fetch("/api/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Verification request failed.");
-    render(data);
-    notice.textContent = "Evidence review complete. FreshProof abstains when the available evidence cannot justify a verdict.";
+    let extracted = null;
+    try { extracted = await postJson("/api/extract", { text }); } catch { extracted = null; }
+    const items = Array.isArray(extracted?.claims) ? extracted.claims : [];
+    if (items.length <= 1) {
+      notice.textContent = "Searching for evidence. Search results are leads, not verdicts.";
+      render(await postJson("/api/verify", { text }));
+    } else {
+      const aggregate = { version: extracted.version, claims: [], extraction: { method: extracted.method, detected_count: items.length, processed_count: 0, truncated_count: 0, is_truncated: false } };
+      const slots = items.map(item => item.kind === "FACT" ? null : {
+        text: item.claim, status: "NOT_CHECKABLE", not_checkable_kind: item.kind,
+        explanation: item.kind === "OPINION" ? "This is an opinion or value judgement; evidence cannot make it true or false." : item.kind === "PREDICTION" ? "This is a prediction about the future; it cannot be verified yet." : "This is not a factual statement.",
+        sources: []
+      });
+      const pending = items.map((item, index) => ({ item, index })).filter(entry => entry.item.kind === "FACT");
+      let done = 0;
+      const refresh = first => {
+        aggregate.claims = slots.flatMap(slot => slot ? (Array.isArray(slot) ? slot : [slot]) : []);
+        aggregate.extraction.processed_count = done;
+        render(aggregate, { scroll: first });
+      };
+      refresh(true);
+      notice.textContent = `Found ${items.length} claims (${pending.length} factual). Verifying each against evidence…`;
+      const worker = async () => {
+        while (pending.length) {
+          const { item, index } = pending.shift();
+          try {
+            const data = await postJson("/api/verify", { text: item.claim });
+            slots[index] = (data.claims || []).map(claim => ({ ...claim, source_span: item.span }));
+          } catch (err) {
+            slots[index] = { text: item.claim, status: "NOT_ASSESSED", explanation: err.message || "Request failed.", sources: [] };
+          }
+          done++;
+          refresh(false);
+          notice.textContent = `Verified ${done} of ${items.filter(entry => entry.kind === "FACT").length} factual claims…`;
+        }
+      };
+      await Promise.all([worker(), worker()]);
+    }
+    notice.textContent = "Evidence review complete. Each verdict states its evidence basis; FreshProof abstains only when the evidence cannot settle a claim.";
   } catch (err) { notice.textContent = err.message || "Could not complete verification. Please retry."; }
   finally { verify.disabled = false; verify.querySelector("span").textContent = "Verify claims"; }
 });
@@ -30,21 +79,23 @@ function node(tag, className, text) {
   if (text !== undefined) el.textContent = text;
   return el;
 }
-function render(data) {
+function render(data, { scroll = true } = {}) {
   const statusLabel = (status, arabic) => arabic ? ({
     CURRENT: "مدعوم كما ورد",
     SUPERSEDED: "معلومة قديمة",
     CONTRADICTED: "يتعارض مع الأدلة",
     UNVERIFIABLE: "تعذر التحقق",
     NEEDS_REVIEW: "يحتاج إلى مراجعة",
-    NOT_ASSESSED: "لم يُقيَّم — تعذر تشغيلي"
+    NOT_ASSESSED: "لم يُقيَّم — تعذر تشغيلي",
+    NOT_CHECKABLE: "ليس ادعاءً قابلاً للتحقق"
   }[status] || status.replaceAll("_", " ")) : ({
     CURRENT: "SUPPORTED AS STATED",
     SUPERSEDED: "OUTDATED",
     CONTRADICTED: "CONTRADICTED BY EVIDENCE",
     UNVERIFIABLE: "UNVERIFIABLE",
     NEEDS_REVIEW: "NEEDS REVIEW",
-    NOT_ASSESSED: "NOT ASSESSED — SERVICE LIMIT OR ERROR"
+    NOT_ASSESSED: "NOT ASSESSED — SERVICE LIMIT OR ERROR",
+    NOT_CHECKABLE: "NOT A CHECKABLE FACT"
   }[status] || status.replaceAll("_", " "));
   const statusTone = status => status === "CURRENT" ? "good"
     : ["CONTRADICTED", "SUPERSEDED"].includes(status) ? "bad"
@@ -57,7 +108,7 @@ function render(data) {
     : "";
   // Keep the judge-facing report language English regardless of claim language.
   // Individual claim text and evidence retain their detected RTL/LTR direction.
-  summary.textContent = data.claims.length + " CLAIMS · " + (counts.CURRENT || 0) + " SUPPORTED · " + (counts.CONTRADICTED || 0) + " CONTRADICTED · " + (counts.SUPERSEDED || 0) + " OUTDATED · " + (counts.NEEDS_REVIEW || 0) + " REVIEW · " + (counts.UNVERIFIABLE || 0) + " UNVERIFIABLE · " + (counts.NOT_ASSESSED ? counts.NOT_ASSESSED + " NOT ASSESSED · " : "") + providedCorrections + " CORRECTIONS PROVIDED" + extractionNote;
+  summary.textContent = data.claims.length + " CLAIMS · " + (counts.CURRENT || 0) + " SUPPORTED · " + (counts.CONTRADICTED || 0) + " CONTRADICTED · " + (counts.SUPERSEDED || 0) + " OUTDATED · " + (counts.NEEDS_REVIEW || 0) + " REVIEW · " + (counts.UNVERIFIABLE || 0) + " UNVERIFIABLE · " + (counts.NOT_ASSESSED ? counts.NOT_ASSESSED + " NOT ASSESSED · " : "") + (counts.NOT_CHECKABLE ? counts.NOT_CHECKABLE + " NOT CHECKABLE · " : "") + providedCorrections + " CORRECTIONS PROVIDED" + extractionNote;
   data.claims.forEach((claim, index) => {
     const { lang, dir } = detectTextDirection(claim.text);
     const arabic = lang === "ar";
@@ -92,6 +143,12 @@ function render(data) {
       frameRow.append(node("span", "frame-chip", (arabic ? "نوع الادعاء · " : "CLAIM TYPE · ") + (arabic ? label[1] : label[0])));
       if (!["NON_FACTUAL", "STABLE_FACT"].includes(frame.frame)) frameRow.append(node("span", "frame-chip muted", recency));
       if (anchors.length) frameRow.append(node("span", "frame-chip muted", (arabic ? "المرجع الزمني · " : "TIME ANCHOR · ") + anchors.join(arabic ? "، " : ", ")));
+      if (["STRONG", "MODERATE"].includes(claim.confidence_tier) && ["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(claim.status)) {
+        const strong = claim.confidence_tier === "STRONG";
+        frameRow.append(node("span", `frame-chip confidence-${strong ? "strong" : "moderate"}`, arabic
+          ? (strong ? "الثقة · مرتفعة — سجل الجهة المُصدِرة أو تأييد مؤهل" : "الثقة · متوسطة — اتفاق مصادر مستقلة")
+          : (strong ? "CONFIDENCE · STRONG — ISSUING AUTHORITY OR QUALIFIED CORROBORATION" : "CONFIDENCE · MODERATE — INDEPENDENT SOURCES AGREE")));
+      }
       card.append(frameRow);
     }
     // Execution is reported separately from the factual verdict.
@@ -107,6 +164,13 @@ function render(data) {
         : ({ PARTIAL: "RUN PARTIALLY COMPLETED", PROVIDER_LIMITED: "RUN LIMITED BY A PROVIDER", FAILED: "RUN FAILED" }[claim.execution.status] || claim.execution.status);
       const executionNode = node("div", "execution-note", executionText + (stageText ? " · " + stageText : "") + (arabic ? " — هذا وضع تشغيلي وليس دليلاً على صحة الادعاء أو خطئه." : " — operational state only, not evidence about the claim."));
       executionNode.dir = dir; executionNode.lang = lang; card.append(executionNode);
+    }
+    if (claim.result_cache?.status === "HIT") {
+      const when = String(claim.result_cache.assessed_at || "").replace("T", " ").slice(0, 16);
+      const cacheNode = node("div", "execution-note", arabic
+        ? `نتيجة محفوظة مؤقتاً لادعاء مطابق قُيِّم في ${when} UTC؛ الأدلة والحكم كما كانت في ذلك الوقت.`
+        : `CACHED RESULT · identical claim assessed ${when} UTC; evidence and verdict are as of that time.`);
+      cacheNode.dir = dir; cacheNode.lang = lang; card.append(cacheNode);
     }
     const auditDetails = node("details", "audit-details");
     const auditSummary = node("summary", "audit-summary", arabic ? "تفاصيل الأدلة والمصادر وسجل التدقيق" : "Evidence, sources & audit details");
@@ -139,7 +203,7 @@ function render(data) {
     metrics.append(node("span", "metric", arabic ? `تصنيف المصادر · ${reliabilities.length ? reliabilities.join("، ") : "لا توجد"}` : `SOURCE PROFILE · ${reliabilities.length ? reliabilities.join(", ") : "NONE"}`));
     metrics.dir = dir; metrics.lang = lang;
     card.append(metrics);
-    if (claim.explanation) { const explanation = node("p", "explanation", arabic ? (claim.status === "SUPERSEDED" ? "تُظهر الأدلة أن الادعاء أصبح قديماً أو تجاوزته تطورات لاحقة." : claim.status === "CURRENT" ? "تدعم مصادر مستقلة مؤهلة هذا الادعاء ضمن النطاق المحدد." : claim.status === "CONTRADICTED" ? "تتعارض مصادر مستقلة مؤهلة مع الادعاء." : claim.status === "NEEDS_REVIEW" ? "لم تتحقق عتبة الأدلة والتأييد المستقل؛ لذلك امتنع المحرك عن الحكم." : claim.explanation) : claim.explanation); explanation.dir = dir; explanation.lang = lang; card.append(explanation); }
+    if (claim.explanation) { const explanation = node("p", "explanation", arabic ? (claim.status === "SUPERSEDED" ? "تُظهر الأدلة أن الادعاء أصبح قديماً أو تجاوزته تطورات لاحقة." : claim.status === "CURRENT" ? "تدعم مصادر مستقلة مؤهلة هذا الادعاء ضمن النطاق المحدد." : claim.status === "CONTRADICTED" ? "تتعارض مصادر مستقلة مؤهلة مع الادعاء." : claim.status === "NEEDS_REVIEW" ? "لم تتحقق عتبة الأدلة والتأييد المستقل؛ لذلك امتنع المحرك عن الحكم." : claim.status === "NOT_CHECKABLE" ? (claim.not_checkable_kind === "PREDICTION" ? "هذا توقع لأمر مستقبلي ولا يمكن التحقق منه الآن." : "هذا رأي أو حكم قيمي، ولا يمكن للأدلة أن تثبته أو تنفيه.") : claim.explanation) : claim.explanation); explanation.dir = dir; explanation.lang = lang; card.append(explanation); }
     // v0.2.82: why the engine abstained, shown separately from verification
     // status, publication freshness, evidence confidence and source profile.
     // Descriptive only; no numeric score is shown or implied.
@@ -149,6 +213,8 @@ function render(data) {
         PIPELINE_EXCEPTION: ["An internal error occurred during evidence acquisition.", "حدث خطأ داخلي أثناء جمع الأدلة."],
         RETRIEVAL_PROVIDER_FAILURE: ["The search provider failed or was rate-limited.", "تعذّر الوصول إلى مزود البحث أو تجاوز حد الطلبات."],
         RETRIEVAL_NO_RESULTS: ["No search results were found.", "لم تُعثر على نتائج بحث."],
+        NOT_A_FACTUAL_CLAIM: ["This is a judgement or recommendation, not a checkable fact, so no evidence search was run.", "هذه العبارة رأي أو حكم قيمي وليست حقيقة قابلة للتحقق، لذلك لم يُجرَ بحث عن أدلة."],
+        OPEN_FORECAST: ["This predicts an uncertain future outcome; present evidence cannot establish it, so no evidence search was run.", "هذه العبارة تتوقع نتيجة مستقبلية غير محسومة؛ لا يمكن لأي دليل حالي إثباتها، لذلك لم يُجرَ بحث عن أدلة."],
         NO_RELEVANT_EVIDENCE: ["Sources were found, but none addressed the claim.", "عُثر على مصادر لكن لم يتناول أيٌّ منها الادعاء."],
         INSUFFICIENT_SOURCE_QUALITY: ["Relevant sources were found, but none was an official, institutional or reputable publisher.", "وُجدت مصادر ذات صلة لكن لم يكن بينها ناشر رسمي أو مؤسسي أو موثوق."],
         INSUFFICIENT_INDEPENDENT_CORROBORATION: ["Fewer than two independent publishers corroborated the finding.", "لم يؤكد النتيجةَ ناشران مستقلان على الأقل."],
@@ -455,5 +521,5 @@ function render(data) {
     list.append(card);
   });
   results.hidden = false;
-  results.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll) results.scrollIntoView({ behavior: "smooth", block: "start" });
 }

@@ -35,8 +35,8 @@ const officialDirectory = {
   source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN"
 };
 
-test("v0.2.84 candidate version contract", () => {
-  assert.equal(VERSION, "0.2.84");
+test("v0.2.90 candidate version contract", () => {
+  assert.equal(VERSION, "0.2.91");
 });
 
 test("validated direct evidence replaces a duplicate generic search snippet without losing provenance", () => {

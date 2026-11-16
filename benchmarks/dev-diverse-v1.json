@@ -1,0 +1,516 @@
+{
+  "dataset_id": "freshproof-dev-diverse-v1",
+  "status": "DEVELOPMENT_DIAGNOSTIC",
+  "notice": "Assistant-authored development set (2026-11-16) of widely documented facts, for measuring coverage and agreement during development. Not held-out, not human-audited; results are diagnostics, not accuracy estimates. 'accept' lists every status consistent with the label (CONTRADICTED and SUPERSEDED both mean the claim does not hold now).",
+  "cases": [
+    {
+      "id": "D01",
+      "lang": "en",
+      "group": "history-true",
+      "claim": "The Eiffel Tower was completed in 1889.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D02",
+      "lang": "en",
+      "group": "science-true",
+      "claim": "Water boils at 100 degrees Celsius at sea level.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D03",
+      "lang": "en",
+      "group": "history-true",
+      "claim": "The Treaty of Versailles was signed in 1919.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D04",
+      "lang": "en",
+      "group": "history-true",
+      "claim": "Marie Curie won the Nobel Prize in Physics in 1903.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D05",
+      "lang": "en",
+      "group": "science-true",
+      "claim": "The human genome contains about 3 billion base pairs.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D06",
+      "lang": "en",
+      "group": "geography-true",
+      "claim": "Mount Everest is the highest mountain above sea level.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D07",
+      "lang": "en",
+      "group": "geography-true",
+      "claim": "The Great Barrier Reef is located off the coast of Queensland, Australia.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D08",
+      "lang": "en",
+      "group": "history-true",
+      "claim": "Neil Armstrong was the first person to walk on the Moon, in July 1969.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D09",
+      "lang": "en",
+      "group": "geography-true",
+      "claim": "The Amazon River flows into the Atlantic Ocean.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D10",
+      "lang": "en",
+      "group": "science-true",
+      "claim": "DNA has a double helix structure.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D11",
+      "lang": "en",
+      "group": "history-false",
+      "claim": "The Berlin Wall fell in 1991.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D12",
+      "lang": "en",
+      "group": "geography-false",
+      "claim": "The Great Wall of China is located in Japan.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D13",
+      "lang": "en",
+      "group": "history-false",
+      "claim": "Albert Einstein won the Nobel Prize in Physics in 1935.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D14",
+      "lang": "en",
+      "group": "history-false",
+      "claim": "The Titanic sank in 1915.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D15",
+      "lang": "en",
+      "group": "geography-false",
+      "claim": "Canberra is the largest city in Australia.",
+      "accept": [
+        "CONTRADICTED",
+        "SUPERSEDED"
+      ]
+    },
+    {
+      "id": "D16",
+      "lang": "en",
+      "group": "science-false",
+      "claim": "The Pacific Ocean is the smallest ocean on Earth.",
+      "accept": [
+        "CONTRADICTED",
+        "SUPERSEDED"
+      ]
+    },
+    {
+      "id": "D17",
+      "lang": "en",
+      "group": "current-true",
+      "claim": "Canberra is the capital of Australia.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D18",
+      "lang": "en",
+      "group": "current-true",
+      "claim": "Germany uses the euro as its currency.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D19",
+      "lang": "en",
+      "group": "current-true",
+      "claim": "Sweden is a member of NATO.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D20",
+      "lang": "en",
+      "group": "superseded",
+      "claim": "The United Kingdom is a member state of the European Union.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D21",
+      "lang": "en",
+      "group": "superseded",
+      "claim": "The capital of Zimbabwe is called Salisbury.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D22",
+      "lang": "en",
+      "group": "superseded",
+      "claim": "Yangon is the capital of Myanmar.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D23",
+      "lang": "en",
+      "group": "superseded",
+      "claim": "The Netherlands uses the guilder as its national currency.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D24",
+      "lang": "en",
+      "group": "superseded",
+      "claim": "Pluto is classified as the ninth planet of the Solar System.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D25",
+      "lang": "ar",
+      "group": "arabic-true",
+      "claim": "اكتمل بناء برج إيفل عام 1889.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D26",
+      "lang": "ar",
+      "group": "arabic-false",
+      "claim": "سقط جدار برلين عام 1991.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D27",
+      "lang": "ar",
+      "group": "arabic-true",
+      "claim": "كانبرا هي عاصمة أستراليا.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D28",
+      "lang": "ar",
+      "group": "arabic-superseded",
+      "claim": "عملة ألمانيا الرسمية هي المارك الألماني.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D29",
+      "lang": "ar",
+      "group": "arabic-true",
+      "claim": "يقع جبل كليمنجارو في تنزانيا.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D30",
+      "lang": "ar",
+      "group": "arabic-true",
+      "claim": "اكتشف ألكسندر فليمنغ البنسلين عام 1928.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D31",
+      "lang": "en",
+      "group": "compound-true",
+      "claim": "The Eiffel Tower is in Paris and was completed in 1889.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D32",
+      "lang": "en",
+      "group": "compound-false",
+      "claim": "The Titanic sank in 1912 after hitting an iceberg in the Pacific Ocean.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D33",
+      "lang": "en",
+      "group": "opinion",
+      "claim": "Python is the best programming language ever created.",
+      "accept": [
+        "UNVERIFIABLE"
+      ]
+    },
+    {
+      "id": "D34",
+      "lang": "en",
+      "group": "forecast",
+      "claim": "Gold prices will exceed 10,000 dollars per ounce by 2030.",
+      "accept": [
+        "UNVERIFIABLE"
+      ]
+    },
+    {
+      "id": "D35",
+      "lang": "en",
+      "group": "scheduled",
+      "claim": "The 2028 Summer Olympics will be held in Los Angeles.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D36",
+      "lang": "en",
+      "group": "science-true",
+      "claim": "Penicillin was discovered by Alexander Fleming in 1928.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D37",
+      "lang": "en",
+      "group": "science-true",
+      "claim": "The speed of light in a vacuum is about 300,000 kilometres per second.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D38",
+      "lang": "en",
+      "group": "tech-true",
+      "claim": "Python 2 reached end of life on January 1, 2020.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D39",
+      "lang": "en",
+      "group": "tech-true",
+      "claim": "Microsoft ended support for Windows 10 on October 14, 2025.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D40",
+      "lang": "en",
+      "group": "tech-false",
+      "claim": "The first iPhone was released in 2009.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D41",
+      "lang": "en",
+      "group": "comparative-true",
+      "claim": "Mount Everest is taller than K2.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D42",
+      "lang": "en",
+      "group": "statistic-true",
+      "claim": "Japan has a larger population than Germany.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D43",
+      "lang": "en",
+      "group": "science-false",
+      "claim": "Water boils at 50 degrees Celsius at sea level.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D44",
+      "lang": "en",
+      "group": "compound-true",
+      "claim": "Neil Armstrong was the first person to walk on the Moon, in 1969.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D45",
+      "lang": "en",
+      "group": "attribution-false",
+      "claim": "Bitcoin was created by Elon Musk.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D46",
+      "lang": "en",
+      "group": "science-true",
+      "claim": "The speed of light in a vacuum is about 300,000 kilometres per second.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D47",
+      "lang": "ar",
+      "group": "statistic-true",
+      "claim": "يبلغ عدد الدول الأعضاء في الأمم المتحدة 193 دولة.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D48",
+      "lang": "ar",
+      "group": "current-true",
+      "claim": "الرياض هي عاصمة المملكة العربية السعودية.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D49",
+      "lang": "ar",
+      "group": "attribution-false",
+      "claim": "اخترع توماس إديسون الهاتف.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D50",
+      "lang": "en",
+      "group": "long-complex-true",
+      "claim": "Although it was originally intended as a temporary structure for the 1889 World Fair, the Eiffel Tower, which stands in Paris, was built by the company of the engineer Gustave Eiffel.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D51",
+      "lang": "en",
+      "group": "rename-true",
+      "claim": "Twitter was renamed X in 2023.",
+      "accept": [
+        "CURRENT"
+      ]
+    },
+    {
+      "id": "D52",
+      "lang": "en",
+      "group": "superseded",
+      "claim": "Ban Ki-moon is the current Secretary-General of the United Nations.",
+      "accept": [
+        "SUPERSEDED",
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D53",
+      "lang": "en",
+      "group": "misinformation",
+      "claim": "COVID-19 vaccines contain microchips for tracking people.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D54",
+      "lang": "ar",
+      "group": "history-false",
+      "claim": "هبط الإنسان على سطح القمر لأول مرة عام 1975.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    }
+  ],
+  "long_texts": [
+    {
+      "id": "L01",
+      "lang": "en",
+      "text": "The Panama Canal opened in 1914 and connects the Atlantic and Pacific oceans. It was handed over to Panama at the end of 1999. Today the canal is widely considered the most impressive engineering project of the twentieth century. Ships pay tolls to use it, and traffic is expected to double by 2040.",
+      "expect_min_claims": 3
+    },
+    {
+      "id": "L02",
+      "lang": "ar",
+      "text": "تأسست الأمم المتحدة عام 1945 بعد الحرب العالمية الثانية، ويقع مقرها الرئيسي في نيويورك. وفي العام نفسه وُقّع ميثاقها في سان فرانسيسكو. ويرى كثيرون أنها أهم منظمة دولية في العالم.",
+      "expect_min_claims": 3
+    }
+  ]
+}

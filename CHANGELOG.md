@@ -1,3 +1,13 @@
+# v0.2.91 — evidence coverage, corrections and free-tier capacity (2026-11-16)
+
+- **Retrieval.** Long text is decomposed into verbatim atomic claims, and each claim gets a multilingual search plan with candidate official domains. Cross-lingual relevance lets an Arabic claim be checked against English official pages.
+- **Graded verdicts.** Independent-evidence consensus, persistence, documented change, uncontested present-state contradiction and temporal-order reconciliation. Each carries a `confidence_tier` (STRONG / MODERATE). Every rule still needs model-assessed EXACT scope, HIGH relevance and independent lineages.
+- **Value-masked relevance.** A page stating a different date or number can contradict a claim instead of being screened out.
+- **Corrections.** Shown when two independent publishers quote the replacement verbatim and at least one of them is classified.
+- **Non-checkable statements.** Opinions and open forecasts are labelled without retrieval or model calls.
+- **Capacity.** Usage-based provider pacing, an optional Groq fallback and a short-lived per-claim result cache. The public rate limit is now 15 requests per minute, because the UI verifies claims one by one.
+- 510 tests pass in UTC and Asia/Riyadh. See [ENGINE-v0.2.91](docs/ENGINE-v0.2.91.md).
+
 # v0.2.84 — claim frames, execution status, live issuer records and validated supersession (2026-11-16)
 
 - **Claim frames.** Each claim gets a deterministic frame (dated event, current state, past state, scheduled or future, stable fact, attributed finding, opinion). Only current-state claims require recent evidence.

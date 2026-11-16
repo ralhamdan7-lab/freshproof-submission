@@ -45,21 +45,28 @@ const completePairs = [
   { component_id: 2, source_index: 1, relation: "SUPPORTS" }
 ];
 
-test("semantic compound classification exposes a structural decomposition gap", () => {
+test("a model-only compound label is advisory: no single-source shortcut, multi-source corroboration still decides", () => {
+  // v0.2.90: the model called the claim compound but no separable parts exist.
+  const compoundAssessment = { ...semantic([]), claim_assessment: { claim_type: "COMPOUND", claim_risk: "HIGH" } };
   const result = adjudicateEvidence({
     claim: "The agency issued the rule and it took effect in 2025",
     claimComponents: [{ component_id: 1, text: "The agency issued the rule and it took effect in 2025" }],
     sources,
-    semanticAssessment: {
-      ...semantic([]),
-      claim_assessment: { claim_type: "COMPOUND", claim_risk: "HIGH" }
-    },
+    semanticAssessment: compoundAssessment,
     temporalSensitive: true,
     now: NOW
   });
-  assert.equal(result.status, "NEEDS_REVIEW");
-  assert.equal(result.method, "SEMANTIC_COMPONENT_DECOMPOSITION_GATE");
-  assert.equal(result.adjudication_signals.review_reason, "SEMANTIC_DECOMPOSITION_GAP");
+  assert.notEqual(result.method, "SEMANTIC_COMPONENT_DECOMPOSITION_GATE");
+  assert.notEqual(result.method, "SINGLE_AUTHORITATIVE_PRIMARY_EVIDENCE");
+  const single = adjudicateEvidence({
+    claim: "The agency issued the rule and it took effect in 2025",
+    claimComponents: [{ component_id: 1, text: "The agency issued the rule and it took effect in 2025" }],
+    sources: sources.slice(0, 1),
+    semanticAssessment: { ...compoundAssessment, assessments: compoundAssessment.assessments.slice(0, 1), source_assessments: (compoundAssessment.source_assessments || []).slice(0, 1) },
+    temporalSensitive: true,
+    now: NOW
+  });
+  assert.equal(single.status, "NEEDS_REVIEW", "one source cannot decide a claim the model considers compound");
 });
 
 test("compound claim is not decisive when component evidence mapping is absent", () => {

@@ -47,6 +47,13 @@ export async function verify(text, { search, pages = {}, oracle = {}, env = {} }
   };
   const ai = {
     run: async (_model, { messages }) => {
+      // v0.2.90 planner and decomposition prompts.
+      if (/^You plan web searches/.test(messages[0].content)) {
+        calls.plan = (calls.plan || 0) + 1;
+        if (oracle.planFails) throw Object.assign(new Error("planner down"), { code: "upstream_unavailable" });
+        return { response: JSON.stringify(oracle.plan || { queries: [], authority_domains: [] }) };
+      }
+      if (/^You split a text/.test(messages[0].content)) return { response: JSON.stringify(oracle.decomposition || { claims: [] }) };
       const input = JSON.parse(messages[1].content);
       if (oracle.fail) throw Object.assign(new Error("AiError: 4006: you have used up your daily free allocation of 10,000 neurons"), { status: 429 });
       const relationOf = snippet => {

@@ -37,13 +37,13 @@ Each claim also carries a **claim frame**, such as dated past event, current sta
 ```text
 Browser UI
   -> Cloudflare Worker API
-      -> claim extraction (dependent sentences stay bound; no orphan claims)
+      -> claim extraction: model decomposition of long text into verbatim atomic claims (fact / opinion / prediction)
       -> deterministic claim frame (event / current state / past state / future / stable / opinion)
-      -> bounded research plan: original claim, authority query, value-masked query, change query
+      -> model-planned multilingual search with candidate official domains, plus value-masked and change queries
       -> direct page acquisition (verbatim passages; publication, update and retrieval dates kept separate)
       -> advisory Workers AI assessment of each source (relation, scope, authority role, change notice)
-      -> deterministic adjudication: frame-aware recency, independent corroboration,
-         live issuer records, validated change notices, abstention
+      -> deterministic adjudication: frame-aware recency, graded independent corroboration
+         (STRONG / MODERATE confidence tier), documented change, live issuer records, abstention
       -> per-source trace (why each source counted or not), explanation, evidence-gated correction
 ```
 
@@ -51,16 +51,24 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 ## Public prototype
 
-- **Current version:** `0.2.84` (see the release evidence below for the deployment status)
+- **Current version:** `0.2.91` (see the release evidence below for the deployment status)
 - **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
 - **Evidence retrieval:** Tavily, server-side credential only
-- **Optional semantic assessment:** Cloudflare Workers AI, advisory and fail-closed
+- **Semantic assessment:** Cloudflare Workers AI with an optional free-tier Groq fallback; advisory and fail-closed
+- **Result cache:** identical claims reuse a short-lived cached assessment (marked with its assessment time)
 - **Storage:** no application database or durable user-submission storage is required
 - **Public release scope:** independently configured for public review; provider credentials remain server-side and no private user data is included
 
 The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
+
+## v0.2.91 release evidence
+
+- The release adds model-planned multilingual retrieval with official-domain search, graded independent-evidence verdicts with a confidence tier, value-masked relevance (pages stating a different value can contradict a claim), and evidence-gated corrections that quote two independent publishers. Opinions and open forecasts are labelled without retrieval. Long text is split into atomic claims, and each claim is verified progressively. See [docs/ENGINE-v0.2.91.md](docs/ENGINE-v0.2.91.md).
+- 510 automated tests pass in UTC and in Asia/Riyadh.
+- Development diagnostic on an isolated staging Worker, using 54 assistant-authored EN/AR cases (labels not human-audited, so this is not an accuracy study): the v0.2.90 engine reached a decisive verdict on 57.5% of 40 cases with no wrong decisive verdict, up from 3–9% for v0.2.84. Targeted v0.2.91 reruns showed no wrong decisive verdict. Remaining non-decisive results were mostly free-tier model quota limits.
+- No precision, recall, false-positive rate or cost-per-claim figure is claimed. Confidence tiers are evidence categories, not calibrated probabilities.
 
 ## v0.2.84 release evidence
 

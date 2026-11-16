@@ -43,6 +43,17 @@ const ARABIC_RATIONALE = {
     : "نطاقان مستقلان على الأقل من المصادر الأولية أو المؤسسية المؤهلة قُيّما بأنهما يدعمان الادعاء بدقة.",
   CORROBORATED_REPUTABLE_SECONDARY_EVIDENCE: () => "ناشران ثانويان مستقلان موثوقان يطابقان النطاق الدقيق لادعاء تاريخي أو سجلي محدود ومنخفض المخاطر.",
   CORROBORATED_TEMPORAL_CHANGE_EVENT: () => "تُثبت مصادر مستقلة مؤهلة حدوث تغيير مؤرخ لاحق تجاوز الحالة التي يذكرها الادعاء.",
+  NOT_A_FACTUAL_CLAIM: () => "العبارة رأي أو حكم قيمي أو توصية؛ يمكن للأدلة أن تُثريها لكنها لا تجعلها صحيحة أو خاطئة.",
+  FUTURE_OUTCOME_NOT_VERIFIABLE: () => "العبارة تتوقع نتيجة مستقبلية غير محسومة؛ لا يمكن لأي دليل حالي إثباتها. أما الخطط والمواعيد المعلنة فتُفحص بالأدلة.",
+  INDEPENDENT_SOURCE_CONSENSUS: status => status === "CONTRADICTED"
+    ? "مصادر مستقلة من ناشرين مختلفين تناقض الادعاء مباشرة وبدقة، ولا يدعمه أي مصدر مقيَّم."
+    : "مصادر مستقلة من ناشرين مختلفين تدعم الادعاء مباشرة وبدقة، ولا يناقضه أي مصدر مقيَّم.",
+  CURRENT_STATE_PERSISTENCE_CONSENSUS: status => status === "CONTRADICTED"
+    ? "تتفق مصادر مستقلة على حالة راهنة مختلفة؛ بعضها أقدم أو غير مؤرخ، ولم يكشف البحث عن تغييرات لاحقة ما يدعم الادعاء."
+    : "تتفق مصادر مستقلة على الحالة الراهنة كما وردت؛ بعضها أقدم أو غير مؤرخ، ولم يكشف البحث عن تغييرات لاحقة أي تغيير. قد تكون الحالة تغيّرت مؤخراً جداً.",
+  UNCONTESTED_CURRENT_STATE_CONTRADICTION: () => "تنفي مصادر مستقلة، منها ناشرون مصنّفون، أن الحالة المذكورة قائمة حالياً، ولم يجد البحث عن آخر المستجدات أي مصدر يدعمها، ولا يدعمها أي مصدر مُقيَّم.",
+  DOCUMENTED_CHANGE_CONSENSUS: () => "توثّق مصادر مستقلة تغييراً أزال الحالة التي يذكرها الادعاء، ولم يكشف البحث عن تطورات لاحقة أي مصدر يدعمه مجدداً؛ فالادعاء يصف حالة تغيّرت.",
+  TEMPORAL_ORDER_RECONCILIATION: () => "تدعم مصادر أقدم الادعاء، لكن كل المصادر الأحدث تناقضه وتتفق فيما بينها باستقلال؛ فالادعاء يصف حالة تغيّرت لاحقاً.",
   ISSUER_CHANGE_NOTICE_WITH_CORROBORATION: () => "يوثّق مصدر أولي أو مؤسسي تغييراً مؤرخاً حلّ محل الحالة الواردة في الادعاء، ويؤكد مصدر مستقل مؤهل أن الادعاء لم يعد قائماً.",
   LIVE_ISSUER_RECORD: status => status === "CONTRADICTED"
     ? "السجل الحالي للجهة المُصدِرة نفسها، المسترجع أثناء هذا التحقق، يذكر حالة راهنة مختلفة، ولا يدعم الادعاءَ أي مصدر مقيَّم."
@@ -94,7 +105,10 @@ export function buildExplanationDetail({ claim, status, adjudication = null, sou
     ...(retrievalDiagnostics.length && !evidenceBasis.length ? [arabic ? "تعذر الحصول على دليل صالح؛ تفاصيل الاسترجاع تشخيصية وليست دليلاً." : "No usable evidence was obtained; retrieval diagnostics are not evidence."] : []),
     ...(normalizedStatus === "NOT_ASSESSED" ? [arabic ? "لم تكتمل عملية جمع الأدلة أو تقييمها؛ هذه ليست نتيجة عن صحة الادعاء." : "The evidence process did not complete; this is not a finding about the claim."] : []),
     ...(normalizedStatus === "NEEDS_REVIEW" ? [arabic ? "الأدلة لا تبرر حكماً قاطعاً." : "Available evidence does not justify a definitive verdict."] : []),
-    ...(normalizedStatus === "UNVERIFIABLE" ? [arabic ? "لم تتوفر أدلة قابلة للاستخدام." : "No usable evidence was available."] : [])
+    ...(normalizedStatus === "UNVERIFIABLE" && adjudication?.method === "NOT_A_FACTUAL_CLAIM" ? [arabic ? "هذا رأي أو حكم قيمي؛ لا تُصدر الأدلة حكماً بصحته أو خطئه." : "This is an opinion or value judgement; evidence does not make it true or false."] : []),
+    ...(normalizedStatus === "UNVERIFIABLE" && adjudication?.method === "FUTURE_OUTCOME_NOT_VERIFIABLE" ? [arabic ? "هذا توقع لنتيجة مستقبلية غير محسومة؛ لا يمكن التحقق منه الآن." : "This predicts an uncertain future outcome; it cannot be verified yet."] : []),
+    ...(normalizedStatus === "UNVERIFIABLE" && !["NOT_A_FACTUAL_CLAIM", "FUTURE_OUTCOME_NOT_VERIFIABLE"].includes(adjudication?.method) ? [arabic ? "لم تتوفر أدلة قابلة للاستخدام." : "No usable evidence was available."] : []),
+    ...(adjudication?.confidence_tier === "MODERATE" && ["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(normalizedStatus) ? [arabic ? "ثقة متوسطة: الحكم مبني على اتفاق مصادر مستقلة، وليس على سجل الجهة المُصدِرة وحده." : "Moderate confidence: the verdict rests on agreement between independent sources rather than the issuing authority's own record."] : [])
   ]);
   const summaryMap = arabic
     ? { CURRENT: "الأدلة تدعم الادعاء ضمن النطاق المحدد.", SUPERSEDED: "تجاوزت التطورات اللاحقة الادعاء الأصلي.", CONTRADICTED: "تتعارض الأدلة المقبولة مع الادعاء.", UNVERIFIABLE: "تعذر التحقق من الادعاء بالأدلة المتاحة.", NEEDS_REVIEW: "الأدلة غير كافية لحسم الادعاء.", NOT_ASSESSED: "لم يُقيَّم الادعاء بسبب تعذر تشغيلي، وليس بسبب الأدلة." }
@@ -121,6 +135,8 @@ function hostForCorrection(value) {
     return url.hostname.toLowerCase().replace(/^www[.]/, "");
   } catch { return ""; }
 }
+const COMMUNITY_HOST = /(?:^|\.)(?:reddit\.com|quora\.com|stackexchange\.com|stackoverflow\.com|medium\.com|facebook\.com|x\.com|twitter\.com|tiktok\.com|youtube\.com|instagram\.com|pinterest\.com|linkedin\.com|fandom\.com|wikia\.com|blogspot\.com|wordpress\.com|tumblr\.com)$/i;
+
 function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, sources = [] } = {}) {
   if (!["SUPERSEDED", "CONTRADICTED"].includes(status)) return null;
   const candidate = correctionCandidate;
@@ -135,7 +151,10 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
   const seenIndices = new Set();
   const seenHosts = new Set();
   const evidenceRefs = [];
+  // v0.2.91: two independent publishers quoting the replacement verbatim, at
+  // least one classified (official, institutional or established reference).
   let hasPrimary = false;
+  let hasOfficial = false;
   for (const item of candidate.evidence) {
     const index = item?.source_index;
     if (!Number.isInteger(index) || index < 0 || index >= sources.length || seenIndices.has(index)
@@ -150,16 +169,17 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
     if (!host || snippet.length < 20 || supportingQuote.length < 20 || supportingQuote.length > 500
       || !normalizeEvidenceQuote(snippet).includes(normalizedQuote)
       || source?.relevance_assessment?.relevance === "LOW"
-      || !["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(reliability)) return null;
+      || COMMUNITY_HOST.test(host)) return null;
     if (seenHosts.has(host)) return null;
     seenHosts.add(host);
-    if (reliability === "PRIMARY_OR_OFFICIAL_DOMAIN") hasPrimary = true;
+    if (["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(reliability)) hasPrimary = true;
+    if (reliability === "PRIMARY_OR_OFFICIAL_DOMAIN") hasOfficial = true;
     const ref = safeSourceRef(source);
     if (!ref) return null;
     evidenceRefs.push({ ...ref, relation: "SUPPORTS_CORRECTION", supporting_quote: supportingQuote });
   }
   if (evidenceRefs.length < 2 || seenHosts.size < 2 || !hasPrimary) return null;
-  return { status: "PROVIDED", text, evidence_refs: evidenceRefs, limitations: uniqueStrings([candidate.limitation]) };
+  return { status: "PROVIDED", text, basis: hasOfficial ? "OFFICIAL_AND_INDEPENDENT_SOURCES" : "INDEPENDENT_CLASSIFIED_SOURCES", evidence_refs: evidenceRefs, limitations: uniqueStrings([candidate.limitation]) };
 }
 
 export function buildCorrection({ claim, status, domainAdapter, domainEvidence, explanationDetail, sources = [], correctionCandidate = null } = {}) {

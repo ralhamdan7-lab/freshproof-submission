@@ -515,6 +515,15 @@
       "accept": [
         "CURRENT"
       ]
+    },
+    {
+      "id": "D57",
+      "lang": "en",
+      "group": "obvious-true",
+      "claim": "Water is a liquid substance.",
+      "accept": [
+        "CURRENT"
+      ]
     }
   ],
   "long_texts": [

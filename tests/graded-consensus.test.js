@@ -229,3 +229,19 @@ test("v0.2.98: uncontested present-state support after a latest-status search (t
   const unclassified = adjudicateEvidence({ ...base, sources: sources.map(item => ({ ...item, source_reliability: "UNASSESSED", reliability_basis: "UNASSESSED" })), changeSearchPerformed: true });
   assert.equal(unclassified.status, "NEEDS_REVIEW", "a classified publisher is required");
 });
+
+test("v0.3.0: broad agreement (4+ agreeing, none opposing, 3 lineages, classified publisher) is STRONG", () => {
+  const texts = ["Water is a liquid at room temperature and standard pressure.", "At ordinary temperatures water is a liquid substance.", "Liquid water covers most of the planet's surface.", "Pure water is a colourless liquid at room temperature."];
+  const sources = [
+    src("reference-review.org", { reliability: "SECONDARY_REPUTABLE", basis: "CURATED_OR_SUFFIX_REGISTRY", i: 0, text: texts[0] }),
+    src("chem-notes.com", { i: 1, text: texts[1] }), src("earth-atlas.net", { i: 2, text: texts[2] }), src("lab-basics.io", { i: 3, text: texts[3] })
+  ];
+  const strong = run(sources, sem(["SUPPORTS", "SUPPORTS", "SUPPORTS", "SUPPORTS"]));
+  assert.equal(strong.status, "CURRENT");
+  assert.equal(strong.confidence_tier, "STRONG");
+  assert.equal(strong.adjudication_signals.confidence_basis, "BROAD_INDEPENDENT_AGREEMENT");
+  const three = run(sources.slice(0, 3), sem(["SUPPORTS", "SUPPORTS", "SUPPORTS"]));
+  assert.equal(three.confidence_tier, "MODERATE", "three agreeing sources stay MODERATE");
+  const withDissent = run(sources, sem(["SUPPORTS", "SUPPORTS", "SUPPORTS", "CONTRADICTS"], { scope: ["EXACT", "EXACT", "EXACT", "PARTIAL"] }));
+  assert.notEqual(withDissent.confidence_tier, "STRONG", "any opposing assessment prevents STRONG");
+});

@@ -102,7 +102,8 @@ export function bestExcerpt(snippet, claimText) {
   let best = null;
   let bestScore = -1;
   for (const sentence of sentences) {
-    const noisy = /\[\[|\]\]|==|\{\{|https?:\/\//.test(sentence) || (sentence.match(/[\[\]|]/g) || []).length > 2;
+    const noisy = /\[\[|\]\]|==|\{\{|https?:\/\//.test(sentence) || (sentence.match(/[\[\]|]/g) || []).length > 2
+      || /\bdoi\b|\bet al\.|pubmed|pmid|google scholar|copyright|disclaimer|cite this article|reprints and permissions/i.test(sentence);
     const words = excerptWords(sentence);
     let overlap = 0;
     for (const word of claimWords) if (words.has(word) || [...words].some(other => other.length >= 4 && word.length >= 4 && (other.startsWith(word.slice(0, 4)) || word.startsWith(other.slice(0, 4))))) overlap++;
@@ -215,7 +216,9 @@ function render(data, { scroll = true } = {}) {
           const seen = new Set();
           // v0.2.99: classified publishers first, then the rest in verdict order.
           const tierRank = source => ({ PRIMARY_OR_OFFICIAL_DOMAIN: 0, INSTITUTIONAL: 1, SECONDARY_REPUTABLE: 2 }[source?.source_reliability] ?? 3);
-          const keySources = evidence.map(item => (claim.sources || [])[item.source_index])
+          // The evidence model's own verbatim quote for a source is the best excerpt.
+          const modelQuotes = new Map((claim.semantic_assessment?.source_assessments || []).map(item => [item.source_index, item.correct_value_quote || item.change_statement_quote || item.new_state_quote || null]));
+          const keySources = evidence.map(item => ({ ...(claim.sources || [])[item.source_index], _modelQuote: modelQuotes.get(item.source_index) || null }))
             .filter(source => source?.url && !seen.has(source.url) && seen.add(source.url))
             .map((source, order) => ({ source, order }))
             .sort((a, b) => tierRank(a.source) - tierRank(b.source) || a.order - b.order)
@@ -230,7 +233,7 @@ function render(data, { scroll = true } = {}) {
               link.href = source.url; link.target = "_blank"; link.rel = "noopener noreferrer";
               link.textContent = host || source.url;
               li.append(link);
-              const excerpt = bestExcerpt(source.snippet, claim.text);
+              const excerpt = source._modelQuote && String(source.snippet || "").includes(source._modelQuote.slice(0, 40)) ? (source._modelQuote.length > 240 ? source._modelQuote.slice(0, 237) + "…" : source._modelQuote) : bestExcerpt(source.snippet, claim.text);
               if (excerpt) {
                 const quote = node("span", "hero-quote", ` — “${excerpt}”`);
                 quote.dir = "auto"; li.append(quote);

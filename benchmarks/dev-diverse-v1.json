@@ -524,6 +524,34 @@
       "accept": [
         "CURRENT"
       ]
+    },
+    {
+      "id": "D58",
+      "lang": "en",
+      "group": "complex-science-false",
+      "claim": "The Measles, Mumps, and Rubella (MMR) vaccine causes regressive autism in children due to intestinal inflammation and neurotoxic mercury (thimerosal) preservatives.",
+      "accept": [
+        "CONTRADICTED"
+      ]
+    },
+    {
+      "id": "D59",
+      "lang": "en",
+      "group": "complex-science-false",
+      "claim": "Adult human brains are completely incapable of generating new neurons (neurogenesis) after early childhood, meaning all cognitive learning relies strictly on modifying existing synaptic connections without any cell addition.",
+      "accept": [
+        "CONTRADICTED",
+        "NEEDS_REVIEW"
+      ]
+    },
+    {
+      "id": "D60",
+      "lang": "en",
+      "group": "complex-science-false",
+      "claim": "Human mitochondrial DNA (mtDNA) is inherited equally from both the mother and the father, undergoing regular homologous recombination during fertilization to prevent the accumulation of deleterious mutations.",
+      "accept": [
+        "CONTRADICTED"
+      ]
     }
   ],
   "long_texts": [

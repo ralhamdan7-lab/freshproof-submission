@@ -194,7 +194,7 @@ function serialize(task) {
   return next;
 }
 
-function waitForSlot(model, estimate, rpm, tpm, now, sleep) {
+function waitForSlot(model, estimate, rpm, tpm, now, sleep, noWait = false) {
   return (async () => {
     let state = throttleStates.get(model);
     if (!state) {
@@ -217,6 +217,7 @@ function waitForSlot(model, estimate, rpm, tpm, now, sleep) {
         state.window.push(entry);
         return entry;
       }
+      if (noWait) throw new LlmProviderError("groq", "slot_busy", "The Groq per-minute budget is in use; another provider is tried instead of waiting.");
       await sleep(delay + Math.min(250, Math.floor(Math.random() * 250)));
     }
   })();
@@ -255,7 +256,7 @@ async function groqRequest({ env, model, messages, input, fetchImpl, now, sleep,
       ...(/qwen/i.test(model) ? { reasoning_format: "hidden" } : {})
     };
 
-  const slot = await waitForSlot(model, estimate, rpm, tpm, now, sleep);
+  const slot = await waitForSlot(model, estimate, rpm, tpm, now, sleep, Boolean(input._freshproof_no_wait));
   const response = await fetchImpl(API_URL, {
     method: "POST",
     headers: headersFor(),
@@ -331,8 +332,14 @@ export function createResilientAi(env, dependencies = {}) {
     const ordered = input._freshproof_tier === "light"
       ? [...models].sort((a, b) => lightRank(a) - lightRank(b))
       : models;
+    // Fast path models: GROQ_FAST_MODELS, else the first configured model
+    // (the one that follows the evidence contract best in live diagnostics).
+    const fastModels = String(env.GROQ_FAST_MODELS || models[0] || "").split(",").map(item => item.trim()).filter(Boolean);
     for (const [index, model] of ordered.entries()) {
       if ((blockedModels.get(model) || 0) > now()) continue;
+      // The fast path uses only the strongest model; the others stay paced
+      // fallbacks where waiting is acceptable.
+      if (input._freshproof_no_wait && !fastModels.includes(model)) continue;
       const suffix = model.includes("120b") ? "120B" : model.includes("20b") ? "20B" : /qwen/i.test(model) ? "QWEN" : "";
       const rpm = Number((suffix && env[`GROQ_${suffix}_RPM`]) || env.GROQ_RPM);
       const tpm = Number((suffix && env[`GROQ_${suffix}_TPM`]) || env.GROQ_TPM);
@@ -351,6 +358,7 @@ export function createResilientAi(env, dependencies = {}) {
       } catch (error) {
         lastError = error;
         if (!(error instanceof LlmProviderError)) throw error;
+        if (error.code === "slot_busy") continue;
         if (error.code === "rate_limited") {
           const wait = error.retryAfterMs || 0;
           // Wait once only for a short reset. Longer resets skip this model;
@@ -401,6 +409,13 @@ export function createResilientAi(env, dependencies = {}) {
       // Groq model first. Off by default since v0.2.93: Groq calls are paced and
       // serialized per isolate, so a rate-limited light call could delay the
       // evidence assessment queued behind it.
+      // v0.2.97 fast path (SEMANTIC_PRIMARY=groq): evidence assessment tries
+      // Groq first, but only when a model has per-minute budget free right
+      // now; it never waits. Otherwise Workers AI runs as before, and a paced
+      // Groq call remains the fallback if Workers AI is unavailable.
+      if (input._freshproof_tier !== "light" && env.SEMANTIC_PRIMARY === "groq" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY) {
+        try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_path"); } catch {}
+      }
       if (input._freshproof_tier === "light" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY && env.LIGHT_TASKS_PREFER_GROQ === "true") {
         try { return await groqCascade(model, input, "light_task_routing"); } catch {}
       }

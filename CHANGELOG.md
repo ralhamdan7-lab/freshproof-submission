@@ -1,3 +1,7 @@
+# v0.2.97 — fast evidence assessment (2026-11-16)
+
+- Evidence assessment first uses the fastest strong model when its per-minute budget is free, and never waits for it. Otherwise it runs on Workers AI as before. In staging, the model stage fell from 16–43 s to 3–4 s, and mean claim latency from 48.7 s to 22.8 s.
+
 # v0.2.96 — verdict first (2026-11-16)
 
 - Each claim opens with a plain verdict box: TRUE, FALSE or OUTDATED, with the confidence, the correction where one applies, and key evidence links with quoted excerpts. The full audit trail stays one click away.

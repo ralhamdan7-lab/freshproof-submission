@@ -279,3 +279,26 @@ test("does not use Groq unless its explicit feature flag is enabled", async () =
   await assert.rejects(ai.run("@cf/test/model", { messages }), /4006/);
   assert.equal(groqCalls, 0);
 });
+
+test("v0.2.97 fast path: Groq first when budget is free, Workers AI without waiting when it is not", async () => {
+  let cloudflareCalls = 0;
+  let groqCalls = 0;
+  let slept = 0;
+  const env = { ...baseEnv(), SEMANTIC_PRIMARY: "groq", GROQ_MODELS: "openai/gpt-oss-120b-fastpath", GROQ_120B_TPM: "6000", AI: { async run() { cloudflareCalls++; return { response: "{\"cf\":true}" }; } } };
+  const ai = createResilientAi(env, {
+    fetchImpl: async () => { groqCalls++; return okResponse(); },
+    sleep: async ms => { slept += ms; }
+  });
+  const first = await ai.run("@cf/test/model", { messages, max_tokens: 650 });
+  assert.equal(first._freshproof_provider, "groq");
+  assert.equal(first._freshproof_fallback_reason, "groq_fast_path");
+  // A second large request in the same minute would have to wait: it goes to Workers AI immediately.
+  const big = [{ role: "system", content: "x".repeat(12000) }, { role: "user", content: JSON.stringify({ claim: "c", sources: [] }) }];
+  const second = await ai.run("@cf/test/model", { messages: big, max_tokens: 650 });
+  assert.equal(cloudflareCalls, 1);
+  assert.equal(second._freshproof_provider || "cloudflare", "cloudflare");
+  assert.equal(slept, 0, "the fast path never waits");
+  // Light tasks are unaffected by the fast path.
+  await ai.run("@cf/test/model", { messages, max_tokens: 200, _freshproof_tier: "light" });
+  assert.equal(cloudflareCalls, 2);
+});

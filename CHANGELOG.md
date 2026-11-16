@@ -1,3 +1,7 @@
+# v0.2.94 — UI fix (2026-11-16)
+
+- Specialist-adapter verdicts (for example, software lifecycle) render again. The v0.2.92 counted-source grouping assumed a list-shaped evidence field. The public browser acceptance caught the regression and now reports what the page showed on timeout.
+
 # v0.2.93 — light-task routing (2026-11-16)
 
 - Claim decomposition and search planning use Workers AI first again, so evidence assessment is never queued behind a paced fallback call. The browser acceptance now reports what the page showed if it times out.

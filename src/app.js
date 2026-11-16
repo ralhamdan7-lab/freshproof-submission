@@ -97,7 +97,7 @@ export function reportText(data) {
   (data?.claims || []).forEach((claim, index) => {
     lines.push(`${index + 1}. [${STATUS_TEXT[claim.status] || claim.status}${claim.confidence_tier && !["NONE", "NOT_APPLICABLE"].includes(claim.confidence_tier) ? " · " + claim.confidence_tier : ""}] ${claim.text}`);
     if (claim.correction?.status === "PROVIDED" && claim.correction.text) lines.push(`   Correction: ${claim.correction.text}`);
-    const counted = new Set((claim.adjudication?.evidence || []).map(item => item.source_index));
+    const counted = new Set((Array.isArray(claim.adjudication?.evidence) ? claim.adjudication.evidence : []).map(item => item.source_index));
     const sources = (claim.sources || []).filter((_, i) => counted.has(i)).slice(0, 4);
     sources.forEach(source => lines.push(`   - ${source.title || ""} ${source.url}`));
     lines.push("");
@@ -427,7 +427,7 @@ function render(data, { scroll = true } = {}) {
     // from (adjudication.evidence) are the counted ones, including sources that
     // formed an independent-agreement verdict.
     const decisiveVerdict = ["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(claim.status);
-    const countedSources = new Map(decisiveVerdict ? (claim.adjudication?.evidence || []).filter(item => Number.isInteger(item.source_index)).map(item => [item.source_index, item.relation]) : []);
+    const countedSources = new Map(decisiveVerdict ? (Array.isArray(claim.adjudication?.evidence) ? claim.adjudication.evidence : []).filter(item => Number.isInteger(item.source_index)).map(item => [item.source_index, item.relation]) : []);
     const contributionRank = (trace, index) => countedSources.has(index) ? (countedSources.get(index) === "CONTRADICTS" ? 1 : 0)
       : (countedSources.size ? (trace?.eligible ? 2 : 3) : (!trace ? 3 : trace.contribution === "SUPPORTS_ELIGIBLE" ? 0 : trace.contribution === "CONTRADICTS_ELIGIBLE" ? 1 : trace.eligible ? 2 : 3));
     const exclusionText = reason => {

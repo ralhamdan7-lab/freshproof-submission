@@ -339,7 +339,7 @@ export function createResilientAi(env, dependencies = {}) {
       if ((blockedModels.get(model) || 0) > now()) continue;
       // The fast path uses only the strongest model; the others stay paced
       // fallbacks where waiting is acceptable.
-      if (input._freshproof_no_wait && !fastModels.includes(model)) continue;
+      if (input._freshproof_no_wait && !input._freshproof_any_model && !fastModels.includes(model)) continue;
       const suffix = model.includes("120b") ? "120B" : model.includes("20b") ? "20B" : /qwen/i.test(model) ? "QWEN" : "";
       const rpm = Number((suffix && env[`GROQ_${suffix}_RPM`]) || env.GROQ_RPM);
       const tpm = Number((suffix && env[`GROQ_${suffix}_TPM`]) || env.GROQ_TPM);
@@ -399,7 +399,7 @@ export function createResilientAi(env, dependencies = {}) {
       if (forcedGroq) return groqCascade(model, input, "forced_groq");
       // Task-routing hints are for the Groq fallback only; Workers AI receives
       // the plain chat input.
-      const { _freshproof_tier: _tier, response_format: _format, ...cloudflareInput } = input;
+      const { _freshproof_tier: _tier, _freshproof_task: _task, response_format: _format, ...cloudflareInput } = input;
       if (env.LLM_PROVIDER_MODE === "cloudflare") return env.AI.run(model, cloudflareInput);
 
       if (cloudflareBlockedUntil > now()) {
@@ -415,6 +415,11 @@ export function createResilientAi(env, dependencies = {}) {
       // Groq call remains the fallback if Workers AI is unavailable.
       if (input._freshproof_tier !== "light" && env.SEMANTIC_PRIMARY === "groq" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY) {
         try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_path"); } catch {}
+        // v0.3.1: correction review follows its output contract more reliably
+        // on the Groq models, so any of them with free budget is tried first.
+        if (input._freshproof_task === "correction") {
+          try { return await groqCascade(model, { ...input, _freshproof_no_wait: true, _freshproof_any_model: true }, "groq_correction_path"); } catch {}
+        }
       }
       if (input._freshproof_tier === "light" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY && env.LIGHT_TASKS_PREFER_GROQ === "true") {
         try { return await groqCascade(model, input, "light_task_routing"); } catch {}

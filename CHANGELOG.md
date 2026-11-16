@@ -1,3 +1,9 @@
+# v0.3.1 — complex scientific claims and corrections (2026-11-16)
+
+- **Compound claims.** A source that refutes any essential part of a compound claim contradicts the whole claim. General rules outweigh rare exceptions.
+- **Corrections.** Corrections can now state what the sources say instead ("X does not cause Y"), but only when two contradicting sources quote it verbatim. Every new fact in a correction must be covered by the quotes.
+- **Key evidence.** Key evidence uses the model's verbatim quotes.
+
 # v0.3.0 — confidence that matches the evidence (2026-11-16)
 
 - Broad agreement among independent sources is now high confidence. That means at least four agreeing sources, none opposing, three independent lineages, and a classified publisher among them. Confirmed verdicts are described by their basis ("independent sources agree, none opposing") instead of as "moderate confidence".

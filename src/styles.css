@@ -59,3 +59,6 @@
 @media(max-width:360px){.frame-chip{font-size:9px}}
 .frame-chip.confidence-strong{color:var(--mint);border-color:#2f5a4a}
 .frame-chip.confidence-moderate{color:#f1dfb7;border-color:#6b5a2c}
+
+.examples{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:14px}.examples-label{font:10px monospace;letter-spacing:1px;color:var(--muted);margin-right:4px}.example{background:#10151b;color:#cfe9de;border:1px solid #303a45;font:600 12px Manrope,sans-serif;padding:7px 11px;border-radius:999px}.example:hover{border-color:#8bd9bb;color:var(--mint)}.example:disabled{opacity:.45}
+.summary-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:8px}.copy-report{font-size:11px;padding:6px 10px}

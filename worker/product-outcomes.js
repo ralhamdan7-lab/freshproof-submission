@@ -141,7 +141,7 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
   if (!["SUPERSEDED", "CONTRADICTED"].includes(status)) return null;
   const candidate = correctionCandidate;
   if (!candidate || candidate.assessment?.status !== "SUPPORTED"
-    || candidate.assessment?.method !== "SEPARATE_MODEL_CANDIDATE_REVIEW"
+    || !["SEPARATE_MODEL_CANDIDATE_REVIEW", "IN_ASSESSMENT_GROUNDED_CORRECTION"].includes(candidate.assessment?.method)
     || candidate.assessment?.scope_match !== "MATCHED"
     || candidate.assessment?.timeframe_match !== "MATCHED"
     || candidate.assessment?.conflict_status !== "NONE") return null;

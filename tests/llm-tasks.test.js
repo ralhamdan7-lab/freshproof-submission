@@ -77,3 +77,15 @@ test("the provider receives routing hints only on the Groq path", async () => {
   assert.equal(seen._freshproof_tier, "light");
   assert.equal(seen.response_format.type, "json_schema");
 });
+
+test("v0.2.91: a factual question is restated as its claim using only the question's own words", async () => {
+  const { validateDecomposition } = await import("../worker/llm-tasks.js");
+  const text = "Is the Great Wall of China visible from space? Who invented the telephone?";
+  const result = validateDecomposition({ claims: [
+    { claim: "The Great Wall of China is visible from space.", span: "Is the Great Wall of China visible from space?", kind: "QUESTION" },
+    { claim: "Alexander Bell invented the telephone.", span: "Who invented the telephone?", kind: "QUESTION" }
+  ] }, text);
+  assert.equal(result.claims.length, 1);
+  assert.equal(result.claims[0].kind, "QUESTION");
+  assert.equal(result.rejected.question_rewrite, 1, "an answer smuggled into a rewrite is rejected");
+});

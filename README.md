@@ -51,7 +51,7 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 ## Public prototype
 
-- **Current version:** `0.2.91` (see the release evidence below for the deployment status)
+- **Current version:** `0.2.92` (see the release evidence below for the deployment status)
 - **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
@@ -62,6 +62,12 @@ The semantic model is advisory; it cannot independently establish truth or overr
 - **Public release scope:** independently configured for public review; provider credentials remain server-side and no private user data is included
 
 The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
+
+## v0.2.92 release evidence
+
+- A correction is shown only when every value it introduces appears in verbatim quotes from at least two contradicting, exact-scope sources, one of them a classified publisher. Example from a live staging check: the Arabic claim that humans first landed on the Moon in 1975 was corrected to 1969, citing official sources.
+- Questions are checked as the statement they ask about. The page offers example claims and a copy-report button.
+- 513 automated tests pass in UTC and in Asia/Riyadh. Targeted staging checks showed no wrong decisive verdict. As before, this is a development diagnostic, not an accuracy study.
 
 ## v0.2.91 release evidence
 

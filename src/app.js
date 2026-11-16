@@ -8,6 +8,12 @@ const list = document.querySelector("#claim-list");
 const summary = document.querySelector("#summary");
 
 input.addEventListener("input", () => counter.textContent = `${input.value.length.toLocaleString()} / 12,000`);
+document.querySelectorAll("[data-example]").forEach(button => button.addEventListener("click", () => {
+  if (verify.disabled) return;
+  input.value = button.dataset.example;
+  input.dispatchEvent(new Event("input"));
+  verify.click();
+}));
 // v0.2.90: long or multi-claim text is first split into atomic claims
 // (/api/extract), then each factual claim is verified in its own request so
 // every claim gets the full evidence budget. Results render as they arrive.
@@ -34,17 +40,22 @@ verify.addEventListener("click", async () => {
     let extracted = null;
     try { extracted = await postJson("/api/extract", { text }); } catch { extracted = null; }
     const items = Array.isArray(extracted?.claims) ? extracted.claims : [];
+    const checkable = item => item.kind === "FACT" || item.kind === "QUESTION";
+    const asked = item => item.kind === "QUESTION" ? { asked_as_question: item.span } : {};
     if (items.length <= 1) {
       notice.textContent = "Searching for evidence. Search results are leads, not verdicts.";
-      render(await postJson("/api/verify", { text }));
+      const single = items[0];
+      const data = await postJson("/api/verify", { text: single?.kind === "QUESTION" ? single.claim : text });
+      if (single?.kind === "QUESTION") data.claims = (data.claims || []).map(claim => ({ ...claim, ...asked(single) }));
+      render(data);
     } else {
       const aggregate = { version: extracted.version, claims: [], extraction: { method: extracted.method, detected_count: items.length, processed_count: 0, truncated_count: 0, is_truncated: false } };
-      const slots = items.map(item => item.kind === "FACT" ? null : {
+      const slots = items.map(item => checkable(item) ? null : {
         text: item.claim, status: "NOT_CHECKABLE", not_checkable_kind: item.kind,
         explanation: item.kind === "OPINION" ? "This is an opinion or value judgement; evidence cannot make it true or false." : item.kind === "PREDICTION" ? "This is a prediction about the future; it cannot be verified yet." : "This is not a factual statement.",
         sources: []
       });
-      const pending = items.map((item, index) => ({ item, index })).filter(entry => entry.item.kind === "FACT");
+      const pending = items.map((item, index) => ({ item, index })).filter(entry => checkable(entry.item));
       let done = 0;
       const refresh = first => {
         aggregate.claims = slots.flatMap(slot => slot ? (Array.isArray(slot) ? slot : [slot]) : []);
@@ -58,13 +69,13 @@ verify.addEventListener("click", async () => {
           const { item, index } = pending.shift();
           try {
             const data = await postJson("/api/verify", { text: item.claim });
-            slots[index] = (data.claims || []).map(claim => ({ ...claim, source_span: item.span }));
+            slots[index] = (data.claims || []).map(claim => ({ ...claim, source_span: item.span, ...asked(item) }));
           } catch (err) {
             slots[index] = { text: item.claim, status: "NOT_ASSESSED", explanation: err.message || "Request failed.", sources: [] };
           }
           done++;
           refresh(false);
-          notice.textContent = `Verified ${done} of ${items.filter(entry => entry.kind === "FACT").length} factual claims…`;
+          notice.textContent = `Verified ${done} of ${items.filter(checkable).length} factual claims…`;
         }
       };
       await Promise.all([worker(), worker()]);
@@ -79,7 +90,29 @@ function node(tag, className, text) {
   if (text !== undefined) el.textContent = text;
   return el;
 }
+let lastReport = null;
+const STATUS_TEXT = { CURRENT: "SUPPORTED", CONTRADICTED: "CONTRADICTED", SUPERSEDED: "OUTDATED", NEEDS_REVIEW: "NEEDS REVIEW", UNVERIFIABLE: "UNVERIFIABLE", NOT_ASSESSED: "NOT ASSESSED", NOT_CHECKABLE: "NOT A CHECKABLE FACT" };
+export function reportText(data) {
+  const lines = [`FreshProof verification report · v${data?.version || ""} · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`, ""];
+  (data?.claims || []).forEach((claim, index) => {
+    lines.push(`${index + 1}. [${STATUS_TEXT[claim.status] || claim.status}${claim.confidence_tier && !["NONE", "NOT_APPLICABLE"].includes(claim.confidence_tier) ? " · " + claim.confidence_tier : ""}] ${claim.text}`);
+    if (claim.correction?.status === "PROVIDED" && claim.correction.text) lines.push(`   Correction: ${claim.correction.text}`);
+    const counted = new Set((claim.adjudication?.evidence || []).map(item => item.source_index));
+    const sources = (claim.sources || []).filter((_, i) => counted.has(i)).slice(0, 4);
+    sources.forEach(source => lines.push(`   - ${source.title || ""} ${source.url}`));
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+document.querySelector("#copy-report")?.addEventListener("click", async event => {
+  if (!lastReport) return;
+  const text = reportText(lastReport);
+  try { await navigator.clipboard.writeText(text); event.target.textContent = "Copied ✓"; }
+  catch { const area = document.createElement("textarea"); area.value = text; document.body.append(area); area.select(); try { document.execCommand("copy"); event.target.textContent = "Copied ✓"; } catch {} area.remove(); }
+  setTimeout(() => { event.target.textContent = "Copy report"; }, 1800);
+});
 function render(data, { scroll = true } = {}) {
+  lastReport = data;
   const statusLabel = (status, arabic) => arabic ? ({
     CURRENT: "مدعوم كما ورد",
     SUPERSEDED: "معلومة قديمة",
@@ -164,6 +197,12 @@ function render(data, { scroll = true } = {}) {
         : ({ PARTIAL: "RUN PARTIALLY COMPLETED", PROVIDER_LIMITED: "RUN LIMITED BY A PROVIDER", FAILED: "RUN FAILED" }[claim.execution.status] || claim.execution.status);
       const executionNode = node("div", "execution-note", executionText + (stageText ? " · " + stageText : "") + (arabic ? " — هذا وضع تشغيلي وليس دليلاً على صحة الادعاء أو خطئه." : " — operational state only, not evidence about the claim."));
       executionNode.dir = dir; executionNode.lang = lang; card.append(executionNode);
+    }
+    if (claim.asked_as_question) {
+      const askedNode = node("div", "execution-note", arabic
+        ? `سؤالك «${claim.asked_as_question}» فُحص بوصفه العبارة: «${claim.text}».`
+        : `Your question “${claim.asked_as_question}” was checked as the statement: “${claim.text}”.`);
+      askedNode.dir = dir; askedNode.lang = lang; card.append(askedNode);
     }
     if (claim.result_cache?.status === "HIT") {
       const when = String(claim.result_cache.assessed_at || "").replace("T", " ").slice(0, 16);
@@ -384,7 +423,13 @@ function render(data, { scroll = true } = {}) {
     // v0.2.84: group sources by how the adjudicator actually used them, using
     // the same trace the verdict was computed from (no reconstruction).
     const traceByIndex = new Map((claim.adjudication?.adjudication_signals?.source_trace || []).map(item => [item.index, item]));
-    const contributionRank = trace => !trace ? 3 : trace.contribution === "SUPPORTS_ELIGIBLE" ? 0 : trace.contribution === "CONTRADICTS_ELIGIBLE" ? 1 : trace.eligible ? 2 : 3;
+    // v0.2.92: for a decisive verdict, the sources the verdict was computed
+    // from (adjudication.evidence) are the counted ones, including sources that
+    // formed an independent-agreement verdict.
+    const decisiveVerdict = ["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(claim.status);
+    const countedSources = new Map(decisiveVerdict ? (claim.adjudication?.evidence || []).filter(item => Number.isInteger(item.source_index)).map(item => [item.source_index, item.relation]) : []);
+    const contributionRank = (trace, index) => countedSources.has(index) ? (countedSources.get(index) === "CONTRADICTS" ? 1 : 0)
+      : (countedSources.size ? (trace?.eligible ? 2 : 3) : (!trace ? 3 : trace.contribution === "SUPPORTS_ELIGIBLE" ? 0 : trace.contribution === "CONTRADICTS_ELIGIBLE" ? 1 : trace.eligible ? 2 : 3));
     const exclusionText = reason => {
       const key = String(reason || "");
       const table = {
@@ -400,11 +445,11 @@ function render(data, { scroll = true } = {}) {
       return arabic ? entry[1] : entry[0];
     };
     const orderedSources = (claim.sources || []).map((source, index) => ({ source, index, trace: traceByIndex.get(index) }))
-      .sort((a, b) => contributionRank(a.trace) - contributionRank(b.trace) || a.index - b.index);
+      .sort((a, b) => contributionRank(a.trace, a.index) - contributionRank(b.trace, b.index) || a.index - b.index);
     let currentGroup = null;
-    orderedSources.forEach(({ source, trace }) => {
-      if (traceByIndex.size) {
-        const group = contributionRank(trace);
+    orderedSources.forEach(({ source, trace, index: sourceIndex }) => {
+      if (traceByIndex.size || countedSources.size) {
+        const group = contributionRank(trace, sourceIndex);
         if (group !== currentGroup) {
           currentGroup = group;
           const headings = arabic
@@ -436,7 +481,7 @@ function render(data, { scroll = true } = {}) {
       if (source.event_date_candidate) dateParts.push(arabic ? `تاريخ الحدث المحتمل في المقتطف ${source.event_date_candidate}` : `POSSIBLE EVENT DATE IN SNIPPET ${source.event_date_candidate}`);
       const sourceMeta = node("div", "meta", dateParts.join(" · ")); sourceMeta.dir = dir; sourceMeta.lang = lang;
       evidence.append(sourceMeta);
-      if (trace && !trace.eligible && trace.exclusion_reasons?.length) {
+      if (trace && !trace.eligible && trace.exclusion_reasons?.length && !countedSources.has(sourceIndex)) {
         const why = node("p", "source-exclusion", (arabic ? "لم يُحتسب: " : "Not counted: ") + [...new Set(trace.exclusion_reasons.map(exclusionText))].join(arabic ? "؛ " : "; "));
         why.dir = dir; why.lang = lang; evidence.append(why);
       }

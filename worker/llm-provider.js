@@ -3,7 +3,7 @@
 // Cloudflare quota/capacity failures and only when the owner enables it.
 const DEFAULT_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MAX_EVIDENCE_CHARS = 4500;
+const MAX_EVIDENCE_CHARS = 6500; // v0.2.92: keeps about 900 characters of evidence per source within an 8K-token minute budget
 const DEFAULT_OUTPUT_TOKENS = 1400;
 const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
   type: "json_schema",
@@ -13,8 +13,9 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["claim_assessment", "source_assessments", "assessments", "component_assessments"],
+      required: ["claim_assessment", "correction_text", "source_assessments", "assessments", "component_assessments"],
       properties: {
+        correction_text: { type: "string" },
         claim_assessment: {
           type: "object",
           additionalProperties: false,
@@ -33,7 +34,7 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
             // v0.2.90: temporal fields are part of the strict schema; without them
             // Groq-served assessments could never carry change notices or
             // current-state records, silently disabling those adjudication rules.
-            required: ["source_index", "directness", "scope_match", "authority_role", "temporal_role", "change_type", "event_date_mention_index", "change_statement_quote", "old_state_quote", "new_state_quote"],
+            required: ["source_index", "directness", "scope_match", "authority_role", "temporal_role", "change_type", "event_date_mention_index", "change_statement_quote", "old_state_quote", "new_state_quote", "correct_value_quote"],
             properties: {
               source_index: { type: "integer" },
               directness: { type: "string", enum: ["DIRECT", "INDIRECT", "UNCLEAR"] },
@@ -44,7 +45,8 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
               event_date_mention_index: { type: ["integer", "null"] },
               change_statement_quote: { type: ["string", "null"] },
               old_state_quote: { type: ["string", "null"] },
-              new_state_quote: { type: ["string", "null"] }
+              new_state_quote: { type: ["string", "null"] },
+              correct_value_quote: { type: ["string", "null"] }
             }
           }
         },
@@ -394,6 +396,13 @@ export function createResilientAi(env, dependencies = {}) {
 
       if (cloudflareBlockedUntil > now()) {
         return groqCascade(model, input, cloudflareFallbackReason || "cloudflare_breaker_open");
+      }
+      // v0.2.92: light tasks (claim decomposition, search planning) go to the
+      // smallest Groq model first when it is configured, keeping the shared
+      // Workers AI daily allocation for evidence assessment. Any Groq failure
+      // falls back to Workers AI as before.
+      if (input._freshproof_tier === "light" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY && env.LIGHT_TASKS_PREFER_GROQ !== "false") {
+        try { return await groqCascade(model, input, "light_task_routing"); } catch {}
       }
       try {
         const result = await env.AI.run(model, cloudflareInput);

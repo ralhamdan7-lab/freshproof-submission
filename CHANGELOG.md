@@ -1,3 +1,7 @@
+# v0.2.93 — light-task routing (2026-11-16)
+
+- Claim decomposition and search planning use Workers AI first again, so evidence assessment is never queued behind a paced fallback call. The browser acceptance now reports what the page showed if it times out.
+
 # v0.2.92 — grounded corrections, questions, judge-ready UI (2026-11-16)
 
 - **Grounded corrections.** The evidence model proposes the correction in the same pass. It is shown only when every introduced value is quoted verbatim by two contradicting, exact-scope sources, and a classified publisher is among them.

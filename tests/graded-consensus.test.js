@@ -206,3 +206,26 @@ test("v0.2.91: uncontested present-state contradiction after a latest-status sea
   const withSupport = adjudicateEvidence({ ...base, sources: [...sources, src("kessel-news.com", { i: 3, text: "Orvan Telis remains director of the Kessel Basin Authority." })], semanticAssessment: sem(["CONTRADICTS", "CONTRADICTS", "CONTRADICTS", "SUPPORTS"], { scope: ["EXACT", "EXACT", "EXACT", "PARTIAL"] }), changeSearchPerformed: true });
   assert.equal(withSupport.status, "NEEDS_REVIEW", "any assessed support blocks the rule");
 });
+
+test("v0.2.98: uncontested present-state support after a latest-status search (three lineages, a classified publisher)", () => {
+  const CURRENT = { frame: "CURRENT_STATE", state_class: "OFFICE_HOLDER" };
+  const claim = "Mira Sand is the current director of the Kessel Basin Authority.";
+  const texts = ["Mira Sand, director of the Kessel Basin Authority, opened the new pumping station.", "The Kessel Basin Authority is led by its director, Mira Sand, an engineer by training.", "Director Mira Sand oversees the Kessel Basin Authority and its regional offices."];
+  const sources = [
+    src("basin-review.org", { reliability: "SECONDARY_REPUTABLE", basis: "CURATED_OR_SUFFIX_REGISTRY", i: 0, text: texts[0] }),
+    src("water-notes.com", { i: 1, text: texts[1] }),
+    src("regional-atlas.net", { i: 2, text: texts[2] })
+  ];
+  const semantic = sem(["SUPPORTS", "SUPPORTS", "SUPPORTS"], { temporal: ["BACKGROUND", "HISTORICAL_RECORD", "BACKGROUND"] });
+  const base = { claim, semanticAssessment: semantic, claimFrame: CURRENT, temporalSensitive: true, now };
+  const result = adjudicateEvidence({ ...base, sources, changeSearchPerformed: true });
+  assert.equal(result.status, "CURRENT");
+  assert.equal(result.method, "UNCONTESTED_CURRENT_STATE_SUPPORT");
+  assert.equal(result.confidence_tier, "MODERATE");
+  assert.equal(adjudicateEvidence({ ...base, sources, changeSearchPerformed: false }).status, "NEEDS_REVIEW");
+  assert.equal(adjudicateEvidence({ ...base, sources: sources.slice(0, 2), semanticAssessment: sem(["SUPPORTS", "SUPPORTS"], { temporal: ["BACKGROUND", "BACKGROUND"] }), changeSearchPerformed: true }).status, "NEEDS_REVIEW");
+  const contested = adjudicateEvidence({ ...base, sources: [...sources, src("kessel-news.com", { i: 3, text: "Mira Sand stepped down as director of the Kessel Basin Authority last month." })], semanticAssessment: sem(["SUPPORTS", "SUPPORTS", "SUPPORTS", "CONTRADICTS"], { scope: ["EXACT", "EXACT", "EXACT", "PARTIAL"] }), changeSearchPerformed: true });
+  assert.notEqual(contested.status, "CURRENT", "any assessed contradiction blocks the rule");
+  const unclassified = adjudicateEvidence({ ...base, sources: sources.map(item => ({ ...item, source_reliability: "UNASSESSED", reliability_basis: "UNASSESSED" })), changeSearchPerformed: true });
+  assert.equal(unclassified.status, "NEEDS_REVIEW", "a classified publisher is required");
+});

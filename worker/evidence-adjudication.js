@@ -226,9 +226,14 @@ function gradedConsensus({ assessed, claimFrame, requireRecentEvidence, now, max
     // not the case count regardless of their date. The stricter threshold
     // below (three lineages, classified publishers) applies to this basis.
     if (x.relation === "CONTRADICTS" && frame === "CURRENT_STATE" && !anyAssessedSupport) return "UNCONTESTED_AFTER_LATEST_STATUS_SEARCH";
+    // v0.2.98: the mirror case. No assessed source says the present state has
+    // ended, after a search for its latest status; undated or older sources
+    // that state it may count, under the same stricter threshold.
+    if (x.relation === "SUPPORTS" && frame === "CURRENT_STATE" && !anyAssessedContradiction) return "UNCONTESTED_AFTER_LATEST_STATUS_SEARCH";
     return null;
   };
   const anyAssessedSupport = assessed.some(x => x.relation === "SUPPORTS");
+  const anyAssessedContradiction = assessed.some(x => x.relation === "CONTRADICTS");
   const current = pool.map(x => ({ ...x, currency: currencyBasis(x) })).filter(x => x.currency);
   const supports = current.filter(x => x.relation === "SUPPORTS");
   const contradicts = current.filter(x => x.relation === "CONTRADICTS");
@@ -297,6 +302,16 @@ function gradedConsensus({ assessed, claimFrame, requireRecentEvidence, now, max
     if (items.some(x => x.currency === "UNCONTESTED_AFTER_LATEST_STATUS_SEARCH")) {
       const strict = consensusStrength(items, highRisk);
       if (!(strict.lineages >= 3 && strict.qualified_publishers >= (highRisk ? 2 : 1))) continue;
+      if (status === "CURRENT") {
+        return {
+          status: "CURRENT",
+          method: "UNCONTESTED_CURRENT_STATE_SUPPORT",
+          confidence_tier: "MODERATE",
+          rationale: "Independent sources, including classified publishers, state the claimed present state; a search for its latest status found no source saying it has changed, and no assessed source contradicts it.",
+          items,
+          signals: signalsFor(items)
+        };
+      }
       const pastState = items.some(x => ["CHANGE_NOTICE", "HISTORICAL_RECORD", "EVENT_REPORT"].includes(x.semanticSource?.temporal_role));
       return {
         status: pastState ? "SUPERSEDED" : "CONTRADICTED",

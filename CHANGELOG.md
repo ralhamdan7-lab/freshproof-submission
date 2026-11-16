@@ -1,3 +1,8 @@
+# v0.2.98 — present-state evidence (2026-11-16)
+
+- **Uncontested present-state support.** After a latest-status search, a present-state claim that no assessed source disputes can be supported by older or undated sources. This needs three independent lineages including a classified publisher.
+- **Evidence window and ranking.** The window keeps room for classified publishers. For present-state claims, recently dated sources rank first. Name variants count as the same entity.
+
 # v0.2.97 — fast evidence assessment (2026-11-16)
 
 - Evidence assessment first uses the fastest strong model when its per-minute budget is free, and never waits for it. Otherwise it runs on Workers AI as before. In staging, the model stage fell from 16–43 s to 3–4 s, and mean claim latency from 48.7 s to 22.8 s.

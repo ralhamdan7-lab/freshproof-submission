@@ -511,6 +511,24 @@
       "lang": "ar",
       "text": "تأسست الأمم المتحدة عام 1945 بعد الحرب العالمية الثانية، ويقع مقرها الرئيسي في نيويورك. وفي العام نفسه وُقّع ميثاقها في سان فرانسيسكو. ويرى كثيرون أنها أهم منظمة دولية في العالم.",
       "expect_min_claims": 3
+    },
+    {
+      "id": "Q01",
+      "lang": "en",
+      "text": "Did Albert Einstein win the Nobel Prize in Physics in 1921?",
+      "expect_min_claims": 1
+    },
+    {
+      "id": "Q02",
+      "lang": "ar",
+      "text": "هل سور الصين العظيم موجود في اليابان؟",
+      "expect_min_claims": 1
+    },
+    {
+      "id": "M01",
+      "lang": "en",
+      "text": "The Great Wall of China is located in Japan. Neil Armstrong was the first person to walk on the Moon, in 1969. Python is the best programming language ever created. Brazil will win the next FIFA World Cup.",
+      "expect_min_claims": 4
     }
   ]
 }

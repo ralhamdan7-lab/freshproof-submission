@@ -31,13 +31,22 @@
         <span id="counter">0 / 12,000</span>
         <button id="verify" type="button"><span>Verify claims</span><b>↗</b></button>
       </div>
+      <div class="examples" aria-label="Try an example">
+        <span class="examples-label">TRY AN EXAMPLE</span>
+        <button type="button" class="example" data-example="Water boils at 50 degrees Celsius at sea level.">False claim + correction</button>
+        <button type="button" class="example" data-example="Ban Ki-moon is the current Secretary-General of the United Nations.">Outdated claim</button>
+        <button type="button" class="example" data-example="The Eiffel Tower was completed in 1889.">True claim</button>
+        <button type="button" class="example" data-example="كانبرا هي عاصمة أستراليا." lang="ar" dir="rtl">ادعاء عربي</button>
+        <button type="button" class="example" data-example="Did Albert Einstein win the Nobel Prize in Physics in 1921?">A question</button>
+        <button type="button" class="example" data-example="The Great Wall of China is located in Japan. Neil Armstrong was the first person to walk on the Moon, in 1969. Python is the best programming language ever created. Brazil will win the next FIFA World Cup.">Mixed AI answer</button>
+      </div>
       <div id="notice" class="notice" role="status" aria-live="polite">Claims are checked individually. Avoid including personal or confidential information.</div>
     </section>
 
     <section id="results" class="results" hidden>
       <div class="results-head">
         <div><div class="eyebrow">VERIFICATION REPORT</div><h2 id="report-title">Evidence review</h2></div>
-        <div id="summary" class="summary"></div>
+        <div class="summary-wrap"><div id="summary" class="summary"></div><button id="copy-report" type="button" class="example copy-report">Copy report</button></div>
       </div>
       <div id="claim-list" class="claim-list"></div>
       <p class="disclaimer">FreshProof is an evidence-triage tool. Search results may be incomplete; verify important claims against primary sources.</p>

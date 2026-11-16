@@ -34,21 +34,27 @@ export function cacheableResult(claimResult) {
   return ["COMPLETED", "PARTIAL"].includes(claimResult.execution?.status);
 }
 
+const ABSTENTION_TTL_SECONDS = 1800;
 export function ttlFor(claimResult) {
+  // An abstention may reflect which model was available at that moment, so it
+  // is kept only briefly; a later request can reach a stronger assessment.
+  if (["NEEDS_REVIEW", "UNVERIFIABLE"].includes(claimResult?.status) && !["NOT_A_FACTUAL_CLAIM", "FUTURE_OUTCOME_NOT_VERIFIABLE"].includes(claimResult?.adjudication?.method)) return ABSTENTION_TTL_SECONDS;
   return SHORT_FRAMES.has(claimResult?.claim_frame?.frame) ? SHORT_TTL_SECONDS : LONG_TTL_SECONDS;
 }
 
 export function createResultCache(env, cacheImpl = globalThis.caches?.default) {
+  // Optional deployment salt (e.g. a validation run id) isolates test runs.
+  const salt = typeof env?.RESULT_CACHE_SALT === "string" ? env.RESULT_CACHE_SALT.slice(0, 64) : "";
   const enabled = env?.ENABLE_RESULT_CACHE !== "false" && cacheImpl && typeof cacheImpl.match === "function";
   return {
     enabled: Boolean(enabled),
     async get(version, text) {
       if (!enabled) return null;
       try {
-        const hit = await cacheImpl.match(await keyFor(version, text));
+        const hit = await cacheImpl.match(await keyFor(version + salt, text));
         if (!hit) return null;
         const stored = await hit.json();
-        if (!stored?.result || stored.version !== version) return null;
+        if (!stored?.result || stored.version !== version + salt) return null;
         return { ...stored.result, result_cache: { status: "HIT", assessed_at: stored.assessed_at, ttl_seconds: stored.ttl_seconds, note: "Served from a short-lived cache of an identical claim assessed earlier; evidence and verdict are as of assessed_at." } };
       } catch { return null; }
     },
@@ -56,8 +62,8 @@ export function createResultCache(env, cacheImpl = globalThis.caches?.default) {
       if (!enabled || !cacheableResult(claimResult)) return false;
       try {
         const ttl = ttlFor(claimResult);
-        const body = JSON.stringify({ version, assessed_at: new Date().toISOString(), ttl_seconds: ttl, result: claimResult });
-        await cacheImpl.put(await keyFor(version, text), new Response(body, { headers: { "content-type": "application/json", "cache-control": `public, max-age=${ttl}` } }));
+        const body = JSON.stringify({ version: version + salt, assessed_at: new Date().toISOString(), ttl_seconds: ttl, result: claimResult });
+        await cacheImpl.put(await keyFor(version + salt, text), new Response(body, { headers: { "content-type": "application/json", "cache-control": `public, max-age=${ttl}` } }));
         return true;
       } catch { return false; }
     }

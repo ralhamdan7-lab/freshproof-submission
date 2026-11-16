@@ -27,3 +27,10 @@ test("v0.2.91 result cache: disabled by flag or without Cache API", async () => 
   assert.equal(createResultCache({}, null).enabled, false);
   assert.equal(normalizeClaimKey("Canberra  is the capital."), normalizeClaimKey("canberra is the capital"));
 });
+
+test("v0.2.91 result cache: abstentions are kept only briefly", async () => {
+  const { ttlFor } = await import("../worker/result-cache.js");
+  assert.equal(ttlFor({ status: "NEEDS_REVIEW", claim_frame: { frame: "STABLE_FACT" } }), 1800);
+  assert.ok(ttlFor({ status: "CONTRADICTED", claim_frame: { frame: "STABLE_FACT" } }) > 1800);
+  assert.ok(ttlFor({ status: "UNVERIFIABLE", adjudication: { method: "NOT_A_FACTUAL_CLAIM" }, claim_frame: { frame: "NON_FACTUAL" } }) > 1800);
+});

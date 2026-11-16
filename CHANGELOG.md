@@ -1,3 +1,11 @@
+# v0.2.92 — grounded corrections, questions, judge-ready UI (2026-11-16)
+
+- **Grounded corrections.** The evidence model proposes the correction in the same pass. It is shown only when every introduced value is quoted verbatim by two contradicting, exact-scope sources, and a classified publisher is among them.
+- **Questions.** Factual questions are checked as the statement they ask about.
+- **Evidence-model rules.** New rules for comparisons, attribution and debunked claims, and for claim-risk calibration.
+- **UI.** Example claims, counted sources that follow the verdict's own evidence, and a copy-report button.
+- **Capacity routing.** Light tasks use the smallest model first, and the evidence window is larger.
+
 # v0.2.91 — evidence coverage, corrections and free-tier capacity (2026-11-16)
 
 - **Retrieval.** Long text is decomposed into verbatim atomic claims, and each claim gets a multilingual search plan with candidate official domains. Cross-lingual relevance lets an Arabic claim be checked against English official pages.

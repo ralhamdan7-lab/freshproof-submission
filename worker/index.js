@@ -42,6 +42,7 @@ export function mergePinnedEvidence(primary = [], pinned = []) {
 import { SEMANTIC_MODEL } from "./model-config.js";
 import { planSearchWithModel, decomposeClaimsWithModel } from "./llm-tasks.js";
 import { createResultCache } from "./result-cache.js";
+import { evidenceRecency } from "./evidence-dates.js";
 export { SEMANTIC_MODEL };
 // v0.2.81: preserve dependent clauses and remove topic-specific generic query routing.
 // v0.2.80: send Tavily API credentials only in the Authorization bearer header.
@@ -50,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.2.97";
+export const VERSION = "0.2.98";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -437,10 +438,23 @@ export function valueMaskedClaim(claim) {
   const masked = text.replace(/[0-9\u0660-\u0669\u06F0-\u06F9][0-9\u0660-\u0669\u06F0-\u06F9.,:/\-]*(?:\s*(?:%|percent|per cent|km|kilometres|kilometers|metres|meters|million|billion|bn|m))?/gi, " ").replace(/\s+/g, " ").trim();
   return masked.split(/\s+/).filter(word => /[\p{L}]{3,}/u.test(word)).length >= 2 ? masked : null;
 }
+const recentForRanking = source => evidenceRecency(source, { maxAgeDays: 365 }).is_recent ? 1 : 0;
 export function selectDiverseSources(sources, limit = LIMITS.maxResultsPerClaim) {
   const selected = [];
   const seenDomains = new Set();
+  // v0.2.98: verdicts need at least one classified publisher, and a claim in
+  // one language often retrieves many unclassified pages in that language
+  // first. Up to two slots go to the best classified, non-low-relevance
+  // sources from different domains; the rest keep the ranked order.
+  const reserved = [];
   for (const source of sources) {
+    if (reserved.length >= Math.min(2, limit)) break;
+    const domain = registrableDomain(source.url);
+    if (!domain || reserved.some(item => registrableDomain(item.url) === domain)) continue;
+    if (EVIDENCE_TIER_RANK(source) >= 2 && source.relevance_assessment?.relevance !== "LOW") reserved.push(source);
+  }
+  for (const source of sources) {
+    if (selected.length >= limit - reserved.filter(item => !selected.includes(item)).length && !reserved.includes(source)) continue;
     const domain = registrableDomain(source.url);
     if (!domain || seenDomains.has(domain)) continue;
     selected.push(source);
@@ -448,6 +462,7 @@ export function selectDiverseSources(sources, limit = LIMITS.maxResultsPerClaim)
     if (selected.length >= limit) return selected;
   }
   for (const source of sources) {
+    if (selected.length >= limit) break;
     if (selected.includes(source)) continue;
     selected.push(source);
     if (selected.length >= limit) break;
@@ -629,6 +644,7 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
     "Different dates for different milestones, or a later change to application deadlines, are not contradictions of an unchanged historical entry-into-force date.",
     "Scope is about what the source discusses, not whether it agrees: scope matches when the source addresses the same entity, the same attribute or milestone, and the same jurisdiction and period of validity as the claim. A source that addresses that same attribute but states a different value (a different date, year, number, name, place, holder or status) is in scope and CONTRADICTS the claim; never label such a source NO_MATCH or INSUFFICIENT. Example: claim 'Country A joined Union B in 2010'; source 'Country A joined Union B on 1 July 2013' -> scope_match EXACT, relation CONTRADICTS. Example: claim 'City C is the capital of Country D'; source 'City E has been the capital of Country D since 1960, replacing City C' -> scope_match EXACT, relation CONTRADICTS, temporal_role CHANGE_NOTICE.",
     "Use NO_MATCH only when the source is about a different entity, a different attribute or milestone, a different jurisdiction, or units that cannot be compared; then the relation is INSUFFICIENT or IRRELEVANT.",
+    "Names: a shorter, longer, translated or transliterated form of the same person's, place's or organisation's name (with or without a patronymic, title or family name, in any language or script) refers to the same entity; when the attribute and time also match, scope_match is EXACT.",
     "Comparisons and rankings: for a claim comparing entities (taller, larger, older, more than, first, largest), a source that states the comparison or ranking, or gives the compared values of all entities involved, is EXACT and SUPPORTS or CONTRADICTS accordingly; a source giving only one entity's value is PARTIAL and INSUFFICIENT.",
     "Attribution: for a claim that a person or body created, invented, founded, wrote, said or did something, a source naming a different person or body for that same act is EXACT and CONTRADICTS. A source that reports the claim itself as false, a myth, a hoax or debunked is EXACT and CONTRADICTS.",
     "claim_risk: HIGH only where an error could cause harm (health, safety, law, finance, elections) or the claim is contested or compound; ordinary historical, geographic, scientific and organisational facts are LOW or MEDIUM.",
@@ -1701,6 +1717,9 @@ export default {
             // v0.2.91: only a few sources fit the model's evidence window, so
             // among equally relevant sources the better-classified publisher and
             // the directly read page go first. No source is excluded by this order.
+            // v0.2.98: for a claim about the present, a recently dated source is
+            // what can settle it, so among equally relevant sources it goes first.
+            (claimFrame?.requires_recent_evidence ? (recentForRanking(b) - recentForRanking(a)) : 0) ||
             (EVIDENCE_TIER_RANK(b) - EVIDENCE_TIER_RANK(a)) ||
             ((b.evidence_origin === "DIRECT_PAGE_PASSAGES" ? 1 : 0) - (a.evidence_origin === "DIRECT_PAGE_PASSAGES" ? 1 : 0)) ||
             (Number(b.search_relevance || 0) - Number(a.search_relevance || 0))

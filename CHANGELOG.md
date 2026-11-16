@@ -1,3 +1,7 @@
+# v0.3.2 — neutral prompt examples (2026-11-16)
+
+- The prompt examples use neutral placeholders. The engine contains no claim-specific or topic-specific logic.
+
 # v0.3.1 — complex scientific claims and corrections (2026-11-16)
 
 - **Compound claims.** A source that refutes any essential part of a compound claim contradicts the whole claim. General rules outweigh rare exceptions.

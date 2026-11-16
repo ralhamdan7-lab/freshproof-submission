@@ -117,7 +117,7 @@ const STATUS_TEXT = { CURRENT: "SUPPORTED", CONTRADICTED: "CONTRADICTED", SUPERS
 export function reportText(data) {
   const lines = [`FreshProof verification report · v${data?.version || ""} · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`, ""];
   (data?.claims || []).forEach((claim, index) => {
-    lines.push(`${index + 1}. [${STATUS_TEXT[claim.status] || claim.status}${claim.confidence_tier && !["NONE", "NOT_APPLICABLE"].includes(claim.confidence_tier) ? " · " + claim.confidence_tier : ""}] ${claim.text}`);
+    lines.push(`${index + 1}. [${STATUS_TEXT[claim.status] || claim.status}${claim.confidence_tier === "STRONG" ? " · HIGH CONFIDENCE" : claim.confidence_tier === "MODERATE" ? " · CONFIRMED BY INDEPENDENT SOURCES" : ""}] ${claim.text}`);
     if (claim.correction?.status === "PROVIDED" && claim.correction.text) lines.push(`   Correction: ${claim.correction.text}`);
     const counted = new Set((Array.isArray(claim.adjudication?.evidence) ? claim.adjudication.evidence : []).map(item => item.source_index));
     const sources = (claim.sources || []).filter((_, i) => counted.has(i)).slice(0, 4);
@@ -200,9 +200,10 @@ function render(data, { scroll = true } = {}) {
         hero.dir = dir; hero.lang = lang;
         hero.append(node("div", "hero-headline", headline));
         if (decisive && ["STRONG", "MODERATE"].includes(claim.confidence_tier)) {
+          const broad = claim.adjudication?.adjudication_signals?.confidence_basis === "BROAD_INDEPENDENT_AGREEMENT";
           hero.append(node("div", "hero-sub", arabic
-            ? (claim.confidence_tier === "STRONG" ? "ثقة مرتفعة · مصدر رسمي أو تأييد مؤهل" : "ثقة متوسطة · مصادر مستقلة متفقة")
-            : (claim.confidence_tier === "STRONG" ? "High confidence · official source or qualified corroboration" : "Moderate confidence · independent sources agree")));
+            ? (claim.confidence_tier === "STRONG" ? (broad ? "ثقة مرتفعة · اتفاق واسع بين مصادر مستقلة ومعتمدة دون أي مصدر مخالف" : "ثقة مرتفعة · مصدر رسمي أو تأييد من مصادر معتمدة") : "مؤكَّد · مصادر مستقلة متفقة دون أي مصدر مخالف")
+            : (claim.confidence_tier === "STRONG" ? (broad ? "High confidence · broad agreement across independent and classified sources, none opposing" : "High confidence · official source or classified corroboration") : "Confirmed · independent sources agree, none opposing")));
         }
         if (claim.correction?.status === "PROVIDED" && claim.correction.text) {
           const fix = node("div", "hero-correction");
@@ -270,8 +271,8 @@ function render(data, { scroll = true } = {}) {
       if (["STRONG", "MODERATE"].includes(claim.confidence_tier) && ["CURRENT", "CONTRADICTED", "SUPERSEDED"].includes(claim.status)) {
         const strong = claim.confidence_tier === "STRONG";
         frameRow.append(node("span", `frame-chip confidence-${strong ? "strong" : "moderate"}`, arabic
-          ? (strong ? "الثقة · مرتفعة — سجل الجهة المُصدِرة أو تأييد مؤهل" : "الثقة · متوسطة — اتفاق مصادر مستقلة")
-          : (strong ? "CONFIDENCE · STRONG — ISSUING AUTHORITY OR QUALIFIED CORROBORATION" : "CONFIDENCE · MODERATE — INDEPENDENT SOURCES AGREE")));
+          ? (strong ? "الثقة · مرتفعة" : "مؤكَّد · مصادر مستقلة متفقة")
+          : (strong ? "CONFIDENCE · HIGH" : "CONFIRMED · INDEPENDENT SOURCES AGREE")));
       }
       card.append(frameRow);
     }

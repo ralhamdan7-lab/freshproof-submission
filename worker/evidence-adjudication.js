@@ -194,7 +194,26 @@ function consensusStrength(items, highRisk) {
     : (lineages >= 2 && qualifiedCount >= 1) || (lineages >= 3 && directPages >= 1);
   return { met, lineages, qualified_publishers: qualifiedCount, direct_page_sources: directPages };
 }
-function gradedConsensus({ assessed, claimFrame, requireRecentEvidence, now, maxEvidenceAgeDays, changeSearchPerformed, claimRisk, lexicalGuard, trace = {} }) {
+// v0.3.0: graded verdicts carry STRONG confidence when agreement is broad:
+// at least four assessed sources on the same side, none on the other, three
+// independent lineages and a classified publisher (two for high-risk claims).
+// This is an evidence category, not a probability.
+function gradedConsensus(args) {
+  const result = gradedConsensusBase(args);
+  if (!result || result.confidence_tier !== "MODERATE" || result.signals?.minority_dissent_domains) return result;
+  const highRisk = args.claimRisk === "HIGH" || Boolean(args.lexicalGuard?.high_impact);
+  const side = result.status === "CURRENT" ? "SUPPORTS" : "CONTRADICTS";
+  const opposite = side === "SUPPORTS" ? "CONTRADICTS" : "SUPPORTS";
+  const agreeing = args.assessed.filter(x => x.relation === side).length;
+  const opposing = args.assessed.filter(x => x.relation === opposite).length;
+  const strength = consensusStrength(result.items, highRisk);
+  if (agreeing >= 4 && opposing === 0 && strength.lineages >= 3 && strength.qualified_publishers >= (highRisk ? 2 : 1)) {
+    return { ...result, confidence_tier: "STRONG", signals: { ...(result.signals || {}), confidence_basis: "BROAD_INDEPENDENT_AGREEMENT", agreeing_sources: agreeing } };
+  }
+  return result;
+}
+
+function gradedConsensusBase({ assessed, claimFrame, requireRecentEvidence, now, maxEvidenceAgeDays, changeSearchPerformed, claimRisk, lexicalGuard, trace = {} }) {
   const frame = claimFrame?.frame || null;
   const highRisk = claimRisk === "HIGH" || Boolean(lexicalGuard?.high_impact);
   const pool = assessed.filter(corroborable);

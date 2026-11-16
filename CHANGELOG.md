@@ -1,3 +1,7 @@
+# v0.3.0 — confidence that matches the evidence (2026-11-16)
+
+- Broad agreement among independent sources is now high confidence. That means at least four agreeing sources, none opposing, three independent lineages, and a classified publisher among them. Confirmed verdicts are described by their basis ("independent sources agree, none opposing") instead of as "moderate confidence".
+
 # v0.2.99 — clearer key evidence (2026-11-16)
 
 - The verdict box lists classified publishers first and quotes the sentence that best matches the claim.

@@ -73,9 +73,15 @@ export function deriveExecution({ retrievalDiagnostics = [], semanticAssessment 
  *   stage (the adjudication method says so).
  * - UNVERIFIABLE requires a search stage that actually completed.
  */
+const CLAIM_TYPE_METHODS = new Set(["NOT_A_FACTUAL_CLAIM", "FUTURE_OUTCOME_NOT_VERIFIABLE"]);
+
 export function reconcileStatus(adjudicatedStatus, execution, adjudication = null) {
   const method = String(adjudication?.method || "");
   const deterministicDecisive = DECISIVE.has(adjudicatedStatus) && /DOMAIN|ADAPTER|SPECIALIST/.test(method);
+  // v0.2.91: a statement that is not checkable by evidence (opinion, open
+  // forecast) is classified from its wording alone; provider limits on the
+  // evidence stages do not change that classification.
+  if (adjudicatedStatus === "UNVERIFIABLE" && CLAIM_TYPE_METHODS.has(method)) return "UNVERIFIABLE";
   if (execution?.status === "FAILED") return "NOT_ASSESSED";
   if (execution?.status === "PROVIDER_LIMITED" && !deterministicDecisive) return "NOT_ASSESSED";
   if (adjudicatedStatus === "UNVERIFIABLE" && execution?.stages?.search !== "OK") return "NOT_ASSESSED";

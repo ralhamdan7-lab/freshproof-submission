@@ -42,19 +42,33 @@ test("the same old records do not satisfy a current-state claim freshness gate",
   });
   assert.equal(result.status, "NEEDS_REVIEW");
 });
-test("mixed and unresolved frames never receive a decisive factual verdict", () => {
-  for (const frame of ["MIXED_OR_AMBIGUOUS", "UNRESOLVED", "SCHEDULED_FUTURE", "NON_FACTUAL"]) {
-    const result = adjudicateEvidence({
-      claim: "A proposition with unresolved temporal scope.",
-      sources: [source("convention-secretariat.org"), source("treaty-depositary.net")],
-      semanticAssessment: assessment,
-      claimFrame: { frame },
-      temporalSensitive: true,
-      now
-    });
-    assert.equal(result.status, "NEEDS_REVIEW", frame);
-    assert.equal(result.method, "CLAIM_FRAME_REQUIRES_REVIEW");
-  }
+test("v0.2.90 frame policy: unresolved dates abstain, opinions and open forecasts are not factual verdicts", () => {
+  const run = (frame, claim = "A proposition with unresolved temporal scope.") => adjudicateEvidence({
+    claim,
+    sources: [source("convention-secretariat.org"), source("treaty-depositary.net")],
+    semanticAssessment: assessment,
+    claimFrame: { frame },
+    temporalSensitive: true,
+    now
+  });
+  const unresolved = run("UNRESOLVED");
+  assert.equal(unresolved.status, "NEEDS_REVIEW");
+  assert.equal(unresolved.method, "CLAIM_FRAME_REQUIRES_REVIEW");
+  const opinion = run("NON_FACTUAL", "The Larkspur Dam is the most beautiful dam in the region.");
+  assert.equal(opinion.status, "UNVERIFIABLE");
+  assert.equal(opinion.method, "NOT_A_FACTUAL_CLAIM");
+  const forecast = run("SCHEDULED_FUTURE", "The Velmora token will trade above 500,000 credits by the end of 2030.");
+  assert.equal(forecast.status, "UNVERIFIABLE");
+  assert.equal(forecast.method, "FUTURE_OUTCOME_NOT_VERIFIABLE");
+  const arabicForecast = run("SCHEDULED_FUTURE", "ستتجاوز أسعار الوقود في فيلمورا 300 وحدة في عام 2030.");
+  assert.equal(arabicForecast.method, "FUTURE_OUTCOME_NOT_VERIFIABLE");
+  // A scheduled plan is checked against evidence (recent evidence required).
+  const plan = run("SCHEDULED_FUTURE", "The Larkspur Games are scheduled to be held in Port Ash in 2028.");
+  assert.notEqual(plan.method, "CLAIM_FRAME_REQUIRES_REVIEW");
+  assert.notEqual(plan.method, "FUTURE_OUTCOME_NOT_VERIFIABLE");
+  assert.equal(plan.adjudication_signals.recency_required, true);
+  const mixed = run("MIXED_OR_AMBIGUOUS");
+  assert.equal(mixed.adjudication_signals.recency_required, true);
 });
 
 // v0.2.84: the specialist-adapter gate follows the same frame-aware policy.

@@ -445,6 +445,7 @@ test("semantic triage runs only after explicit opt-in", async () => {
   const env = {
     TAVILY_API_KEY: "test-key",
     AI: { run: async (_model, options) => {
+      if (/^You (?:plan web searches|split a text)/.test(options?.messages?.[0]?.content || "")) return { response: JSON.stringify({ queries: [], authority_domains: [] }) };
       aiCalls++;
       const payload = JSON.parse(options.messages[1].content);
       return { response: JSON.stringify({ assessments: payload.sources.map(source => ({ source_index: source.source_index, relation: "SUPPORTS", rationale: "Mocked semantic assessment for the test." })) }) };
@@ -758,7 +759,7 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.84");
+    assert.equal(body.version, "0.2.91");
     // v0.2.84: a pronoun-led sentence is bound to its antecedent sentence, so
     // no orphan claim ("Its official brand name ...") is extracted.
     assert.equal(body.claims.length, 1);

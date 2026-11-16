@@ -7,12 +7,21 @@ preview_urls = false
 [[ratelimits]]
 name = "API_RATE_LIMITER"
 namespace_id = "20261115"
-simple = { limit = 3, period = 60 }
+simple = { limit = 15, period = 60 }
 
 [vars]
 ALLOWED_ORIGIN = "https://freshproof-submission-demo.ralhamdan7.workers.dev"
 ENABLE_SEMANTIC_TRIAGE = "true"
-ENABLE_CORRECTION_CANDIDATE_REVIEW = "false"
+ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
+# Optional free-tier Groq fallback. Active only when the GROQ_API_KEY secret is set.
+GROQ_FALLBACK_ENABLED = "true"
+GROQ_MODELS = "qwen/qwen3.8-27b,openai/gpt-oss-120b,openai/gpt-oss-20b"
+GROQ_120B_RPM = "30"
+GROQ_120B_TPM = "8000"
+GROQ_20B_RPM = "30"
+GROQ_20B_TPM = "8000"
+GROQ_QWEN_RPM = "30"
+GROQ_QWEN_TPM = "8000"
 
 [ai]
 binding = "AI"

@@ -154,6 +154,193 @@ function evidenceItem(source, relation, index) {
   };
 }
 
+// v0.2.90 ----------------------------------------------------------------
+const QUALIFIED_TIERS = new Set(["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"]);
+// Persistence windows for current states with no later change found: tight
+// for fast-moving states, wider for structural ones (capitals, memberships,
+// names, regulations in force). Office holders and prices never rely on old
+// undated pages alone.
+const PERSISTENCE_DAYS = Object.freeze({ OFFICE_HOLDER: 365, PRICE_FEE: 365, STATISTIC: 730, MEMBERSHIP: 1825, NAME_IDENTITY: 1825, REGULATION_IN_FORCE: 1095, LIFECYCLE_SUPPORT: 730, OTHER: 1825 });
+const FORECAST = /\b(?:will|shall|is expected to|are expected to|is likely to|are likely to|is projected to|are projected to|could|is going to|are going to)\b[^.!?]{0,80}\b(?:exceed|surpass|reach|hit|top|trade|cost|be worth|rise|fall|drop|decline|increase|decrease|grow|shrink|win|lose|beat|collapse|crash|double|triple|halve|outperform|dominate|replace)\b|(?:ستتجاوز|سيتجاوز|ستصل|سيصل|سترتفع|سيرتفع|ستنخفض|سينخفض|سيفوز|ستفوز|سيخسر|ستخسر|ستنهار|سينهار|ستتضاعف|سيتضاعف|سيبلغ|ستبلغ|ستتفوق|سيتفوق|ستهيمن|سيهيمن)/iu;
+export function isOpenForecast(claim) {
+  return FORECAST.test(String(claim || ""));
+}
+function sourceTimestamp(source) {
+  const value = Date.parse(String(source?.published_date || source?.updated_date || "").slice(0, 10));
+  return Number.isFinite(value) ? value : null;
+}
+function corroborable(x) {
+  const source = x?.source;
+  const assessedSource = x?.semanticSource;
+  if (!source || !assessedSource || !hostOf(source.url)) return false;
+  if (source.relevance_assessment?.relevance !== "HIGH") return false;
+  if (source.reliability_basis === "USER_GENERATED_CONTENT_ON_DOMAIN") return false;
+  // A domain that matches the claimed entity but whose page does not identify
+  // as it (parked, resold or impersonating domains) is never a corroborator.
+  if (source.reliability_basis === "FIRST_PARTY_UNCONFIRMED_BY_PAGE" || source.first_party_confirmation === "NOT_CONFIRMED_BY_PAGE_IDENTITY") return false;
+  if (!authorityQualified(x)) return false;
+  if (assessedSource.scope_match !== "EXACT" || assessedSource.directness === "UNCLEAR") return false;
+  return x.relation === "SUPPORTS" || x.relation === "CONTRADICTS";
+}
+function consensusStrength(items, highRisk) {
+  const lineages = independentLineages(items.map(x => x.source)).length;
+  const qualifiedCount = new Set(items.filter(x => QUALIFIED_TIERS.has(x.source.source_reliability)).map(x => registrableDomain(x.source.url))).size;
+  const directPages = items.filter(x => x.source.evidence_origin === "DIRECT_PAGE_PASSAGES").length;
+  // v0.2.91: search-provider excerpts are verbatim publisher text, so a page
+  // read directly is no longer mandatory when classified publishers agree.
+  // Unclassified-only agreement still needs a directly read page.
+  const met = highRisk
+    ? lineages >= 3 && qualifiedCount >= 1 && (directPages >= 1 || qualifiedCount >= 2)
+    : (lineages >= 2 && qualifiedCount >= 1) || (lineages >= 3 && directPages >= 1);
+  return { met, lineages, qualified_publishers: qualifiedCount, direct_page_sources: directPages };
+}
+function gradedConsensus({ assessed, claimFrame, requireRecentEvidence, now, maxEvidenceAgeDays, changeSearchPerformed, claimRisk, lexicalGuard, trace = {} }) {
+  const frame = claimFrame?.frame || null;
+  const highRisk = claimRisk === "HIGH" || Boolean(lexicalGuard?.high_impact);
+  const pool = assessed.filter(corroborable);
+  // v0.2.91 telemetry: why graded consensus did or did not apply.
+  Object.assign(trace, { corroborable_sources: pool.length, high_risk_threshold: highRisk, change_search_performed: Boolean(changeSearchPerformed) });
+  if (!pool.length) return null;
+  // Any qualified source labelled MIXED keeps the claim under review.
+  if (assessed.some(x => x.relation === "MIXED" && corroborable({ ...x, relation: "SUPPORTS" }) && QUALIFIED_TIERS.has(x.source.source_reliability))) return null;
+  const changeNoticeAgainst = assessed.some(x => x.semanticSource?.temporal_role === "CHANGE_NOTICE" && x.relation === "CONTRADICTS");
+  const persistenceDays = PERSISTENCE_DAYS[claimFrame?.state_class] ?? PERSISTENCE_DAYS.OTHER;
+  // v0.2.91: a change notice against the claim blocks persistence only for the
+  // claim's side. Sources that document the change (or the resulting state)
+  // are themselves the contradiction: their age does not weaken them unless a
+  // later source supports the old state again, which blocks consensus below.
+  const persistenceAllowedFor = x => requireRecentEvidence && changeSearchPerformed
+    && (x.relation === "CONTRADICTS" || !changeNoticeAgainst);
+  const currencyBasis = x => {
+    if (!requireRecentEvidence) return "NOT_REQUIRED";
+    if (recentDated(x.source, now, maxEvidenceAgeDays)) return "RECENT";
+    if (liveIssuerRecord(x, now, maxEvidenceAgeDays)) return "LIVE_ISSUER_RECORD";
+    if (!persistenceAllowedFor(x)) return null;
+    const role = x.semanticSource?.temporal_role;
+    if (x.relation === "CONTRADICTS" && role === "CHANGE_NOTICE") return "DOCUMENTED_CHANGE";
+    const recency = evidenceRecency(x.source, { now, maxAgeDays: persistenceDays });
+    if (recency.is_recent) return "WITHIN_PERSISTENCE_WINDOW";
+    if (recency.recency_basis === "UNDATED" && role === "CURRENT_STATE_RECORD") return "UNDATED_CURRENT_STATE_RECORD";
+    // v0.2.91: when no assessed source at all supports a present-state claim
+    // after a search for its latest status, independent sources saying it is
+    // not the case count regardless of their date. The stricter threshold
+    // below (three lineages, classified publishers) applies to this basis.
+    if (x.relation === "CONTRADICTS" && frame === "CURRENT_STATE" && !anyAssessedSupport) return "UNCONTESTED_AFTER_LATEST_STATUS_SEARCH";
+    return null;
+  };
+  const anyAssessedSupport = assessed.some(x => x.relation === "SUPPORTS");
+  const current = pool.map(x => ({ ...x, currency: currencyBasis(x) })).filter(x => x.currency);
+  const supports = current.filter(x => x.relation === "SUPPORTS");
+  const contradicts = current.filter(x => x.relation === "CONTRADICTS");
+  const allSupports = pool.filter(x => x.relation === "SUPPORTS");
+  const allContradicts = pool.filter(x => x.relation === "CONTRADICTS");
+  Object.assign(trace, {
+    supports: allSupports.length, contradicts: allContradicts.length,
+    supports_current: supports.length, contradicts_current: contradicts.length,
+    support_strength: supports.length ? consensusStrength(supports, highRisk) : null,
+    contradict_strength: contradicts.length ? consensusStrength(contradicts, highRisk) : null
+  });
+  const usedPersistence = items => items.some(x => ["WITHIN_PERSISTENCE_WINDOW", "UNDATED_CURRENT_STATE_RECORD", "DOCUMENTED_CHANGE"].includes(x.currency));
+  const signalsFor = (items, extra = {}) => ({
+    confidence_basis: "INDEPENDENT_AGREEMENT",
+    ...consensusStrength(items, highRisk),
+    high_risk_threshold_applied: highRisk,
+    currency_basis: [...new Set(items.map(x => x.currency))],
+    change_search_performed: Boolean(changeSearchPerformed),
+    ...extra
+  });
+
+  // (a) Temporal-order reconciliation: every dated supporting source is older
+  // than every dated contradicting source, and the contradicting side meets
+  // consensus on its own. The claim describes a state that has been overtaken.
+  if (["CURRENT_STATE", "STABLE_FACT", "MIXED_OR_AMBIGUOUS"].includes(frame) && allSupports.length && allContradicts.length) {
+    const supportTimes = allSupports.map(x => sourceTimestamp(x.source));
+    const contraTimes = allContradicts.map(x => sourceTimestamp(x.source));
+    const strength = consensusStrength(allContradicts, highRisk);
+    if (strength.met && supportTimes.every(Number.isFinite) && contraTimes.every(Number.isFinite)
+      && Math.max(...supportTimes) < Math.min(...contraTimes)) {
+      return {
+        status: "SUPERSEDED",
+        method: "TEMPORAL_ORDER_RECONCILIATION",
+        confidence_tier: "MODERATE",
+        rationale: "Older sources support the claim, but every later source contradicts it, and the later sources independently agree. The claim describes a state that has since changed.",
+        items: allContradicts,
+        signals: signalsFor(allContradicts.map(x => ({ ...x, currency: "NEWER_THAN_ALL_SUPPORT" })), { older_supporting_domains: allSupports.map(x => hostOf(x.source.url)) })
+      };
+    }
+  }
+  // Any opposing assessed source (current or not) blocks consensus, with one
+  // narrow v0.2.91 exception: a lone dissenting page from a single unclassified
+  // publisher does not block a side that is backed by at least three
+  // independent lineages, two of them qualified publishers. The dissent is
+  // recorded in the signals and the verdict stays MODERATE.
+  const loneUnqualifiedDissent = (side, opposition) => {
+    if (!side.length || !opposition.length) return false;
+    const oppositionLineages = independentLineages(opposition.map(x => x.source)).length;
+    const oppositionQualified = opposition.some(x => QUALIFIED_TIERS.has(x.source.source_reliability));
+    if (oppositionLineages !== 1 || oppositionQualified) return false;
+    const strength = consensusStrength(side, highRisk);
+    return strength.met && strength.lineages >= 3 && strength.qualified_publishers >= 2;
+  };
+  let dissent = null;
+  if (allSupports.length && allContradicts.length) {
+    if (loneUnqualifiedDissent(supports, allContradicts)) dissent = { side: "CURRENT", opposition: allContradicts };
+    else if (loneUnqualifiedDissent(contradicts, allSupports)) dissent = { side: "CONTRADICTED", opposition: allSupports };
+    else return null;
+  }
+  for (const [status, items] of [["CURRENT", supports], ["CONTRADICTED", contradicts]]) {
+    if (!items.length) continue;
+    if (dissent && dissent.side !== status) continue;
+    const strength = consensusStrength(items, highRisk);
+    if (!strength.met) continue;
+    const persistence = usedPersistence(items);
+    if (items.some(x => x.currency === "UNCONTESTED_AFTER_LATEST_STATUS_SEARCH")) {
+      const strict = consensusStrength(items, highRisk);
+      if (!(strict.lineages >= 3 && strict.qualified_publishers >= (highRisk ? 2 : 1))) continue;
+      const pastState = items.some(x => ["CHANGE_NOTICE", "HISTORICAL_RECORD", "EVENT_REPORT"].includes(x.semanticSource?.temporal_role));
+      return {
+        status: pastState ? "SUPERSEDED" : "CONTRADICTED",
+        method: "UNCONTESTED_CURRENT_STATE_CONTRADICTION",
+        confidence_tier: "MODERATE",
+        rationale: pastState
+          ? "Independent sources, including classified publishers, describe the claimed state as past, a search for the latest status found no source supporting it, and no assessed source supports it. The claim describes a state that no longer holds."
+          : "Independent sources, including classified publishers, state that the claimed present state is not the case, a search for the latest status found no source supporting it, and no assessed source supports it.",
+        items,
+        signals: signalsFor(items)
+      };
+    }
+    // v0.2.91: for a present-state claim, independent sources that document a
+    // change away from the claimed state mean the claim was overtaken.
+    const documentedChange = status === "CONTRADICTED" && frame === "CURRENT_STATE"
+      && items.some(x => x.semanticSource?.temporal_role === "CHANGE_NOTICE");
+    if (documentedChange) {
+      return {
+        status: "SUPERSEDED",
+        method: "DOCUMENTED_CHANGE_CONSENSUS",
+        confidence_tier: "MODERATE",
+        rationale: "Independent sources document a change away from the claimed state, a search for later developments found no source supporting the claim again, and no assessed source supports it. The claim describes a state that has since changed.",
+        items,
+        signals: signalsFor(items, dissent ? { minority_dissent_domains: dissent.opposition.map(x => hostOf(x.source.url)) } : {})
+      };
+    }
+    return {
+      status,
+      method: persistence ? "CURRENT_STATE_PERSISTENCE_CONSENSUS" : "INDEPENDENT_SOURCE_CONSENSUS",
+      confidence_tier: "MODERATE",
+      rationale: persistence
+        ? (status === "CURRENT"
+          ? "Independent sources agree on the claimed present state; some are older or undated, but a search for later changes found none. The state could still have changed very recently."
+          : "Independent sources agree on a different present state; some are older or undated, and a search for later changes found none supporting the claim.")
+        : (status === "CURRENT"
+          ? "Independent sources from separate publishers directly and exactly support the claim, and no assessed source contradicts it."
+          : "Independent sources from separate publishers directly and exactly contradict the claim, and no assessed source supports it."),
+      items,
+      signals: signalsFor(items, dissent ? { minority_dissent_domains: dissent.opposition.map(x => hostOf(x.source.url)) } : {})
+    };
+  }
+  return null;
+}
+
 export function adjudicateEvidence({
   claim,
   claimComponents = [],
@@ -165,38 +352,51 @@ export function adjudicateEvidence({
   now = Date.now(),
   maxEvidenceAgeDays = 180,
   temporalSensitive = true,
-  claimFrame = null
+  claimFrame = null,
+  changeSearchPerformed = false
 } = {}) {
   const materialComponents = Array.isArray(claimComponents) ? claimComponents : [];
   const evidenceFrame = claimFrame?.frame || null;
-  const requireRecentEvidence = evidenceFrame ? evidenceFrame === "CURRENT_STATE" : !!temporalSensitive;
-  if (["UNRESOLVED", "MIXED_OR_AMBIGUOUS", "SCHEDULED_FUTURE", "NON_FACTUAL"].includes(evidenceFrame)) {
+  // v0.2.90: scheduled plans and mixed-time claims are checked against
+  // evidence like current states (recent evidence required); only opinions,
+  // open forecasts and unresolvable relative dates are not adjudicated.
+  const requireRecentEvidence = evidenceFrame
+    ? ["CURRENT_STATE", "SCHEDULED_FUTURE", "MIXED_OR_AMBIGUOUS"].includes(evidenceFrame)
+    : !!temporalSensitive;
+  if (evidenceFrame === "NON_FACTUAL") {
+    return {
+      status: "UNVERIFIABLE",
+      method: "NOT_A_FACTUAL_CLAIM",
+      rationale: "The statement is an opinion, value judgement or recommendation; evidence can inform it but cannot make it true or false.",
+      evidence: [],
+      confidence_tier: "NOT_APPLICABLE",
+      adjudication_signals: { claim_frame: evidenceFrame, review_reason: "NON_FACTUAL" }
+    };
+  }
+  if (evidenceFrame === "SCHEDULED_FUTURE" && isOpenForecast(claim)) {
+    return {
+      status: "UNVERIFIABLE",
+      method: "FUTURE_OUTCOME_NOT_VERIFIABLE",
+      rationale: "The statement predicts an uncertain future outcome; no present evidence can establish it. Scheduled plans and announcements, by contrast, are checked against evidence.",
+      evidence: [],
+      confidence_tier: "NOT_APPLICABLE",
+      adjudication_signals: { claim_frame: evidenceFrame, review_reason: "OPEN_FORECAST" }
+    };
+  }
+  if (evidenceFrame === "UNRESOLVED") {
     return {
       status: "NEEDS_REVIEW",
       method: "CLAIM_FRAME_REQUIRES_REVIEW",
-      rationale: evidenceFrame === "SCHEDULED_FUTURE"
-        ? "A future or scheduled proposition is not treated as a present factual finding."
-        : evidenceFrame === "NON_FACTUAL"
-          ? "The extracted proposition is non-factual or normative and is not adjudicated as a factual claim."
-          : "The claim frame is ambiguous or its date anchor cannot be resolved safely; no decisive verdict was inferred.",
+      rationale: "The claim's time reference could not be resolved safely; no decisive verdict was inferred.",
       evidence: [],
       adjudication_signals: { claim_frame: evidenceFrame, review_reason: "CLAIM_FRAME_NOT_DECISIVE" }
     };
   }
+  // v0.2.90: when the model calls a claim compound but no separable parts
+  // exist, the label is advisory: single-source shortcuts are disabled and
+  // only multi-source corroboration can decide.
   const modelClassifiesCompound = semanticAssessment?.claim_assessment?.claim_type === "COMPOUND";
-  if (modelClassifiesCompound && materialComponents.length < 2) {
-    return {
-      status: "NEEDS_REVIEW",
-      method: "SEMANTIC_COMPONENT_DECOMPOSITION_GATE",
-      rationale: "The semantic assessment identified a compound proposition, but the structural decomposition did not expose at least two independently assessable components.",
-      evidence: [],
-      adjudication_signals: {
-        semantic_claim_type: "COMPOUND",
-        components_detected: materialComponents.length,
-        review_reason: "SEMANTIC_DECOMPOSITION_GAP"
-      }
-    };
-  }
+  const modelOnlyCompound = modelClassifiesCompound && materialComponents.length < 2;
   if (materialComponents.length > 1) {
     const componentAssessment = completeAssessment(semanticAssessment, Array.isArray(sources) ? sources.length : 0, materialComponents);
     const covered = new Map();
@@ -462,7 +662,7 @@ export function adjudicateEvidence({
     && ((relations.claimAssessment?.claim_risk === "LOW"
       && ["INSTITUTIONAL_RECORD", "HISTORICAL_EVENT", "ATTRIBUTED_RESEARCH_RESULT"].includes(relations.claimAssessment?.claim_type))
       || boundedEventFrame)
-    && !lexicalGuard.dynamic && !lexicalGuard.high_impact && !lexicalGuard.compound
+    && !lexicalGuard.dynamic && !lexicalGuard.high_impact && !lexicalGuard.compound && !modelOnlyCompound
     && qualified.length === 1
     && qualified[0].semanticSource?.directness === "DIRECT"
     && qualified[0].semanticSource?.scope_match === "EXACT"
@@ -557,6 +757,27 @@ export function adjudicateEvidence({
     };
   }
 
+  // -------------------------------------------------------------------------
+  const consensusTrace = {};
+  // v0.2.90 graded evidence: MODERATE-confidence verdicts from independent
+  // agreement. Every rule still requires a semantic relation, EXACT scope, a
+  // non-UNCLEAR directness, HIGH relevance and independent lineages, and is
+  // blocked by any opposing assessed source. Verdicts carry confidence_tier.
+  // -------------------------------------------------------------------------
+  if (relations) {
+    const graded = gradedConsensus({
+      assessed, claimFrame, requireRecentEvidence, now, maxEvidenceAgeDays, changeSearchPerformed,
+      claimRisk: relations.claimAssessment?.claim_risk, lexicalGuard, trace: consensusTrace
+    });
+    if (graded) {
+      return {
+        ...graded,
+        evidence: graded.items.map(x => evidenceItem(x.source, x.relation, x.index)),
+        adjudication_signals: { ...signals, ...graded.signals }
+      };
+    }
+  }
+
   const hasPotentialEvidence = reviewCandidates.length > 0 || (sources.length === 0 && retrievalCount > 0);
   const status = hasPotentialEvidence ? "NEEDS_REVIEW" : "UNVERIFIABLE";
   return {
@@ -568,6 +789,6 @@ export function adjudicateEvidence({
         ? "Semantic assessment was missing, incomplete, duplicated, or invalid, including the claim-risk and source-role metadata; no generic verdict was issued."
         : "Evidence did not meet the claim-specific sufficiency threshold or contained mixed semantic relations. Search relevance and lexical conflict candidates are not proof.",
     evidence: reviewCandidates.map(x => evidenceItem(x.source, x.relation, x.index)),
-    adjudication_signals: signals
+    adjudication_signals: Object.keys(consensusTrace).length ? { ...signals, consensus_trace: consensusTrace } : signals
   };
 }

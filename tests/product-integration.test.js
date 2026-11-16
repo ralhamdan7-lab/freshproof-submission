@@ -48,6 +48,8 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
   let aiCalls = 0;
   const ai = {
     async run(_model, input) {
+      // v0.2.90 search-plan calls are counted separately (light tier).
+      if (/^You (?:plan web searches|split a text)/.test(input?.messages?.[0]?.content || "")) return { response: JSON.stringify({ queries: [], authority_domains: [] }) };
       aiCalls++;
       const system = input?.messages?.[0]?.content || "";
       if (system.includes("evidence relation classifier")) {
@@ -102,13 +104,13 @@ async function runApiScenario({ sourceSet = sources, relations = ["CONTRADICTS",
 }
 
 test("v0.2.59 full-product integration: VERIFY -> EXPLAIN -> CORRECT and safe abstention", async () => {
-  assert.equal(VERSION, "0.2.84");
+  assert.equal(VERSION, "0.2.91");
 
   // Positive end-to-end path: deterministic retrieval + injected model fixture,
   // through Worker API, adjudication, explanation, correction, and response.
   const positive = await runApiScenario();
   assert.equal(positive.response.status, 200);
-  assert.equal(positive.body.version, "0.2.84");
+  assert.equal(positive.body.version, "0.2.91");
   assert.equal(positive.body.claims.length, 1);
   assert.deepEqual(positive.body.extraction, { detected_count: 1, processed_count: 1, truncated_count: 0, is_truncated: false, maximum_processed_claims: 3 });
   const result = positive.body.claims[0];
@@ -263,7 +265,7 @@ test("v0.2.59 factual verification runs for non-time-sensitive claims", async ()
     const body = await response.json();
     const result = body.claims[0];
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.84");
+    assert.equal(body.version, "0.2.91");
     assert.equal(result.temporal_assessment.status, "NOT_TIME_SENSITIVE");
     assert.equal(result.status, "CURRENT");
     assert.equal(result.adjudication.method, "CORROBORATED_PRIMARY_OR_INSTITUTIONAL_EVIDENCE");
@@ -330,6 +332,8 @@ test("multi-claim requests spend only spare search budget to diversify independe
   let aiCalls = 0;
   const ai = {
     async run(_model, input) {
+      // v0.2.90 search-plan calls are counted separately (light tier).
+      if (/^You (?:plan web searches|split a text)/.test(input?.messages?.[0]?.content || "")) return { response: JSON.stringify({ queries: [], authority_domains: [] }) };
       aiCalls++;
       const user = input?.messages?.find(message => message.role === "user")?.content || "";
       const payload = JSON.parse(user);
@@ -377,7 +381,7 @@ test("multi-claim requests spend only spare search budget to diversify independe
     });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.84");
+    assert.equal(body.version, "0.2.91");
     assert.equal(body.claims.length, 2);
     assert.ok(searchCalls >= 2 && searchCalls <= 5, "baseline retrieval plus bounded diversity fallback must stay within the request-wide search budget");
     assert.equal(searchCalls <= 5, true, "the request-wide search budget must not be exceeded");
@@ -406,6 +410,8 @@ test("generic SUPERSEDED is reachable through POST /api/verify from source snipp
   let aiCalls = 0;
   const ai = {
     async run(_model, input) {
+      // v0.2.90 search-plan calls are counted separately (light tier).
+      if (/^You (?:plan web searches|split a text)/.test(input?.messages?.[0]?.content || "")) return { response: JSON.stringify({ queries: [], authority_domains: [] }) };
       aiCalls++;
       const system = input?.messages?.[0]?.content || "";
       assert.match(system, /evidence relation classifier/);
@@ -473,7 +479,7 @@ test("generic SUPERSEDED is reachable through POST /api/verify from source snipp
     });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.2.84");
+    assert.equal(body.version, "0.2.91");
     assert.equal(body.claims.length, 1);
     const result = body.claims[0];
     assert.equal(result.temporal_assessment.is_time_sensitive, true);

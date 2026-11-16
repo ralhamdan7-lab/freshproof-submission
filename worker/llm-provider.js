@@ -18,10 +18,11 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
         claim_assessment: {
           type: "object",
           additionalProperties: false,
-          required: ["claim_type", "claim_risk"],
+          required: ["claim_type", "claim_risk", "temporal_claim_kind"],
           properties: {
             claim_type: { type: "string", enum: ["INSTITUTIONAL_RECORD", "HISTORICAL_EVENT", "ATTRIBUTED_RESEARCH_RESULT", "CURRENT_STATE", "SCIENTIFIC_CONSENSUS", "CONTESTED", "COMPOUND", "OTHER"] },
-            claim_risk: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] }
+            claim_risk: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+            temporal_claim_kind: { type: "string", enum: ["CURRENT_STATE", "LIFECYCLE", "PRICE_POLICY", "REGULATORY_STATE", "SCHEDULED_EVENT", "HISTORICAL_EVENT", "STABLE", "UNKNOWN"] }
           }
         },
         source_assessments: {
@@ -29,12 +30,21 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["source_index", "directness", "scope_match", "authority_role"],
+            // v0.2.90: temporal fields are part of the strict schema; without them
+            // Groq-served assessments could never carry change notices or
+            // current-state records, silently disabling those adjudication rules.
+            required: ["source_index", "directness", "scope_match", "authority_role", "temporal_role", "change_type", "event_date_mention_index", "change_statement_quote", "old_state_quote", "new_state_quote"],
             properties: {
               source_index: { type: "integer" },
               directness: { type: "string", enum: ["DIRECT", "INDIRECT", "UNCLEAR"] },
               scope_match: { type: "string", enum: ["EXACT", "PARTIAL", "NO_MATCH"] },
-              authority_role: { type: "string", enum: ["ORIGINATING_AUTHORITY", "PRIMARY_RESEARCH", "SECONDARY", "UNKNOWN"] }
+              authority_role: { type: "string", enum: ["ORIGINATING_AUTHORITY", "PRIMARY_RESEARCH", "SECONDARY", "UNKNOWN"] },
+              temporal_role: { type: "string", enum: ["CHANGE_NOTICE", "CURRENT_STATE_RECORD", "HISTORICAL_RECORD", "EVENT_REPORT", "BACKGROUND", "UNKNOWN"] },
+              change_type: { type: "string", enum: ["REPLACED", "ENDED", "INTRODUCED", "RENAMED", "REVISED", "REVOKED", "EXPIRED", "SUSPENDED", "DISCONTINUED", "POSTPONED", "RESCHEDULED", "CANCELLED", "WITHDRAWN", "NONE", "UNKNOWN"] },
+              event_date_mention_index: { type: ["integer", "null"] },
+              change_statement_quote: { type: ["string", "null"] },
+              old_state_quote: { type: ["string", "null"] },
+              new_state_quote: { type: ["string", "null"] }
             }
           }
         },
@@ -157,8 +167,17 @@ function extractRetryAfter(response) {
 
 function estimateTokens(messages, maxOutput) {
   // Conservative for mixed English/Arabic; response headers refine the next request.
-  const chars = messages.reduce((total, item) => total + String(item.content || "").length, 0);
-  return Math.ceil(chars / 2) + maxOutput;
+  // v0.2.91: Latin-script text averages well over three characters per token;
+  // Arabic and other scripts are counted far more conservatively. The window
+  // entry is replaced by the provider's reported usage after each response.
+  let latin = 0;
+  let other = 0;
+  for (const item of messages) {
+    for (const ch of String(item.content || "")) {
+      if (ch.charCodeAt(0) < 0x0250) latin++; else other++;
+    }
+  }
+  return Math.ceil(latin / 3.2 + other / 1.5) + maxOutput;
 }
 
 // Isolate-local pacing is a guard, not a globally atomic quota ledger.
@@ -192,8 +211,9 @@ function waitForSlot(model, estimate, rpm, tpm, now, sleep) {
       const delay = Math.max(rpmWait, headerWait, tokenWait);
       if (delay <= 0) {
         state.nextAt = current + 60000 / rpm;
-        state.window.push({ at: current, tokens: estimate });
-        return;
+        const entry = { at: current, tokens: estimate };
+        state.window.push(entry);
+        return entry;
       }
       await sleep(delay + Math.min(250, Math.floor(Math.random() * 250)));
     }
@@ -208,18 +228,32 @@ async function groqRequest({ env, model, messages, input, fetchImpl, now, sleep,
     Authorization: `Bearer ${env.GROQ_API_KEY}`,
     "Content-Type": "application/json"
   });
-  const body = {
-    model,
-    messages: boundedMessages,
-    max_completion_tokens: maxOutput,
-    reasoning_effort: "low",
-    include_reasoning: false,
-    response_format: GROQ_SEMANTIC_RESPONSE_FORMAT
-    // GPT-OSS on Groq uses model-managed reasoning defaults. Do not forward
-    // Workers AI's temperature=0: GPT-OSS rejects unsupported sampling values.
-  };
+  // v0.2.90: tasks other than semantic assessment (claim decomposition, search
+  // planning) pass their own strict schema. GPT-OSS models support strict
+  // json_schema and reasoning controls; other models get JSON mode only.
+  const gptOss = /^openai\/gpt-oss/.test(model);
+  const responseFormat = input.response_format || GROQ_SEMANTIC_RESPONSE_FORMAT;
+  const body = gptOss
+    ? {
+      model,
+      messages: boundedMessages,
+      max_completion_tokens: maxOutput,
+      reasoning_effort: "low",
+      include_reasoning: false,
+      response_format: responseFormat
+      // GPT-OSS on Groq uses model-managed reasoning defaults. Do not forward
+      // Workers AI's temperature=0: GPT-OSS rejects unsupported sampling values.
+    }
+    : {
+      model,
+      messages: boundedMessages,
+      max_completion_tokens: maxOutput,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      ...(/qwen/i.test(model) ? { reasoning_format: "hidden" } : {})
+    };
 
-  await waitForSlot(model, estimate, rpm, tpm, now, sleep);
+  const slot = await waitForSlot(model, estimate, rpm, tpm, now, sleep);
   const response = await fetchImpl(API_URL, {
     method: "POST",
     headers: headersFor(),
@@ -259,6 +293,8 @@ async function groqRequest({ env, model, messages, input, fetchImpl, now, sleep,
   }
 
   const data = await response.json();
+  const usedTokens = Number(data?.usage?.total_tokens);
+  if (slot && Number.isFinite(usedTokens) && usedTokens > 0) slot.tokens = usedTokens;
   const text = data?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
     throw new LlmProviderError("groq", "empty_response", "Groq returned an empty or non-text completion.");
@@ -285,9 +321,17 @@ export function createResilientAi(env, dependencies = {}) {
       throw new LlmProviderError("groq", "fallback_not_configured", "The optional Groq fallback is not configured.");
     }
     let lastError = null;
-    for (const [index, model] of models.entries()) {
+    // Light tasks (decomposition, search planning) try the smaller models first
+    // so the largest model's daily token budget is kept for evidence assessment.
+    // v0.2.91: light tasks prefer the smallest model, keeping the stronger
+    // models' per-minute token budgets free for evidence assessment.
+    const lightRank = model => /20b/i.test(model) && !/120b/i.test(model) ? 0 : /120b/i.test(model) ? 2 : 1;
+    const ordered = input._freshproof_tier === "light"
+      ? [...models].sort((a, b) => lightRank(a) - lightRank(b))
+      : models;
+    for (const [index, model] of ordered.entries()) {
       if ((blockedModels.get(model) || 0) > now()) continue;
-      const suffix = model.includes("120b") ? "120B" : model.includes("20b") ? "20B" : "";
+      const suffix = model.includes("120b") ? "120B" : model.includes("20b") ? "20B" : /qwen/i.test(model) ? "QWEN" : "";
       const rpm = Number((suffix && env[`GROQ_${suffix}_RPM`]) || env.GROQ_RPM);
       const tpm = Number((suffix && env[`GROQ_${suffix}_TPM`]) || env.GROQ_TPM);
       if (!Number.isFinite(rpm) || rpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
@@ -325,7 +369,13 @@ export function createResilientAi(env, dependencies = {}) {
           continue;
         }
         if (error.code === "upstream_unavailable") {
-          if (index < models.length - 1) continue;
+          if (index < ordered.length - 1) continue;
+        }
+        // A model that rejects the request shape (unsupported parameter or
+        // schema) is skipped for this isolate; credentials errors still surface.
+        if (/^http_4\d\d$/.test(error.code) && error.code !== "http_401" && error.code !== "http_403" && index < ordered.length - 1) {
+          blockedModels.set(model, now() + 10 * 60000);
+          continue;
         }
         throw error;
       }
@@ -337,13 +387,16 @@ export function createResilientAi(env, dependencies = {}) {
     async run(model, input = {}) {
       const forcedGroq = env.LLM_PROVIDER_MODE === "groq";
       if (forcedGroq) return groqCascade(model, input, "forced_groq");
-      if (env.LLM_PROVIDER_MODE === "cloudflare") return env.AI.run(model, input);
+      // Task-routing hints are for the Groq fallback only; Workers AI receives
+      // the plain chat input.
+      const { _freshproof_tier: _tier, response_format: _format, ...cloudflareInput } = input;
+      if (env.LLM_PROVIDER_MODE === "cloudflare") return env.AI.run(model, cloudflareInput);
 
       if (cloudflareBlockedUntil > now()) {
         return groqCascade(model, input, cloudflareFallbackReason || "cloudflare_breaker_open");
       }
       try {
-        const result = await env.AI.run(model, input);
+        const result = await env.AI.run(model, cloudflareInput);
         if (result && typeof result === "object") {
           return { ...result, _freshproof_provider: "cloudflare", _freshproof_model: model };
         }

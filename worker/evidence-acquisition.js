@@ -590,9 +590,15 @@ export function selectClaimPassages(text, claim, { maxChars = ACQUISITION_LIMITS
  * Dates keep their provenance: search-provider publication date, page metadata
  * publication date, page modified date, and retrieval time are distinct fields.
  */
-export function enrichSourceWithPage(source, page, claim, { now = Date.now() } = {}) {
+export function enrichSourceWithPage(source, page, claim, { now = Date.now(), anchors = [] } = {}) {
   const document = extractPageDocument(page.html);
-  const { passages, best_term_coverage } = selectClaimPassages(document.text, claim);
+  // v0.2.90: passages are selected for the claim and for each validated
+  // planned query (cross-lingual bridge); the best-covering selection wins.
+  let { passages, best_term_coverage } = selectClaimPassages(document.text, claim);
+  for (const anchor of Array.isArray(anchors) ? anchors : []) {
+    const candidate = selectClaimPassages(document.text, anchor);
+    if (candidate.passages.length && candidate.best_term_coverage > best_term_coverage) ({ passages, best_term_coverage } = candidate);
+  }
   const retrieval = {
     method: "DIRECT_PAGE_FETCH",
     requested_url: page.requested_url,
@@ -715,6 +721,9 @@ function shingles(text, size = 5) {
 }
 export function nearDuplicateEvidence(a, b, threshold = 0.8) {
   const x = shingles(a), y = shingles(b);
+  // v0.2.90: short passages copied verbatim (8+ words) are one lineage too.
+  const norm = value => String(value || "").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  if (x.words >= 8 && y.words >= 8 && norm(a) === norm(b)) return true;
   if (x.words < 20 || y.words < 20 || !x.set.size || !y.set.size) return false;
   let inter = 0;
   for (const value of x.set) if (y.set.has(value)) inter++;
@@ -777,6 +786,12 @@ export const ABSTENTION_REASONS = Object.freeze([
  */
 export function diagnoseAbstention({ status, adjudication = {}, retrievalDiagnostics = [], sources = [], excludedSources = [], semanticAssessment = null, temporalSensitive = false, claimFrame = null, now = Date.now(), maxEvidenceAgeDays = 180 } = {}) {
   if (!["NEEDS_REVIEW", "UNVERIFIABLE", "NOT_ASSESSED"].includes(status)) return null;
+  // v0.2.91: opinions and open forecasts are classified from their wording;
+  // no retrieval was attempted, so no retrieval reason applies.
+  if (status === "UNVERIFIABLE" && ["NOT_A_FACTUAL_CLAIM", "FUTURE_OUTCOME_NOT_VERIFIABLE"].includes(adjudication?.method)) {
+    const reason = adjudication.method === "NOT_A_FACTUAL_CLAIM" ? "NOT_A_FACTUAL_CLAIM" : "OPEN_FORECAST";
+    return { primary_reason: reason, category: "NOT_CHECKABLE_CLAIM_TYPE", contributing_factors: [reason], counts: { sources_considered: 0 }, evidence_dates: [], note: reason === "NOT_A_FACTUAL_CLAIM" ? "The statement is a judgement or recommendation, not a checkable fact; evidence retrieval was not performed." : "The statement predicts an uncertain future outcome; no present evidence can establish it, so evidence retrieval was not performed." };
+  }
   const recencyApplies = claimFrame?.frame ? claimFrame.frame === "CURRENT_STATE" : !!temporalSensitive;
   const factors = new Set();
   const searchEvents = retrievalDiagnostics.filter(item => item.stage === "SEARCH");

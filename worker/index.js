@@ -7,7 +7,7 @@ import { classifyClaimFrame } from "./claim-frame.js";
 import { deriveExecution, reconcileStatus } from "./execution-status.js";
 import { buildResearchPlan, extraQueryShare } from "./research-plan.js";
 import { extractDateMentions } from "./temporal-adjudication.js";
-import { assessSourceAuthority, isUserGeneratedContentUrl, structuralAuthority, buildAuthorityQuery, fetchEvidencePage, enrichSourceWithPage, planDirectFetches, diagnoseAbstention, ACQUISITION_LIMITS, PASSAGE_SEPARATOR } from "./evidence-acquisition.js";
+import { assessSourceAuthority, normalizePlannedAuthorityDomains, isUserGeneratedContentUrl, structuralAuthority, buildAuthorityQuery, fetchEvidencePage, enrichSourceWithPage, planDirectFetches, diagnoseAbstention, ACQUISITION_LIMITS, PASSAGE_SEPARATOR } from "./evidence-acquisition.js";
 export { assessSourceAuthority, isUserGeneratedContentUrl, structuralAuthority, buildAuthorityQuery, fetchEvidencePage, enrichSourceWithPage, planDirectFetches, diagnoseAbstention, selectClaimPassages, extractPageDocument, firstPartyMatch, claimEntityKeys, isSafeEvidenceUrl } from "./evidence-acquisition.js";
 export { detectOfficeHolderClaim, shouldRunOfficeHolderFallback, mergeOfficeHolderSearchResults, adjudicateOfficeHolderClaim, fetchWhiteHouseAdministrationEvidence, parseWhiteHouseAdministrationHtml, fetchPython2SunsetEvidence, fetchWhiteHouseXIdentityEvidence, resolveClaimContext, buildTemporalSearchQuery, assessNodeReleaseLifecycle, resolveHistoricalSourceAdapter, DOMAIN_ADAPTERS } from "./domain-adapters.js";
 export const LIMITS = Object.freeze({ maxChars: 12000, maxClaims: 3, maxResultsPerClaim: 5, maxQueries: 7, maxDirectFetches: 8, maxSemanticSources: 5, maxCorrectionCandidateReviews: 2 });
@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.4";
+export const VERSION = "0.3.5";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -67,7 +67,7 @@ export const VERSION = "0.3.4";
 // v0.2.61: add disabled-by-default quota-aware Groq fallback with provider provenance.
 const PRIMARY_SUFFIXES = [".gov", ".gov.uk", ".gov.sa", ".europa.eu", ".who.int", ".un.org", ".int"];
 // Curated first-party/official publishers; non-government trust is exact-host only.
-const PRIMARY_HOSTS = new Set(["unesco.org", "unicef.org", "oecd.org", "wto.org", "iaea.org", "opec.org", "ilo.org", "fao.org", "unep.org", "undp.org", "unhcr.org", "wmo.int", "iso.org", "w3.org", "nobelprize.org", "sec.gov", "federalreserve.gov", "bls.gov", "census.gov", "ons.gov.uk", "ec.europa.eu", "data.worldbank.org", "worldbank.org", "imf.org", "about.x.com", "nodejs.org", "openai.com", "help.openai.com", "python.org", "fifa.com", "learn.microsoft.com", "docs.oracle.com", "rfc-editor.org", "ietf.org", "olympics.com", "parliament.uk", "gov.uk", "un.org", "nasa.gov", "archives.gov", "si.edu", "usgs.gov", "nist.gov", "cdc.gov", "who.int", "apple.com", "european-union.europa.eu"]);
+const PRIMARY_HOSTS = new Set(["paho.org", "unaids.org", "unfpa.org", "gavi.org", "ipcc.ch", "unfccc.int", "unesco.org", "unicef.org", "oecd.org", "wto.org", "iaea.org", "opec.org", "ilo.org", "fao.org", "unep.org", "undp.org", "unhcr.org", "wmo.int", "iso.org", "w3.org", "nobelprize.org", "sec.gov", "federalreserve.gov", "bls.gov", "census.gov", "ons.gov.uk", "ec.europa.eu", "data.worldbank.org", "worldbank.org", "imf.org", "about.x.com", "nodejs.org", "openai.com", "help.openai.com", "python.org", "fifa.com", "learn.microsoft.com", "docs.oracle.com", "rfc-editor.org", "ietf.org", "olympics.com", "parliament.uk", "gov.uk", "un.org", "nasa.gov", "archives.gov", "si.edu", "usgs.gov", "nist.gov", "cdc.gov", "who.int", "apple.com", "european-union.europa.eu"]);
 const INSTITUTIONAL_HOSTS = new Set(["saudipedia.com", "nature.com", "science.org", "thelancet.com", "nejm.org", "bmj.com", "cell.com", "pnas.org", "britishmuseum.org", "metmuseum.org", "si.edu", "louvre.fr", "australian.museum", "olympedia.org", "computerhistory.org", "internetsociety.org", "rsc.org", "nationalarchives.gov.uk", "museumoflondon.org.uk", "loc.gov", "uct.ac.za", "gshfb.co.za", "samj.org.za", "cooperhewitt.org", "smithsonianmag.com", "vam.ac.uk"]);
 // v0.2.91: established international news agencies, public broadcasters and
 // reference publishers (English and Arabic). Reliability is a prior only:
@@ -76,6 +76,8 @@ const INSTITUTIONAL_HOSTS = new Set(["saudipedia.com", "nature.com", "science.or
 const SECONDARY_REPUTABLE_HOSTS = new Set(["britannica.com", "nationalgeographic.com", "ebsco.com", "history.com", "reuters.com", "apnews.com", "bbc.com", "bbc.co.uk", "cbsnews.com", "cbs8.com", "bruegel.org",
   "afp.com", "npr.org", "pbs.org", "abc.net.au", "sbs.com.au", "cbc.ca", "dw.com", "france24.com", "rfi.fr", "euronews.com", "nhk.or.jp", "aljazeera.com", "aljazeera.net", "aawsat.com", "alarabiya.net", "skynewsarabia.com", "spa.gov.sa",
   "nytimes.com", "washingtonpost.com", "theguardian.com", "ft.com", "economist.com", "bloomberg.com", "wsj.com", "cnbc.com", "cnn.com", "nbcnews.com", "abcnews.go.com", "time.com", "theatlantic.com", "lemonde.fr", "spiegel.de", "elpais.com",
+  "factcheck.org", "politifact.com", "fullfact.org", "snopes.com", "africacheck.org", "healthfeedback.org", "sciencefeedback.co",
+  "mayoclinic.org", "clevelandclinic.org", "hopkinsmedicine.org", "nationalgeographic.org", "smithsonianmag.com",
   "scientificamerican.com", "newscientist.com", "livescience.com", "space.com", "worldatlas.com", "statista.com", "ourworldindata.org", "pewresearch.org", "merriam-webster.com", "oxfordreference.com", "encyclopedia.com"]);
 const TEMPORAL_PATTERNS = [
   /\b(currently|today|now|latest|recent|as of|this year|last year|next year)\b/i,
@@ -1291,8 +1293,15 @@ export default {
       const acquisitionTelemetry = { generic_page_fetch_enabled: genericPageFetchEnabled, authority_searches: 0, pages_planned: 0, pages_fetched: 0, pages_with_claim_passages: 0, pages_failed: 0, failure_reasons: {}, authority_upgrades: {} };
       // Claim-aware authority: curated/structural registry first, then first-party
       // entity domains derived from the claim; user-generated content is never primary.
-      const withAuthority = (list, claimText) => list.map(source => {
-        const authority = assessSourceAuthority(source.url, claimText, source.source_reliability);
+      // v0.3.5 rollout: PLANNED_AUTHORITY_MODE "on" applies planned authority
+      // domains to every request, "header" only to requests that opt in with
+      // x-freshproof-experiment: planned-authority (staged evaluation on the
+      // live demo), anything else disables it.
+      const plannedAuthorityMode = String(env.PLANNED_AUTHORITY_MODE || "on").toLowerCase();
+      const plannedAuthorityEnabled = plannedAuthorityMode === "on"
+        || (plannedAuthorityMode === "header" && /(?:^|,)\s*planned-authority\s*(?:,|$)/i.test(request.headers.get("x-freshproof-experiment") || ""));
+      const withAuthority = (list, claimText, plannedAuthorityDomains = []) => list.map(source => {
+        const authority = assessSourceAuthority(source.url, claimText, source.source_reliability, { plannedAuthorityDomains });
         if (authority.basis !== "CURATED_OR_SUFFIX_REGISTRY" && authority.basis !== "UNCLASSIFIED_PUBLISHER") {
           acquisitionTelemetry.authority_upgrades[authority.basis] = (acquisitionTelemetry.authority_upgrades[authority.basis] || 0) + 1;
         }
@@ -1410,7 +1419,7 @@ export default {
       for (const claim of claims) {
         // v0.2.91: an identical claim assessed within the cache lifetime is
         // served from the short-lived result cache (marked, with its time).
-        const cachedResult = await resultCache.get(VERSION, claim);
+        const cachedResult = await resultCache.get(VERSION + (plannedAuthorityEnabled ? "+pa" : ""), claim);
         if (cachedResult) { output.push({ ...cachedResult, claim_id: `claim-${output.length + 1}` }); continue; }
         const outputLengthBefore = output.length;
         // v0.2.95 telemetry: where the time goes for each claim.
@@ -1679,7 +1688,7 @@ export default {
           // pages, preferring authoritative publishers and one page per publisher.
           // Page passages are verbatim and carry full retrieval provenance; any
           // failure keeps the search snippet and records an explicit reason.
-          retrievedSources = withAuthority(retrievedSources, retrievalClaim);
+          retrievedSources = withAuthority(retrievedSources, retrievalClaim, plannedAuthorityEnabled ? normalizePlannedAuthorityDomains(modelPlan?.authority_domains, claim + " " + retrievalClaim) : []);
           const pinnedSources = [...targetedDomainEvidenceSources, ...directHistoricalEvidenceSources];
           retrievedSources = mergePinnedEvidence(retrievedSources, pinnedSources);
           const pinnedUrls = new Set(pinnedSources.map(source => source.url).filter(Boolean));
@@ -1889,7 +1898,7 @@ export default {
         if (output.length > outputLengthBefore) {
           claimTimings.total_ms = Date.now() - claimStartedAt;
           output[output.length - 1].timings = claimTimings;
-          await resultCache.put(VERSION, claim, output[output.length - 1]);
+          await resultCache.put(VERSION + (plannedAuthorityEnabled ? "+pa" : ""), claim, output[output.length - 1]);
         }
       }
       return json({ product: "FreshProof", version: VERSION, generated_at: new Date().toISOString(), extraction: { detected_count: extractedClaims.length, processed_count: claims.length, truncated_count: Math.max(0, extractedClaims.length - claims.length), is_truncated: extractedClaims.length > claims.length, maximum_processed_claims: LIMITS.maxClaims }, claims: output, methodology: { name: "Evidence-first factual verification with temporal assessment", limitations: ["Claim segmentation uses conservative punctuation and explicit connective heuristics; it is not semantic atomicity. Sentences or clauses led by a pronoun/demonstrative, a relative time expression or a contrast marker stay bound to the preceding statement (at most three sentences), so no extracted claim depends on text outside it.", "Publication dates are not event dates.", "Search relevance is not truth confidence.", "General semantic entailment is not inferred from snippets. Every claim receives bounded evidence retrieval regardless of temporal sensitivity; when semantic assessment is unavailable, generic adjudication abstains rather than treating relevance as truth. Domain adapters may add bounded retrieval or narrowly scoped adjudication; their limitations must be disclosed.", "Term overlap and rule-based relation signals are review aids only; they do not establish support, contradiction, or source quality.", "Cross-source numeric or polarity differences are conflict candidates, not verified contradictions; dates, units, scope and context require adjudication.", "Workers AI semantic relation analysis is opt-in and runs when ENABLE_SEMANTIC_TRIAGE=true; it uses the configured account's available plan allowance, is advisory only, never sets final verification status, and fails closed when unavailable or unsuccessful.", "Claim IDs identify extraction order only and are not persistent identifiers.", "Generic page acquisition (v0.2.82) fetches at most three candidate pages per claim within an eight-fetch request budget, HTTPS only, same-publisher redirects only, HTML only, 1 MB download cap and 600,000 characters parsed by a linear-time scanner. Blocked, script-rendered, PDF or unreachable pages fall back to the search snippet with an explicit reason. Passages are verbatim page text selected by claim-term overlap; selection is not entailment.", "Structural authority (government, intergovernmental and academic domain patterns of any country) and claim-derived first-party domains are publisher-role signals, not truth; a first-party domain counts as primary only when the fetched page's own title, site name or JSON-LD organisation names the entity (directly, or as the organisation the claim names whose acronym or compact name is the domain label) and the semantic assessment marks the page as the direct originating authority. A page's self-declared identity alone never confers authority. Independence is counted by publisher lineage (shared registrable domain, shared organisation label, or near-duplicate syndicated text), not by hostname.", "Evidence recency uses the publication date or a validated page-declared editorial update date (not the retrieval day, not before publication, with claim-relevant passages from the same page). HTTP Last-Modified headers and retrieval time never establish freshness; the date basis is reported per source. Community, forum and Q&A content is never primary.", "Each claim includes structured explanation_detail and a correction object; correction is provided only by explicitly validated, evidence-bound correction rules, otherwise it is withheld or marked not needed/not applicable.", "Domain adapters are optional, isolated extensions; the core applies request-wide limits to search calls and direct source fetches, and records bounded retrieval diagnostics. Python.org lifecycle verification may use a strictly validated, domain-restricted search-index excerpt when direct first-party fetch is denied; the acquisition limitation is retained in the finding."], score_policy: "No calibrated numeric freshness, confidence, or reliability score is claimed.", domain_adapters: DOMAIN_ADAPTERS, search_budget: { limit: maxQueries, used: requestSearchCount }, direct_fetch_budget: { limit: LIMITS.maxDirectFetches, used: requestDirectFetchCount }, evidence_acquisition: acquisitionTelemetry } }, 200, origin, allowed);

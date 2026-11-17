@@ -1,3 +1,9 @@
+# v0.3.5 — wider authority coverage (2026-11-17)
+
+- Before any result is seen, the search plan names the official sites of the organisations most likely to publish the primary record. A source on one of those sites can now count as a qualified publisher, at the lowest qualified tier, and still needs independent corroboration. Open-publishing platforms, user-generated pages and any domain written in the claim itself are refused.
+- Added established fact-checkers, major medical institutions and intergovernmental health and climate bodies to the curated registry.
+- Staged rollout: the public demo applies planned authority domains only to evaluation requests that opt in with the `x-freshproof-experiment: planned-authority` header (`PLANNED_AUTHORITY_MODE = "header"`), until the diagnostic confirms it.
+
 # v0.3.4 — name guard on supporting relations (2026-11-17)
 
 - In a Latin-script claim, a source can SUPPORT only if it names every proper noun in the claim; acronyms are accepted. Otherwise the relation drops to INSUFFICIENT. This stops a true-sounding claim with one wrong name from being marked as supported.

@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.3";
+export const VERSION = "0.3.4";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -717,8 +717,13 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
           && hasExactMilestoneDateMatch(claim, bounded[a.source_index].snippet);
         // v0.3.3 safety: a source cannot support a claim about a specific year
         // unless that year appears in the source's title or text.
-        const missingYear = a.relation === "SUPPORTS" && !exactMilestoneMatch && claimYearsAbsent(claim, `${bounded[a.source_index].title} ${sources[a.source_index]?.snippet || bounded[a.source_index].snippet}`);
+        const sourceText = `${bounded[a.source_index].title} ${sources[a.source_index]?.snippet || bounded[a.source_index].snippet}`;
+        const missingYear = a.relation === "SUPPORTS" && !exactMilestoneMatch && claimYearsAbsent(claim, sourceText);
         if (missingYear) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: "Downgraded: the source does not mention the year the claim states, so it cannot support it.", requires_review: true, method: "CLAIMED_YEAR_ABSENT_GUARD", model_relation: "SUPPORTS" };
+        // v0.3.4 safety: in a Latin-script claim, every proper name (a place,
+        // body, person or thing) must appear in a source that supports it.
+        const missingNames = a.relation === "SUPPORTS" && !exactMilestoneMatch ? claimNamesAbsent(claim, sourceText) : [];
+        if (missingNames.length) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: `Downgraded: the source does not mention ${missingNames.slice(0, 3).join(", ")}, which the claim states.`, requires_review: true, method: "CLAIMED_NAME_ABSENT_GUARD", model_relation: "SUPPORTS" };
         return {
           source_index: a.source_index,
           relation: exactMilestoneMatch ? "SUPPORTS" : a.relation,
@@ -960,6 +965,42 @@ export function claimYearsAbsent(claim, sourceText) {
   if (!years.length) return false;
   const text = toAsciiDigits(sourceText);
   return years.some(year => !new RegExp(`(?<!\\d)${year}(?!\\d)`).test(text));
+}
+const NAME_STOPWORDS = new Set(["The", "This", "That", "These", "Those", "There", "Their", "They", "And", "But", "For", "With", "From", "Into", "Over", "After", "Before", "During", "Since", "Until", "When", "Where", "While", "Which", "What", "Who", "How", "Why", "Its", "His", "Her", "Our", "Your", "All", "Some", "Many", "Most", "Each", "Every", "Both", "Was", "Were", "Has", "Have", "Had", "Did", "Does", "Not", "Yes", "Also", "According", "Today", "Currently", "Current", "Mr", "Mrs", "Dr", "St"]);
+const nameStem = word => word.toLowerCase().replace(/(?:'s|’s|s)$/u, "");
+export function claimNamesAbsent(claim, sourceText) {
+  const text = String(claim || "");
+  if (/[\u0600-\u06FF]/.test(text)) return [];
+  const names = new Set();
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    const words = sentence.match(/[A-Za-z][A-Za-z'’-]*/g) || [];
+    words.forEach((word, index) => {
+      if (index === 0 || word.length < 3 || NAME_STOPWORDS.has(word)) return;
+      if (/^[A-Z]/.test(word)) names.add(word.replace(/[-’']+$/u, ""));
+    });
+  }
+  if (!names.size) return [];
+  // A run of capitalised words is also matched by its acronym ("United
+  // Kingdom" -> "UK", "European Union" -> "EU").
+  const original = String(sourceText || "");
+  const runs = [];
+  let current = [];
+  for (const word of text.split(/[^A-Za-z'’-]+/)) {
+    if (/^[A-Z][a-z]+$/.test(word) && !NAME_STOPWORDS.has(word)) current.push(word);
+    else { if (current.length >= 2) runs.push(current); current = []; }
+  }
+  if (current.length >= 2) runs.push(current);
+  for (const words of runs) {
+    const acronym = words.map(word => word[0]).join("");
+    if (acronym.length >= 2 && new RegExp(`(?<![A-Za-z])${acronym}(?![A-Za-z])`).test(original)) words.forEach(word => names.delete(word));
+  }
+  if (!names.size) return [];
+  const haystack = original.toLowerCase();
+  return [...names].filter(name => {
+    const stem = nameStem(name);
+    if (haystack.includes(stem)) return false;
+    return !(stem.length >= 6 && haystack.includes(stem.slice(0, 5)));
+  });
 }
 export function correctionFromAssessment(claim, sources, semantic) {
   const text = typeof semantic?.correction_text === "string" ? semantic.correction_text.trim() : "";

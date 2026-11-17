@@ -102,7 +102,7 @@ test("falls back to GPT-OSS 120B only after a Cloudflare daily quota error", asy
   assert.equal(requestBody.response_format.type, "json_schema");
   assert.equal(requestBody.response_format.json_schema.strict, true);
   assert.equal(requestBody.response_format.json_schema.name, "freshproof_semantic_evidence_assessment");
-  assert.deepEqual(requestBody.response_format.json_schema.schema.required, ["claim_assessment", "correction_text", "source_assessments", "assessments", "component_assessments"]);
+  assert.deepEqual(requestBody.response_format.json_schema.schema.required, ["claim_assessment", "source_assessments", "assessments", "component_assessments"]);
   assert.equal(requestBody.response_format.json_schema.schema.additionalProperties, false);
   assert.equal("temperature" in requestBody, false);
   assert.equal(requestBody.reasoning_effort, "low");
@@ -144,7 +144,7 @@ test("Groq strict semantic schema requires every advisory field and disallows ex
   const schema = responseFormat.json_schema.schema;
   assert.equal(responseFormat.type, "json_schema");
   assert.equal(responseFormat.json_schema.strict, true);
-  assert.deepEqual(schema.required, ["claim_assessment", "correction_text", "source_assessments", "assessments", "component_assessments"]);
+  assert.deepEqual(schema.required, ["claim_assessment", "source_assessments", "assessments", "component_assessments"]);
   for (const objectSchema of [schema, schema.properties.claim_assessment, schema.properties.source_assessments.items, schema.properties.assessments.items, schema.properties.component_assessments.items]) {
     assert.equal(objectSchema.additionalProperties, false);
   }

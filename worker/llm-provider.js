@@ -13,9 +13,8 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["claim_assessment", "correction_text", "source_assessments", "assessments", "component_assessments"],
+      required: ["claim_assessment", "source_assessments", "assessments", "component_assessments"],
       properties: {
-        correction_text: { type: "string" },
         claim_assessment: {
           type: "object",
           additionalProperties: false,
@@ -34,7 +33,7 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
             // v0.2.90: temporal fields are part of the strict schema; without them
             // Groq-served assessments could never carry change notices or
             // current-state records, silently disabling those adjudication rules.
-            required: ["source_index", "directness", "scope_match", "authority_role", "temporal_role", "change_type", "event_date_mention_index", "change_statement_quote", "old_state_quote", "new_state_quote", "correct_value_quote"],
+            required: ["source_index", "directness", "scope_match", "authority_role", "temporal_role", "change_type", "event_date_mention_index", "change_statement_quote", "old_state_quote", "new_state_quote"],
             properties: {
               source_index: { type: "integer" },
               directness: { type: "string", enum: ["DIRECT", "INDIRECT", "UNCLEAR"] },
@@ -45,8 +44,7 @@ const GROQ_SEMANTIC_RESPONSE_FORMAT = Object.freeze({
               event_date_mention_index: { type: ["integer", "null"] },
               change_statement_quote: { type: ["string", "null"] },
               old_state_quote: { type: ["string", "null"] },
-              new_state_quote: { type: ["string", "null"] },
-              correct_value_quote: { type: ["string", "null"] }
+              new_state_quote: { type: ["string", "null"] }
             }
           }
         },

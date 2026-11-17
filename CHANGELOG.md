@@ -1,3 +1,7 @@
+# v0.3.3 — safety fix (2026-11-17)
+
+- An internal diagnostic found one model labelling contradicting sources as supporting after it was asked to write a correction in the same pass. That request is removed; corrections come only from the separate, quote-checked review. A deterministic guard also prevents a source from supporting a claim about a specific year unless the source mentions that year.
+
 # v0.3.2 — neutral prompt examples (2026-11-16)
 
 - The prompt examples use neutral placeholders. The engine contains no claim-specific or topic-specific logic.

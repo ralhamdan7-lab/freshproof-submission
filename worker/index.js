@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.2";
+export const VERSION = "0.3.3";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -654,8 +654,7 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
     "For every source, classify directness as DIRECT, INDIRECT, or UNCLEAR; scope_match as EXACT, PARTIAL, or NO_MATCH; authority_role as ORIGINATING_AUTHORITY, PRIMARY_RESEARCH, SECONDARY, or UNKNOWN. Also classify temporal_role as CHANGE_NOTICE, CURRENT_STATE_RECORD, HISTORICAL_RECORD, EVENT_REPORT, BACKGROUND, or UNKNOWN. CURRENT_STATE_RECORD means the publisher's own maintained record of the present state (a register, membership list, directory, official profile or status page), not a news report, history or archived page. CHANGE_NOTICE means the source documents that a state changed (replaced, renamed, ended, joined, left). If and only if the source explicitly documents a change, return change_type REPLACED, ENDED, INTRODUCED, RENAMED, REVISED, REVOKED, EXPIRED, SUSPENDED, DISCONTINUED, POSTPONED, RESCHEDULED, CANCELLED, CANCELED, or WITHDRAWN; otherwise use NONE or UNKNOWN. Choose event_date_mention_index only from the supplied date_mentions array and only when that exact mention is the date the change took effect or occurred; do not use publication/update dates as event dates. For a change notice, provide exact verbatim change_statement_quote, old_state_quote, and new_state_quote copied from the source snippet; otherwise use null. Never invent dates or quotations.",
     "Use INSTITUTIONAL_RECORD only for a narrow official act or record; HISTORICAL_EVENT only for a discrete bounded event; ATTRIBUTED_RESEARCH_RESULT only for a finding explicitly attributed to the originating study. Current-state, scientific consensus, contested, compound, broad, or dynamically changing claims must never be low-risk single-source eligible.",
     "DIRECT means the source itself records or originates the event/finding, not merely repeats it. EXACT means the source addresses the same entity, action/attribute, milestone and units as the proposition; it does not require the source to agree with the claimed value.",
-    "Correction: for every source whose relation is CONTRADICTS, set correct_value_quote to the exact contiguous excerpt (copied verbatim, at least 20 characters) in which that source states the correct value of the disputed attribute; otherwise null. Set correction_text to one declarative sentence, in the same language as the claim, stating the correct value according to the contradicting sources while keeping the rest of the claim unchanged; use an empty string when no source contradicts the claim or the contradicting sources do not agree on one value.",
-    "Return only JSON with all five required fields. Example for one component and one source: {\"claim_assessment\":{\"claim_type\":\"OTHER\",\"claim_risk\":\"HIGH\",\"temporal_claim_kind\":\"UNKNOWN\"},\"correction_text\":\"\",\"source_assessments\":[{\"source_index\":0,\"directness\":\"UNCLEAR\",\"scope_match\":\"PARTIAL\",\"authority_role\":\"UNKNOWN\",\"temporal_role\":\"UNKNOWN\",\"change_type\":\"NONE\",\"event_date_mention_index\":null,\"change_statement_quote\":null,\"old_state_quote\":null,\"new_state_quote\":null,\"correct_value_quote\":null}],\"assessments\":[{\"source_index\":0,\"relation\":\"INSUFFICIENT\",\"rationale\":\"short reason\"}],\"component_assessments\":[{\"component_id\":1,\"source_index\":0,\"relation\":\"INSUFFICIENT\"}]} .",
+    "Return only JSON with all four required fields. Example for one component and one source: {\"claim_assessment\":{\"claim_type\":\"OTHER\",\"claim_risk\":\"HIGH\",\"temporal_claim_kind\":\"UNKNOWN\"},\"source_assessments\":[{\"source_index\":0,\"directness\":\"UNCLEAR\",\"scope_match\":\"PARTIAL\",\"authority_role\":\"UNKNOWN\",\"temporal_role\":\"UNKNOWN\",\"change_type\":\"NONE\",\"event_date_mention_index\":null,\"change_statement_quote\":null,\"old_state_quote\":null,\"new_state_quote\":null}],\"assessments\":[{\"source_index\":0,\"relation\":\"INSUFFICIENT\",\"rationale\":\"short reason\"}],\"component_assessments\":[{\"component_id\":1,\"source_index\":0,\"relation\":\"INSUFFICIENT\"}]} .",
     "Include exactly one item per source index in both source_assessments and assessments. Also return component_assessments: exactly one item for every component_id × source_index pair, with the relation of that exact source to that exact component. Do not infer whole-claim support from a component; do not omit pairs. Every assessment must include a concise rationale string of no more than about 120 characters. No confidence scores. This is advisory triage, not a final truth verdict."
   ].join(" ");
   const claimAssessment = decomposeClaimForAssessment(claim);
@@ -716,6 +715,10 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
       const assessments = parsed.assessments.filter(a => Number.isInteger(a.source_index) && a.source_index >= 0 && a.source_index < bounded.length && SEMANTIC_RELATIONS.has(a.relation)).map(a => {
         const exactMilestoneMatch = ["MIXED", "INSUFFICIENT"].includes(a.relation)
           && hasExactMilestoneDateMatch(claim, bounded[a.source_index].snippet);
+        // v0.3.3 safety: a source cannot support a claim about a specific year
+        // unless that year appears in the source's title or text.
+        const missingYear = a.relation === "SUPPORTS" && !exactMilestoneMatch && claimYearsAbsent(claim, `${bounded[a.source_index].title} ${sources[a.source_index]?.snippet || bounded[a.source_index].snippet}`);
+        if (missingYear) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: "Downgraded: the source does not mention the year the claim states, so it cannot support it.", requires_review: true, method: "CLAIMED_YEAR_ABSENT_GUARD", model_relation: "SUPPORTS" };
         return {
           source_index: a.source_index,
           relation: exactMilestoneMatch ? "SUPPORTS" : a.relation,
@@ -950,6 +953,13 @@ function hasCorrectionToken(set, token) {
   const stem = token.slice(0, Math.max(5, token.length - 2));
   for (const other of set) if (!/^\d/.test(other) && other.length >= 5 && (other.startsWith(stem) || token.startsWith(other.slice(0, Math.max(5, other.length - 2))))) return true;
   return false;
+}
+const toAsciiDigits = value => String(value || "").replace(/[\u0660-\u0669]/g, d => String(d.charCodeAt(0) - 0x0660)).replace(/[\u06F0-\u06F9]/g, d => String(d.charCodeAt(0) - 0x06F0));
+export function claimYearsAbsent(claim, sourceText) {
+  const years = [...new Set((toAsciiDigits(claim).match(/(?<!\d)(1[0-9]{3}|20[0-9]{2})(?!\d)/g) || []))];
+  if (!years.length) return false;
+  const text = toAsciiDigits(sourceText);
+  return years.some(year => !new RegExp(`(?<!\\d)${year}(?!\\d)`).test(text));
 }
 export function correctionFromAssessment(claim, sources, semantic) {
   const text = typeof semantic?.correction_text === "string" ? semantic.correction_text.trim() : "";

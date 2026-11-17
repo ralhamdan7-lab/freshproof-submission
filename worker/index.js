@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.5";
+export const VERSION = "0.3.6";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -726,6 +726,10 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
         // body, person or thing) must appear in a source that supports it.
         const missingNames = a.relation === "SUPPORTS" && !exactMilestoneMatch ? claimNamesAbsent(claim, sourceText) : [];
         if (missingNames.length) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: `Downgraded: the source does not mention ${missingNames.slice(0, 3).join(", ")}, which the claim states.`, requires_review: true, method: "CLAIMED_NAME_ABSENT_GUARD", model_relation: "SUPPORTS" };
+        // v0.3.6 safety: a source that frames the claim as a myth, hoax or
+        // false claim cannot support an affirmative claim. Models sometimes
+        // read "this debunking page is about the claim" as support.
+        if (a.relation === "SUPPORTS" && sourceDebunksClaim(claim, sourceText)) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: "Downgraded: the source describes this claim as false, a myth or misinformation, so it cannot support it.", requires_review: true, method: "DEBUNKING_LANGUAGE_GUARD", model_relation: "SUPPORTS" };
         return {
           source_index: a.source_index,
           relation: exactMilestoneMatch ? "SUPPORTS" : a.relation,
@@ -962,6 +966,14 @@ function hasCorrectionToken(set, token) {
   return false;
 }
 const toAsciiDigits = value => String(value || "").replace(/[\u0660-\u0669]/g, d => String(d.charCodeAt(0) - 0x0660)).replace(/[\u06F0-\u06F9]/g, d => String(d.charCodeAt(0) - 0x06F0));
+const DEBUNK_CUES_EN = /\b(?:myths?|hoax(?:es)?|debunk(?:ed|s|ing)?|conspiracy theor(?:y|ies|ists?)|misinformation|disinformation|falsely|false (?:claims?|rumou?rs?|information|stor(?:y|ies))|(?:is|are|was|were|claim is|claims are) (?:false|untrue|baseless|unfounded)|baseless|unfounded|no (?:scientific |credible )?evidence|not true|fake news|rumou?rs?|misleading|fact[- ]?check(?:ed|s|ing)?)\b/i;
+const DEBUNK_CUES_AR = /(?:خرافة|خرافات|شائعة|شائعات|إشاعة|اشاعة|إشاعات|كاذب|كاذبة|مضلل|مضللة|تضليل|لا صحة|عار(?:ية)? عن الصحة|غير صحيح|غير صحيحة|زائف|زائفة|مفبرك|مفبركة|نظرية المؤامرة|نظريات المؤامرة|ادعاءات كاذبة|تدقيق الحقائق)/;
+export function sourceDebunksClaim(claim, sourceText) {
+  const claimText = String(claim || "");
+  if (DEBUNK_CUES_EN.test(claimText) || DEBUNK_CUES_AR.test(claimText)) return false;
+  const text = String(sourceText || "");
+  return DEBUNK_CUES_EN.test(text) || DEBUNK_CUES_AR.test(text);
+}
 export function claimYearsAbsent(claim, sourceText) {
   const years = [...new Set((toAsciiDigits(claim).match(/(?<!\d)(1[0-9]{3}|20[0-9]{2})(?!\d)/g) || []))];
   if (!years.length) return false;

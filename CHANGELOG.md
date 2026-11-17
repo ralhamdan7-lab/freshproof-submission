@@ -1,3 +1,7 @@
+# v0.3.4 — name guard on supporting relations (2026-11-17)
+
+- In a Latin-script claim, a source can SUPPORT only if it names every proper noun in the claim; acronyms are accepted. Otherwise the relation drops to INSUFFICIENT. This stops a true-sounding claim with one wrong name from being marked as supported.
+
 # v0.3.3 — safety fix (2026-11-17)
 
 - An internal diagnostic found one model labelling contradicting sources as supporting after it was asked to write a correction in the same pass. That request is removed; corrections come only from the separate, quote-checked review. A deterministic guard also prevents a source from supporting a claim about a specific year unless the source mentions that year.

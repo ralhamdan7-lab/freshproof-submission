@@ -178,7 +178,40 @@ export function firstPartyMatch(url, claim) {
  * it is UNASSESSED; structural and first-party evidence can raise it; user-
  * generated content on an official domain is always lowered to UNASSESSED.
  */
-export function assessSourceAuthority(url, claim, curatedReliability = "UNASSESSED") {
+// v0.3.5: authority domains named by the model's search plan. The plan names
+// the official sites of the organisations most likely to publish the primary
+// record before any result is seen. A source on such a domain is raised only
+// from UNASSESSED to the lowest qualified tier, so it still needs independent
+// corroboration. Open-publishing platforms and any domain written in the claim
+// itself are never accepted, so a claim cannot nominate its own authority.
+const OPEN_PUBLISHING_HOSTS = new Set([
+  "wikipedia.org", "wikimedia.org", "wikidata.org", "fandom.com", "wikihow.com", "quora.com", "reddit.com",
+  "medium.com", "substack.com", "blogspot.com", "wordpress.com", "github.io", "tumblr.com", "weebly.com", "wixsite.com",
+  "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "youtu.be", "tiktok.com", "x.com", "twitter.com", "threads.net",
+  "brainly.com", "chegg.com", "answers.com", "scribd.com", "slideshare.net", "pinterest.com"
+]);
+const BARE_SUFFIX = /^(?:com|co|org|net|gov|edu|ac|or|ne|go|gob|gouv)\.[a-z]{2}$/;
+export function normalizePlannedAuthorityDomains(domains, claim) {
+  const claimText = String(claim || "").toLowerCase();
+  const out = [];
+  for (const raw of Array.isArray(domains) ? domains : []) {
+    const domain = String(raw || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+    if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(domain) || /^\d+(?:\.\d+)+$/.test(domain)) continue;
+    if (BARE_SUFFIX.test(domain) || domain.split(".")[0].length < 2) continue;
+    if ([...OPEN_PUBLISHING_HOSTS].some(host => domain === host || domain.endsWith("." + host))) continue;
+    if (claimText.includes(domain) || claimText.includes(domain.split(".")[0] + ".")) continue;
+    if (!out.includes(domain)) out.push(domain);
+  }
+  return out.slice(0, 3);
+}
+export function plannedAuthorityMatch(url, plannedDomains = []) {
+  const host = hostOf(url);
+  if (!host || !plannedDomains.length) return null;
+  if ([...OPEN_PUBLISHING_HOSTS].some(open => host === open || host.endsWith("." + open))) return null;
+  return plannedDomains.find(domain => host === domain || host.endsWith("." + domain)) || null;
+}
+
+export function assessSourceAuthority(url, claim, curatedReliability = "UNASSESSED", options = {}) {
   if (isUserGeneratedContentUrl(url)) {
     return { reliability: "UNASSESSED", basis: "USER_GENERATED_CONTENT_ON_DOMAIN", downgraded_from: curatedReliability !== "UNASSESSED" ? curatedReliability : null };
   }
@@ -191,6 +224,8 @@ export function assessSourceAuthority(url, claim, curatedReliability = "UNASSESS
   if (structural) return structural;
   const firstParty = firstPartyMatch(url, claim);
   if (firstParty) return { reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", basis: "FIRST_PARTY_ENTITY_DOMAIN", entity_key: firstParty.entity_key };
+  const planned = plannedAuthorityMatch(url, options.plannedAuthorityDomains || []);
+  if (planned) return { reliability: "SECONDARY_REPUTABLE", basis: "MODEL_PLANNED_AUTHORITY_DOMAIN", planned_domain: planned };
   return { reliability: curatedReliability || "UNASSESSED", basis: "UNCLASSIFIED_PUBLISHER" };
 }
 

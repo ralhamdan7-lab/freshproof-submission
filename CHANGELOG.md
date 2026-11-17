@@ -1,3 +1,7 @@
+# v0.3.6 — debunking-language guard (2026-11-17)
+
+- A source that describes the claim as a myth, hoax, conspiracy theory, misinformation or a false claim (English or Arabic) can no longer SUPPORT an affirmative claim. This closes a failure mode found in the public-demo diagnostic, where a model read health-authority debunking pages as support.
+
 # v0.3.5 — wider authority coverage (2026-11-17)
 
 - Before any result is seen, the search plan names the official sites of the organisations most likely to publish the primary record. A source on one of those sites can now count as a qualified publisher, at the lowest qualified tier, and still needs independent corroboration. Open-publishing platforms, user-generated pages and any domain written in the claim itself are refused.

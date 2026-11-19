@@ -399,7 +399,9 @@ export function createResilientAi(env, dependencies = {}) {
       // models or Workers AI. The smallest model misread relations in live
       // diagnostics (debunking pages and "emergency ended" read as support),
       // so it is kept for light tasks and the quote-checked correction review.
-      const assessmentInput = value => value._freshproof_tier === "light" || String(value._freshproof_task || "").startsWith("correction")
+      // Decomposition output is checked deterministically (verbatim spans, no
+      // new numbers, named subjects), so it may fall back to any Groq model.
+      const assessmentInput = value => value._freshproof_tier === "light" || /^(?:correction|decomposition)/.test(String(value._freshproof_task || ""))
         ? value : { ...value, _freshproof_fast_only: true };
       const forcedGroq = env.LLM_PROVIDER_MODE === "groq";
       if (forcedGroq) return groqCascade(model, input, "forced_groq");
@@ -446,7 +448,9 @@ export function createResilientAi(env, dependencies = {}) {
         // v0.3.7: Workers AI is given a bounded time. A slow response is
         // treated like a capacity failure: the breaker opens for a minute and
         // the paced Groq cascade answers instead.
-        const timeoutMs = Math.max(5000, Number(env.CF_AI_TIMEOUT_MS) || (input._freshproof_tier === "light" ? 15000 : 30000));
+        // v0.3.14: decomposition gets a shorter Workers AI bound, so a Groq
+        // fallback still fits inside its own time limit.
+        const timeoutMs = Math.max(5000, Number(env.CF_AI_TIMEOUT_MS) || (input._freshproof_tier === "light" || input._freshproof_task === "decomposition" ? 15000 : 30000));
         let timer;
         const result = await Promise.race([
           Promise.resolve(env.AI.run(model, cloudflareInput)).finally(() => clearTimeout(timer)),

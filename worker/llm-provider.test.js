@@ -341,3 +341,11 @@ test("v0.3.13: evidence assessment never falls back to a non-fast Groq model", a
   const light = await ai.run("@cf/test/model", { messages, max_tokens: 300, _freshproof_tier: "light" });
   assert.equal(light._freshproof_provider, "groq");
 });
+
+test("v0.3.14: decomposition may fall back to any Groq model after Workers AI fails", async () => {
+  const used = [];
+  const env = { ...baseEnv(), GROQ_MODELS: "openai/gpt-oss-120b-dstrong,openai/gpt-oss-20b-dweak", GROQ_FAST_MODELS: "openai/gpt-oss-120b-dstrong", AI: { async run() { throw Object.assign(new Error("3040 out of capacity"), { code: 3040 }); } } };
+  const ai = createResilientAi(env, { fetchImpl: async (_url, init) => { const m = JSON.parse(init.body).model; used.push(m); return m.includes("dstrong") ? new Response("{}", { status: 429, headers: { "retry-after": "3600" } }) : okResponse(m); }, sleep: async () => {} });
+  const result = await ai.run("@cf/test/model", { messages, max_tokens: 600, _freshproof_tier: "standard", _freshproof_task: "decomposition" });
+  assert.equal(result._freshproof_model, "openai/gpt-oss-20b-dweak");
+});

@@ -34,6 +34,8 @@ jobs:
           if [ -z "$cases" ]; then echo "No cases listed; nothing to run."; fi
           echo "cases=$cases" >> "$GITHUB_OUTPUT"
           echo "experiment=$experiment" >> "$GITHUB_OUTPUT"
+          grep -q 'raw=1' triggers/dev-eval.txt && echo "raw=1" >> "$GITHUB_OUTPUT" || echo "raw=" >> "$GITHUB_OUTPUT"
+          grep -q 'ui=1' triggers/dev-eval.txt && echo "ui=1" >> "$GITHUB_OUTPUT" || echo "ui=" >> "$GITHUB_OUTPUT"
       - name: Wait for the deployed version
         if: steps.scope.outputs.cases != ''
         run: |
@@ -50,4 +52,6 @@ jobs:
           FRESH_PROOF_BASE_URL: https://freshproof-submission-demo.ralhamdan7.workers.dev
           DEV_CASES: ${{ steps.scope.outputs.cases }}
           FRESH_PROOF_EXPERIMENT: ${{ steps.scope.outputs.experiment }}
+          DEV_RAW: ${{ steps.scope.outputs.raw }}
+          DEV_UI_PATH: ${{ steps.scope.outputs.ui }}
         run: node scripts/dev-diverse-eval.mjs

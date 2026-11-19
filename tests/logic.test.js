@@ -759,7 +759,7 @@ test("verification pipeline resolves Twitter pronouns and excludes unrelated rec
     }), { TAVILY_API_KEY: "test-key", ALLOWED_ORIGIN: "*" });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.version, "0.3.7");
+    assert.equal(body.version, "0.3.8");
     // v0.2.84: a pronoun-led sentence is bound to its antecedent sentence, so
     // no orphan claim ("Its official brand name ...") is extracted.
     assert.equal(body.claims.length, 1);

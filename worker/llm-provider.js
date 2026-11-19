@@ -434,7 +434,7 @@ export function createResilientAi(env, dependencies = {}) {
         // v0.3.7: Workers AI is given a bounded time. A slow response is
         // treated like a capacity failure: the breaker opens for a minute and
         // the paced Groq cascade answers instead.
-        const timeoutMs = Math.max(5000, Number(env.CF_AI_TIMEOUT_MS) || (input._freshproof_tier === "light" ? 15000 : 45000));
+        const timeoutMs = Math.max(5000, Number(env.CF_AI_TIMEOUT_MS) || (input._freshproof_tier === "light" ? 15000 : 30000));
         let timer;
         const result = await Promise.race([
           Promise.resolve(env.AI.run(model, cloudflareInput)).finally(() => clearTimeout(timer)),

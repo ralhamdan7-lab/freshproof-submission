@@ -120,11 +120,14 @@ const NAME_SKIP = new Set(["The", "This", "That", "These", "Those", "They", "How
 export function properNamesOf(value) {
   const names = new Set();
   for (const sentence of String(value || "").split(/(?<=[.!?])\s+/)) {
-    const words = sentence.match(/[A-Za-z][A-Za-z0-9'’.-]*[A-Za-z0-9]|[A-Z]/g) || [];
+    const words = sentence.match(/(?<![0-9A-Za-z])(?:[A-Za-z][A-Za-z0-9'’.-]*[A-Za-z0-9]|[A-Z])/g) || [];
     words.forEach((word, index) => {
       const clean = word.replace(/['’]s$/, "");
       if (NAME_SKIP.has(clean) || clean.length < 2) return;
-      if (/[0-9]/.test(clean) && /[A-Za-z]/.test(clean)) { names.add(clean.toLowerCase()); return; }
+      // Model and product codes (GPT-4o, H100) name a subject; units glued
+      // to digits ("128K-token") do not, and never start with a letter.
+      if (/[0-9]/.test(clean) && /^[A-Za-z]/.test(clean)) { names.add(clean.toLowerCase()); return; }
+      if (/^[0-9]/.test(clean)) return;
       if (index > 0 && /^[A-Z]/.test(clean)) names.add(clean.toLowerCase());
     });
   }
@@ -152,8 +155,10 @@ export function validateDecomposition(parsed, text) {
     if (!kind) { rejected.kind++; continue; }
     if (claim.length < DECOMPOSITION_LIMITS.minClaimChars || claim.length > DECOMPOSITION_LIMITS.maxClaimChars || !span) { rejected.length++; continue; }
     if (!source.includes(span)) { rejected.span_not_verbatim++; continue; }
-    const spanNumbers = new Set(numbersIn(span));
-    if (numbersIn(claim).some(number => !spanNumbers.has(number))) { rejected.invented_number++; continue; }
+    // v0.3.9: a claim may carry a date or number from elsewhere in the same
+    // text (its time qualifier), but never one the text does not contain.
+    const textNumbers = new Set(numbersIn(source));
+    if (numbersIn(claim).some(number => !textNumbers.has(number))) { rejected.invented_number++; if (!fallbackSpans.includes(span)) fallbackSpans.push(span); continue; }
     // v0.2.91: a question restated as a statement may only reuse the
     // question's own wording; no new names or values may be introduced.
     if (kind === "QUESTION" && !restatesSpan(claim, span)) { rejected.question_rewrite = (rejected.question_rewrite || 0) + 1; continue; }
@@ -168,6 +173,9 @@ export function validateDecomposition(parsed, text) {
   // detail inside it is never silently dropped.
   for (const span of fallbackSpans) {
     const key = span.toLowerCase();
+    // A span that itself depends on earlier text ("It was renamed…") is not
+    // verified alone; the accepted claims from it stand.
+    if (hasUnresolvedSubject(span, source)) continue;
     if (accepted.length >= DECOMPOSITION_LIMITS.maxClaims || seen.has(key) || span.length > 600) continue;
     seen.add(key);
     accepted.push({ claim: span, span, kind: "FACT", from_span: true });

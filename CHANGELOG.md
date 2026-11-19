@@ -1,3 +1,10 @@
+# v0.3.10 — decomposition and name-guard fixes (2026-11-19)
+
+- **No dropped parts.** A decomposed claim may now carry a date or number from elsewhere in the same text (its time qualifier), but never one the text lacks. Previously such claims were rejected, and parts of multi-part claims went unverified (for example the AlphaFold 3 licence and the Llama 3.1 token count). When a part is still rejected, its verbatim sentence is verified instead, unless that sentence itself depends on earlier text.
+- **Subject check.** Units glued to digits ("128K-token") are no longer mistaken for subject names.
+- **Name guard.** Possessives ("European Union's") and hyphenated compounds ("Mixture-of-Experts") now match their acronyms (EU, MoE) and spaced forms. A wrong name is still caught ("Pacific" against "Atlantic").
+- **Risk calibration.** Dates of announcements, acquisitions, releases and legal milestones, and technical specifications, are LOW or MEDIUM risk unless they concern health, safety or a contested controversy.
+
 # v0.3.9 — advanced multi-part claims (2026-11-19)
 
 Fixes found by the owner's advanced-claims test (AI regulation, Brexit dates, acquisitions, model specifications, AlphaFold 3 licensing, humanoid robot deployment).

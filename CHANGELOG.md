@@ -1,3 +1,8 @@
+# v0.3.14 — decomposition that holds up under load (2026-11-19)
+
+- **Decomposition no longer drops to sentence splitting under load.** In an extraction check of the 40 external claims, 13 fell back to the punctuation splitter, because Workers AI was slow and the strong Groq models were busy. Those compound claims would then have been verified whole. Decomposition now waits at most 15 seconds for Workers AI and may then use any Groq model, within a 50-second limit. Its output is still checked deterministically: verbatim spans, no new numbers, a named subject. Evidence assessment stays on the strong models only.
+- **Fewer, better parts.** A list of items sharing one predicate (the currencies in a basket) stays one claim, with usually one to four claims per sentence. This saves searches and quota for the facts that need them.
+
 # v0.3.13 — strong models only for evidence assessment (2026-11-19)
 
 - **No weak-model verdicts.** When Workers AI is slow or unavailable, evidence assessment now falls back only to the strong Groq models (`GROQ_FAST_MODELS`). If none has budget, the claim abstains instead of being judged by the smallest model. In a probe on the external test set, the smallest model read "the WHO ended the COVID-19 emergency" as support for "SARS-CoV-2 no longer represented a public-health risk". The smallest model stays in use for light tasks (decomposition fallback, search planning) and for the quote-checked correction review.

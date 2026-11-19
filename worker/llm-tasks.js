@@ -188,6 +188,7 @@ const DECOMPOSITION_SYSTEM = [
   "Rules:",
   "1. Each claim must be self-contained: never start a claim with a pronoun or a vague reference (it, they, these, the company, the license, that year). Repeat the full name of the subject (person, organisation, product, model, law) in every claim, and keep the time qualifier that applies to it ('By September 2026', 'in May 2024', 'at launch').",
   "2. Each claim must be atomic: one checkable proposition. Split 'X did A and B' into two claims when A and B can be true or false independently. Split every distinct date, number, specification or event into its own claim ('Model M was trained on N tokens' and 'Model M supports a K-token context window' are two claims). Split contrasts ('X on date A, while Y on date B'; 'A, but B'; 'A, the same day as B') into separate claims, each naming its subject and its own date.",
+  "2c. Keep a list of items that share one predicate in a single claim ('the basket includes A, B, C and D'); do not make one claim per list item. Use the fewest claims that keep each independently checkable fact separate, usually one to four per sentence.",
   "2b. A clause that only makes sense together with another (a consequence, a purpose, 'allowing…', 'matching…') stays attached to the claim it depends on, with that claim's subject named.",
   "3. Never change, correct, round or add any value: keep names, numbers, dates and units exactly as the text states them, even if you believe they are wrong.",
   "4. 'span' must be copied verbatim from the text: the exact sentence or clause the claim comes from.",
@@ -199,7 +200,7 @@ const DECOMPOSITION_SYSTEM = [
 /**
  * @returns {Promise<{status: string, claims: Array<{claim:string, span:string, kind:string}>, provider?: string, model?: string, rejected?: object}>}
  */
-export async function decomposeClaimsWithModel(text, ai, { timeoutMs = 35000 } = {}) {
+export async function decomposeClaimsWithModel(text, ai, { timeoutMs = 50000 } = {}) {
   if (!ai || typeof ai.run !== "function") return { status: "NOT_CONFIGURED", claims: [] };
   try {
     const result = await withTimeout(ai.run(SEMANTIC_MODEL, {

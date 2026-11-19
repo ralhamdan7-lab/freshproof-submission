@@ -1,3 +1,14 @@
+# v0.3.9 — advanced multi-part claims (2026-11-19)
+
+Fixes found by the owner's advanced-claims test (AI regulation, Brexit dates, acquisitions, model specifications, AlphaFold 3 licensing, humanoid robot deployment).
+
+- **Atomic, self-contained claims.** Model decomposition now runs for any text longer than 100 characters (was 280), on the stronger fast models rather than the smallest one. The prompt asks it to split every distinct date, number, specification and contrast ("X on date A, while Y on date B") into its own claim, and to name the subject and time qualifier in each.
+- **No claim out of context.** A decomposed claim that opens with a pronoun or a bare generic noun ("They released…", "The license allows…"), or names none of the text's proper nouns, is rejected. Its verbatim span is verified instead, so a false detail is never dropped and a generic statement is never "confirmed" in place of the specific one. Before this fix, "The permissive open-source license allows unrestricted commercial deployment" was verified as a general truth, outside the AlphaFold 3 claim it came from.
+- **Completion versus plan.** A source showing that something was only planned, announced, piloted or scheduled after the claimed date now contradicts a claim that it had already happened by then. A different date for the same event also contradicts.
+- **Corrections shown more often, under the same evidence rules.** Correction quotes are matched verbatim, ignoring punctuation and quote or dash style. When a weaker model finds no grounded replacement or quotes inexactly, the review is retried once on a fast model.
+- **Name guard false positives.** Month and weekday names, and letters glued to digits ("128K-token", "4o"), are no longer treated as proper names that a supporting source must repeat.
+- **Planned authority domains on.** The official domains named by the search plan (for example iau.org for an IAU definition) now count as the lowest qualified tier for all requests. Independent corroboration is still required.
+
 # v0.3.8 — faster evidence assessment (2026-11-19)
 
 - **Two fast models.** The Groq fast path now uses either of the two strongest models (`GROQ_FAST_MODELS = qwen/qwen3.8-27b, openai/gpt-oss-120b`), whichever has budget free right now, instead of only the first. This doubles the per-minute capacity before the slower Workers AI path is used.

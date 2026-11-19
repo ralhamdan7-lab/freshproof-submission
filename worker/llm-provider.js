@@ -339,6 +339,7 @@ export function createResilientAi(env, dependencies = {}) {
       // The fast path uses only the strongest model; the others stay paced
       // fallbacks where waiting is acceptable.
       if (input._freshproof_no_wait && !input._freshproof_any_model && !fastModels.includes(model)) continue;
+      if (input._freshproof_fast_only && !fastModels.includes(model)) continue;
       const suffix = model.includes("120b") ? "120B" : model.includes("20b") ? "20B" : /qwen/i.test(model) ? "QWEN" : "";
       const rpm = Number((suffix && env[`GROQ_${suffix}_RPM`]) || env.GROQ_RPM);
       const tpm = Number((suffix && env[`GROQ_${suffix}_TPM`]) || env.GROQ_TPM);
@@ -416,6 +417,11 @@ export function createResilientAi(env, dependencies = {}) {
         try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_path"); } catch {}
         // v0.3.1: correction review follows its output contract more reliably
         // on the Groq models, so any of them with free budget is tried first.
+        // v0.3.9: a correction retry waits for a fast model's slot instead
+        // of falling to a weaker model.
+        if (input._freshproof_task === "correction_retry") {
+          try { return await groqCascade(model, { ...input, _freshproof_fast_only: true }, "groq_correction_retry"); } catch {}
+        }
         if (input._freshproof_task === "correction") {
           try { return await groqCascade(model, { ...input, _freshproof_no_wait: true, _freshproof_any_model: true }, "groq_correction_path"); } catch {}
         }

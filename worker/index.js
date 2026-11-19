@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.8";
+export const VERSION = "0.3.9";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -640,6 +640,7 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
     "For each source, classify only its relationship to the exact full original claim: SUPPORTS, CONTRADICTS, MIXED, IRRELEVANT, or INSUFFICIENT.",
     "The original_claim is immutable and complete. Read every character; components are conservative clause views. Never silently omit, shorten, or replace the original claim. A source supporting one component does not establish the whole compound claim.",
     "If the claim has multiple components, consider every component, condition, negation, exception, entity, number, and timeframe before assigning a whole-claim relation. SUPPORTS requires every essential component to be supported. CONTRADICTS requires only that the source clearly refutes at least one essential component (an entity, number, mechanism, rule or condition the claim depends on): a claim with a false essential part is false. If coverage is incomplete and nothing essential is refuted, use INSUFFICIENT or MIXED rather than assuming support.",
+    "Completion versus plan: if the claim says something had already happened, been completed, delivered or released by a date, and the source shows it was only planned, announced, expected, piloted or scheduled to happen after that date, the source CONTRADICTS the claim. A source giving a different date for the same event (completion, release, membership, withdrawal) also CONTRADICTS a claim that states another date for it.",
     "General rules and exceptions: a source stating the general rule (for example that X holds exclusively, almost always, or as the norm) CONTRADICTS a claim that the opposite holds generally, equally or regularly; documented rare exceptions do not make such a general claim true. A source reporting that a claimed cause or link was investigated and not found (no association, no increased risk, rejected, debunked) CONTRADICTS a claim that the cause or link exists.",
     "Do not use outside knowledge. Do not infer that a source is authoritative from its domain. Distinguish event date from publication date.",
     "Distinguish separate legal and policy milestones: entry into force, effective date, application date, enforcement date, transition period, and later amendments are not interchangeable.",
@@ -935,6 +936,11 @@ export function assessDatedHistoricalTextAnchors(claim, sources = []) {
   };
 }
 
+// v0.3.9: the same words in the same order, ignoring punctuation, quote and
+// dash styles. The quote must still be one contiguous run of source words.
+function looseCorrectionQuote(value) {
+  return normalizeCorrectionQuote(value).replace(/[\p{P}\p{S}]+/gu, " ").replace(/\s+/g, " ").trim();
+}
 function normalizeCorrectionQuote(value) {
   return String(value || "").normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
 }
@@ -980,14 +986,20 @@ export function claimYearsAbsent(claim, sourceText) {
   const text = toAsciiDigits(sourceText);
   return years.some(year => !new RegExp(`(?<!\\d)${year}(?!\\d)`).test(text));
 }
-const NAME_STOPWORDS = new Set(["The", "This", "That", "These", "Those", "There", "Their", "They", "And", "But", "For", "With", "From", "Into", "Over", "After", "Before", "During", "Since", "Until", "When", "Where", "While", "Which", "What", "Who", "How", "Why", "Its", "His", "Her", "Our", "Your", "All", "Some", "Many", "Most", "Each", "Every", "Both", "Was", "Were", "Has", "Have", "Had", "Did", "Does", "Not", "Yes", "Also", "According", "Today", "Currently", "Current", "Mr", "Mrs", "Dr", "St"]);
+const NAME_STOPWORDS = new Set(["The", "This", "That", "These", "Those", "There", "Their", "They", "And", "But", "For", "With", "From", "Into", "Over", "After", "Before", "During", "Since", "Until", "When", "Where", "While", "Which", "What", "Who", "How", "Why", "Its", "His", "Her", "Our", "Your", "All", "Some", "Many", "Most", "Each", "Every", "Both", "Was", "Were", "Has", "Have", "Had", "Did", "Does", "Not", "Yes", "Also", "According", "Today", "Currently", "Current", "Mr", "Mrs", "Dr", "St",
+  // v0.3.9: calendar words are dates, which the year guard and the model check.
+  "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December",
+  "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec",
+  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "However", "Under", "Meanwhile", "Although", "Because"]);
 const nameStem = word => word.toLowerCase().replace(/(?:'s|’s|s)$/u, "");
 export function claimNamesAbsent(claim, sourceText) {
   const text = String(claim || "");
   if (/[\u0600-\u06FF]/.test(text)) return [];
   const names = new Set();
   for (const sentence of text.split(/(?<=[.!?])\s+/)) {
-    const words = sentence.match(/[A-Za-z][A-Za-z'’-]*/g) || [];
+    // v0.3.9: a letter run glued to digits ("128K-token", "4o") is a unit or
+    // model code, not a name.
+    const words = sentence.match(/(?<![0-9A-Za-z])[A-Za-z][A-Za-z'’-]*(?![0-9])/g) || [];
     words.forEach((word, index) => {
       if (index === 0 || word.length < 3 || NAME_STOPWORDS.has(word)) return;
       if (/^[A-Z]/.test(word)) names.add(word.replace(/[-’']+$/u, ""));
@@ -1076,7 +1088,7 @@ const CORRECTION_RESPONSE_FORMAT = {
   }
 };
 const CORRECTION_QUALIFIED_TIERS = new Set(["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"]);
-export async function assessCorrectionCandidateWithModel(claim, status, sources, ai, diag = {}) {
+export async function assessCorrectionCandidateWithModel(claim, status, sources, ai, diag = {}, options = {}) {
   if (!["SUPERSEDED", "CONTRADICTED"].includes(status) || !ai || typeof ai.run !== "function" || !Array.isArray(sources)) return null;
   const bounded = sources.slice(0, LIMITS.maxSemanticSources).map((source, index) => ({
     source_index: index,
@@ -1130,7 +1142,7 @@ export async function assessCorrectionCandidateWithModel(claim, status, sources,
       // v0.2.91: the correction review has its own output contract; without
       // it a strict-schema fallback model would answer in the evidence shape.
       response_format: CORRECTION_RESPONSE_FORMAT,
-      _freshproof_task: "correction"
+      _freshproof_task: options.retry ? "correction_retry" : "correction"
     });
     const modelText = result?.response ?? result?.output_text ?? result?.choices?.[0]?.message?.content ?? result?.result?.response ?? result?.result?.output_text ?? result?.result?.choices?.[0]?.message?.content;
     const parsed = parseModelJson(modelText ?? result);
@@ -1147,7 +1159,8 @@ export async function assessCorrectionCandidateWithModel(claim, status, sources,
         const supportingQuote = typeof item.supporting_quote === "string" ? item.supporting_quote.trim() : "";
         const snippet = bounded[item.source_index].snippet;
         if (supportingQuote.length < 20 || supportingQuote.length > 500 || supportingQuote.includes("…")
-          || !normalizeCorrectionQuote(snippet).includes(normalizeCorrectionQuote(supportingQuote))) return null;
+          || !(normalizeCorrectionQuote(snippet).includes(normalizeCorrectionQuote(supportingQuote))
+            || looseCorrectionQuote(snippet).includes(looseCorrectionQuote(supportingQuote)))) return null;
         return { source_index: item.source_index, relation: "SUPPORTS_CANDIDATE", supporting_quote: supportingQuote };
       });
     // v0.2.91: an item whose quote is not verbatim is dropped; the remaining
@@ -1251,7 +1264,7 @@ export default {
       if (body.text.length > LIMITS.maxChars) return json({ error: `Text exceeds ${LIMITS.maxChars} characters.` }, 413, origin, allowed);
       const heuristic = extractClaimCandidates(body.text).map(claim => ({ claim, span: claim, kind: "FACT" }));
       let model = { status: "NOT_RUN", claims: [] };
-      if (env.ENABLE_SEMANTIC_TRIAGE === "true" && env.ENABLE_MODEL_DECOMPOSITION !== "false" && (heuristic.length > 1 || body.text.length > 280 || /[?؟]/.test(body.text))) {
+      if (env.ENABLE_SEMANTIC_TRIAGE === "true" && env.ENABLE_MODEL_DECOMPOSITION !== "false" && (heuristic.length > 1 || body.text.length > 100 || /[?؟]/.test(body.text))) {
         model = await decomposeClaimsWithModel(body.text, createResilientAi(env));
       }
       const useModel = model.status === "COMPLETED" && model.claims.length > 0;
@@ -1900,6 +1913,16 @@ export default {
             requestCorrectionCandidateReviewCount++;
             const correctionDiag = {};
             correctionCandidate = await assessCorrectionCandidateWithModel(retrievalClaim, status, sources, aiProvider, correctionDiag);
+            // v0.3.9: one retry on a fast model when a weaker model found no
+            // grounded replacement or quoted inexactly. The same evidence rules apply.
+            const fastModels = String(env.GROQ_FAST_MODELS || String(env.GROQ_MODELS || "").split(",")[0] || "").split(",").map(item => item.trim()).filter(Boolean);
+            if (!correctionCandidate && /^(MODEL_FOUND_NO_SUPPORTED_REPLACEMENT|VERBATIM_QUOTES_FROM_|UNPARSEABLE_RESPONSE|SCOPE_)/.test(correctionDiag.reason || "")
+              && correctionDiag.model && !fastModels.includes(correctionDiag.model) && env.GROQ_API_KEY) {
+              retrievalDiagnostics.push({ provider: correctionDiag.provider || null, model: correctionDiag.model, stage: "CORRECTION_CANDIDATE_REVIEW", status: "NO_CANDIDATE_ACCEPTED", reason: correctionDiag.reason, advisory_only: true, retried: true });
+              const retryDiag = {};
+              correctionCandidate = await assessCorrectionCandidateWithModel(retrievalClaim, status, sources, aiProvider, retryDiag, { retry: true });
+              Object.assign(correctionDiag, retryDiag);
+            }
             retrievalDiagnostics.push({ provider: correctionCandidate?.provider || correctionDiag.provider || "WORKERS_AI", model: correctionCandidate?.model || correctionDiag.model || SEMANTIC_MODEL, fallback_reason: correctionCandidate?.fallback_reason || null, stage: "CORRECTION_CANDIDATE_REVIEW", status: correctionCandidate ? "CANDIDATE_SUPPORTED" : "NO_CANDIDATE_ACCEPTED", reason: correctionCandidate ? null : (correctionDiag.reason || "UNKNOWN"), advisory_only: true });
           }
           const effectiveAdapterId = domainAdapter?.id || historicalAdapter?.id || null;

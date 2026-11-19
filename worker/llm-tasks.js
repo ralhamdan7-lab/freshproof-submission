@@ -109,11 +109,42 @@ export function restatesSpan(claim, span) {
   const covered = claimWords.filter(word => spanWords.has(word) || [...spanWords].some(other => other.length >= 4 && word.length >= 4 && (other.startsWith(word.slice(0, 4)) || word.startsWith(other.slice(0, 4))))).length;
   return covered / claimWords.length >= 0.75;
 }
+// v0.3.9: a claim must name its subject. A claim that opens with a pronoun or
+// a bare generic noun ("They released…", "The license allows…"), or that names
+// none of the text's proper nouns, is checked out of context and can be
+// "confirmed" as a general statement. Such claims are rejected and their
+// verbatim span is verified instead.
+const UNRESOLVED_OPENING = /^(?:they|it|its|this|these|those|that|he|she|his|her|their|such|both|the (?:same|former|latter|company|companies|firm|model|models|license|licence|organi[sz]ation|group|agreement|deal|product|units?|robots?|system|government|country|team|code|weights))\b/i;
+const UNRESOLVED_OPENING_AR = /^(?:هو|هي|هم|هما|هذا|هذه|ذلك|تلك|كما أن|كما|وهو|وهي)(?=\s|$)/;
+const NAME_SKIP = new Set(["The", "This", "That", "These", "Those", "They", "However", "While", "When", "Under", "By", "In", "On", "At", "As", "It", "Its", "A", "An", "And", "But", "Or", "If", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]);
+export function properNamesOf(value) {
+  const names = new Set();
+  for (const sentence of String(value || "").split(/(?<=[.!?])\s+/)) {
+    const words = sentence.match(/[A-Za-z][A-Za-z0-9'’.-]*[A-Za-z0-9]|[A-Z]/g) || [];
+    words.forEach((word, index) => {
+      const clean = word.replace(/['’]s$/, "");
+      if (NAME_SKIP.has(clean) || clean.length < 2) return;
+      if (/[0-9]/.test(clean) && /[A-Za-z]/.test(clean)) { names.add(clean.toLowerCase()); return; }
+      if (index > 0 && /^[A-Z]/.test(clean)) names.add(clean.toLowerCase());
+    });
+  }
+  return names;
+}
+export function hasUnresolvedSubject(claim, text) {
+  const value = normalizeSpace(claim);
+  if (UNRESOLVED_OPENING.test(value) || UNRESOLVED_OPENING_AR.test(value)) return true;
+  if (/[\u0600-\u06FF]/.test(value)) return false;
+  const textNames = properNamesOf(text);
+  if (!textNames.size) return false;
+  const claimText = value.toLowerCase();
+  return ![...textNames].some(name => claimText.includes(name));
+}
 export function validateDecomposition(parsed, text) {
   const source = normalizeSpace(text);
   const accepted = [];
   const seen = new Set();
-  const rejected = { span_not_verbatim: 0, invented_number: 0, length: 0, duplicate: 0, kind: 0 };
+  const rejected = { span_not_verbatim: 0, invented_number: 0, length: 0, duplicate: 0, kind: 0, unresolved_subject: 0 };
+  const fallbackSpans = [];
   for (const item of Array.isArray(parsed?.claims) ? parsed.claims : []) {
     const claim = normalizeSpace(item?.claim);
     const span = normalizeSpace(item?.span);
@@ -126,11 +157,20 @@ export function validateDecomposition(parsed, text) {
     // v0.2.91: a question restated as a statement may only reuse the
     // question's own wording; no new names or values may be introduced.
     if (kind === "QUESTION" && !restatesSpan(claim, span)) { rejected.question_rewrite = (rejected.question_rewrite || 0) + 1; continue; }
+    if (kind === "FACT" && hasUnresolvedSubject(claim, span)) { rejected.unresolved_subject++; if (!fallbackSpans.includes(span)) fallbackSpans.push(span); continue; }
     const key = claim.toLowerCase();
     if (seen.has(key)) { rejected.duplicate++; continue; }
     seen.add(key);
     accepted.push({ claim, span, kind });
     if (accepted.length >= DECOMPOSITION_LIMITS.maxClaims) break;
+  }
+  // The verbatim span of a rejected part is verified as written, so a false
+  // detail inside it is never silently dropped.
+  for (const span of fallbackSpans) {
+    const key = span.toLowerCase();
+    if (accepted.length >= DECOMPOSITION_LIMITS.maxClaims || seen.has(key) || span.length > 600) continue;
+    seen.add(key);
+    accepted.push({ claim: span, span, kind: "FACT", from_span: true });
   }
   return { claims: accepted, rejected };
 }
@@ -138,8 +178,9 @@ export function validateDecomposition(parsed, text) {
 const DECOMPOSITION_SYSTEM = [
   "You split a text into the individual factual claims it makes, so each can be fact-checked on its own.",
   "Rules:",
-  "1. Each claim must be self-contained: replace pronouns and vague references (it, they, the company, that year) with the names, dates and places the text itself gives.",
-  "2. Each claim must be atomic: one checkable proposition. Split 'X did A and B' into two claims when A and B can be true or false independently.",
+  "1. Each claim must be self-contained: never start a claim with a pronoun or a vague reference (it, they, these, the company, the license, that year). Repeat the full name of the subject (person, organisation, product, model, law) in every claim, and keep the time qualifier that applies to it ('By September 2026', 'in May 2024', 'at launch').",
+  "2. Each claim must be atomic: one checkable proposition. Split 'X did A and B' into two claims when A and B can be true or false independently. Split every distinct date, number, specification or event into its own claim ('Model M was trained on N tokens' and 'Model M supports a K-token context window' are two claims). Split contrasts ('X on date A, while Y on date B'; 'A, but B'; 'A, the same day as B') into separate claims, each naming its subject and its own date.",
+  "2b. A clause that only makes sense together with another (a consequence, a purpose, 'allowing…', 'matching…') stays attached to the claim it depends on, with that claim's subject named.",
   "3. Never change, correct, round or add any value: keep names, numbers, dates and units exactly as the text states them, even if you believe they are wrong.",
   "4. 'span' must be copied verbatim from the text: the exact sentence or clause the claim comes from.",
   "5. kind: FACT for checkable statements of fact (including false ones), OPINION for value judgements, PREDICTION for statements about the future, OTHER for instructions or greetings. QUESTION for a question about a checkable fact: then 'claim' is the declarative statement the question asks about, built only from the question's own words, names and values (\"Is the Earth flat?\" -> \"The Earth is flat.\"; \"هل باريس عاصمة فرنسا؟\" -> \"باريس عاصمة فرنسا.\"). Open questions with no stated proposition (\"Who invented the telephone?\") are OTHER.",
@@ -150,7 +191,7 @@ const DECOMPOSITION_SYSTEM = [
 /**
  * @returns {Promise<{status: string, claims: Array<{claim:string, span:string, kind:string}>, provider?: string, model?: string, rejected?: object}>}
  */
-export async function decomposeClaimsWithModel(text, ai, { timeoutMs = 25000 } = {}) {
+export async function decomposeClaimsWithModel(text, ai, { timeoutMs = 35000 } = {}) {
   if (!ai || typeof ai.run !== "function") return { status: "NOT_CONFIGURED", claims: [] };
   try {
     const result = await withTimeout(ai.run(SEMANTIC_MODEL, {
@@ -159,7 +200,7 @@ export async function decomposeClaimsWithModel(text, ai, { timeoutMs = 25000 } =
       max_tokens: 1400,
       temperature: 0,
       response_format: DECOMPOSITION_SCHEMA,
-      _freshproof_tier: "light"
+      _freshproof_tier: "standard", _freshproof_task: "decomposition"
     }), timeoutMs);
     const parsed = parseJsonObject(modelText(result));
     if (!parsed) return { status: "INVALID_RESPONSE", claims: [], provider: result?._freshproof_provider || "cloudflare" };

@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.9";
+export const VERSION = "0.3.10";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -651,7 +651,7 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
     "Names: a shorter, longer, translated or transliterated form of the same person's, place's or organisation's name (with or without a patronymic, title or family name, in any language or script) refers to the same entity; when the attribute and time also match, scope_match is EXACT.",
     "Comparisons and rankings: for a claim comparing entities (taller, larger, older, more than, first, largest), a source that states the comparison or ranking, or gives the compared values of all entities involved, is EXACT and SUPPORTS or CONTRADICTS accordingly; a source giving only one entity's value is PARTIAL and INSUFFICIENT.",
     "Attribution: for a claim that a person or body created, invented, founded, wrote, said or did something, a source naming a different person or body for that same act is EXACT and CONTRADICTS. A source that reports the claim itself as false, a myth, a hoax or debunked is EXACT and CONTRADICTS.",
-    "claim_risk: HIGH only where an error could cause harm (health, safety, law, finance, elections) or the claim is contested or compound; ordinary historical, geographic, scientific and organisational facts are LOW or MEDIUM.",
+    "claim_risk: HIGH only where an error could cause harm (health, safety, law, finance, elections) or the claim is contested or compound; ordinary historical, geographic, scientific and organisational facts are LOW or MEDIUM. Dates of announcements, acquisitions, releases and legal milestones, and technical specifications of products or models, are LOW or MEDIUM unless the claim concerns health, safety or a contested public controversy.",
     "Also classify the claim once: claim_type must be one of INSTITUTIONAL_RECORD, HISTORICAL_EVENT, ATTRIBUTED_RESEARCH_RESULT, CURRENT_STATE, SCIENTIFIC_CONSENSUS, CONTESTED, COMPOUND, OTHER; claim_risk must be LOW, MEDIUM, or HIGH; temporal_claim_kind must be CURRENT_STATE, LIFECYCLE, PRICE_POLICY, REGULATORY_STATE, SCHEDULED_EVENT, HISTORICAL_EVENT, STABLE, or UNKNOWN.",
     "Temporal kind measures genuine time-dependence, not verb tense. Present-tense statements of timeless mathematical definitions, established chemical composition (for example, water consists of hydrogen and oxygen), physical laws/constants, and stable structural facts must be classified STABLE, not CURRENT_STATE. Do not label a claim CURRENT_STATE merely because it is phrased in the present tense or describes something that remains true. CURRENT_STATE is reserved for a state that can materially change over time, such as the current holder of an office, current availability or operational status, current price, active policy/regulation, current membership, ownership, or leadership. A broad scientific principle is not temporally sensitive merely because scientific knowledge can evolve; use a time-sensitive kind only when the proposition itself concerns a changing consensus, current recommendation, newly reported finding, or dated status.",
     "For every source, classify directness as DIRECT, INDIRECT, or UNCLEAR; scope_match as EXACT, PARTIAL, or NO_MATCH; authority_role as ORIGINATING_AUTHORITY, PRIMARY_RESEARCH, SECONDARY, or UNKNOWN. Also classify temporal_role as CHANGE_NOTICE, CURRENT_STATE_RECORD, HISTORICAL_RECORD, EVENT_REPORT, BACKGROUND, or UNKNOWN. CURRENT_STATE_RECORD means the publisher's own maintained record of the present state (a register, membership list, directory, official profile or status page), not a news report, history or archived page. CHANGE_NOTICE means the source documents that a state changed (replaced, renamed, ended, joined, left). If and only if the source explicitly documents a change, return change_type REPLACED, ENDED, INTRODUCED, RENAMED, REVISED, REVOKED, EXPIRED, SUSPENDED, DISCONTINUED, POSTPONED, RESCHEDULED, CANCELLED, CANCELED, or WITHDRAWN; otherwise use NONE or UNKNOWN. Choose event_date_mention_index only from the supplied date_mentions array and only when that exact mention is the date the change took effect or occurred; do not use publication/update dates as event dates. For a change notice, provide exact verbatim change_statement_quote, old_state_quote, and new_state_quote copied from the source snippet; otherwise use null. Never invent dates or quotations.",
@@ -1002,7 +1002,7 @@ export function claimNamesAbsent(claim, sourceText) {
     const words = sentence.match(/(?<![0-9A-Za-z])[A-Za-z][A-Za-z'’-]*(?![0-9])/g) || [];
     words.forEach((word, index) => {
       if (index === 0 || word.length < 3 || NAME_STOPWORDS.has(word)) return;
-      if (/^[A-Z]/.test(word)) names.add(word.replace(/[-’']+$/u, ""));
+      if (/^[A-Z]/.test(word)) names.add(word.replace(/(?:['’]s)?[-’']*$/u, ""));
     });
   }
   if (!names.size) return [];
@@ -1011,20 +1011,33 @@ export function claimNamesAbsent(claim, sourceText) {
   const original = String(sourceText || "");
   const runs = [];
   let current = [];
-  for (const word of text.split(/[^A-Za-z'’-]+/)) {
-    if (/^[A-Z][a-z]+$/.test(word) && !NAME_STOPWORDS.has(word)) current.push(word);
+  for (const raw of text.split(/[^A-Za-z'’-]+/)) {
+    // v0.3.9: possessives and hyphenated compounds keep their run
+    // ("European Union's" -> EU, "Mixture-of-Experts" -> MoE).
+    const word = raw.replace(/['’]s$/u, "");
+    if (/^[A-Z][a-z]+(?:-(?:of|and|the|[A-Z][a-z]+))*$/.test(word) && !NAME_STOPWORDS.has(word)) current.push(...word.split("-").filter(part => /^[A-Z]/.test(part)));
     else { if (current.length >= 2) runs.push(current); current = []; }
   }
   if (current.length >= 2) runs.push(current);
   for (const words of runs) {
     const acronym = words.map(word => word[0]).join("");
-    if (acronym.length >= 2 && new RegExp(`(?<![A-Za-z])${acronym}(?![A-Za-z])`).test(original)) words.forEach(word => names.delete(word));
+    if (acronym.length >= 2 && new RegExp(`(?<![A-Za-z])${acronym}(?![A-Za-z])`, "i").test(original)) {
+      words.forEach(word => names.delete(word));
+      for (const name of [...names]) if (name.includes("-") && name.split("-").filter(part => /^[A-Z]/.test(part)).every(part => words.includes(part))) names.delete(name);
+    }
   }
   if (!names.size) return [];
   const haystack = original.toLowerCase();
+  const spaced = haystack.replace(/[-‐‑–]+/g, " ");
   return [...names].filter(name => {
     const stem = nameStem(name);
     if (haystack.includes(stem)) return false;
+    // A hyphenated name may be written with spaces ("Mixture of Experts").
+    if (stem.includes("-") && spaced.includes(stem.replace(/-+/g, " "))) return false;
+    if (name.includes("-")) {
+      const initials = name.split("-").filter(Boolean).map(part => part[0]).join("");
+      if (initials.length >= 2 && new RegExp(`(?<![A-Za-z])${initials}(?![A-Za-z])`, "i").test(original)) return false;
+    }
     return !(stem.length >= 6 && haystack.includes(stem.slice(0, 5)));
   });
 }

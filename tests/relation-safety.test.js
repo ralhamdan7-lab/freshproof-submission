@@ -17,3 +17,12 @@ test("v0.3.4: a source cannot support a Latin-script claim without its proper na
   assert.deepEqual(claimNamesAbsent("Albert Einstein won the Nobel Prize in Physics in 1921.", "The Nobel Prize in Physics 1921 was awarded to Albert Einstein."), []);
   assert.deepEqual(claimNamesAbsent("سقط جدار برلين عام 1989.", "The Berlin Wall fell in 1989."), [], "Arabic claims are not name-checked against English text");
 });
+
+test("v0.3.9 name guard: possessives, acronyms of runs and hyphenated compounds", async () => {
+  const { claimNamesAbsent } = await import("../worker/index.js");
+  assert.deepEqual(claimNamesAbsent("The European Union's AI Act entered into force on 1 August 2024.", "The EU AI Act entered into force on 1 August 2024."), []);
+  assert.deepEqual(claimNamesAbsent("Llama 3.1 405B uses a dense Transformer rather than a Mixture-of-Experts architecture.", "a dense transformer, not a mixture of experts model"), []);
+  assert.deepEqual(claimNamesAbsent("Llama 3.1 405B uses a dense Transformer rather than a Mixture-of-Experts architecture.", "a dense transformer, not an MoE model"), []);
+  assert.deepEqual(claimNamesAbsent("Llama 3.1 supports a 128K-token context window in May.", "llama 3.1 supports 128k tokens"), []);
+  assert.deepEqual(claimNamesAbsent("The Titanic sank in 1912 in the Pacific Ocean.", "The Titanic sank in the North Atlantic Ocean in 1912."), ["Pacific"]);
+});

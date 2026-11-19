@@ -162,7 +162,9 @@ export function validateDecomposition(parsed, text) {
     // v0.2.91: a question restated as a statement may only reuse the
     // question's own wording; no new names or values may be introduced.
     if (kind === "QUESTION" && !restatesSpan(claim, span)) { rejected.question_rewrite = (rejected.question_rewrite || 0) + 1; continue; }
-    if (kind === "FACT" && hasUnresolvedSubject(claim, span)) { rejected.unresolved_subject++; if (!fallbackSpans.includes(span)) fallbackSpans.push(span); continue; }
+    // v0.3.15: a clause span with no names of its own ("while the transition
+    // period ended…") is checked against the names of the whole text.
+    if (kind === "FACT" && hasUnresolvedSubject(claim, properNamesOf(span).size ? span : source)) { rejected.unresolved_subject++; if (!fallbackSpans.includes(span)) fallbackSpans.push(span); continue; }
     const key = claim.toLowerCase();
     if (seen.has(key)) { rejected.duplicate++; continue; }
     seen.add(key);

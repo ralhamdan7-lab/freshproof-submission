@@ -34,3 +34,14 @@ test("subject checks", () => {
   assert.equal(hasUnresolvedSubject("هذه العضوية بدأت في 2006.", "انضمت السعودية إلى المنظمة."), true);
   assert.equal(hasUnresolvedSubject("Water boils at 100 degrees Celsius.", "water boils at 100 degrees celsius at sea level."), false);
 });
+
+test("v0.3.15: a clause span without names is checked against the whole text", () => {
+  const t = "The United Kingdom formally left the European Union on 31 January 2020, while the transition period ended on 31 December 2020.";
+  const { claims, rejected } = validateDecomposition({ claims: [
+    { claim: "The United Kingdom formally left the European Union on 31 January 2020.", span: "The United Kingdom formally left the European Union on 31 January 2020", kind: "FACT" },
+    { claim: "The transition period ended on 31 December 2020.", span: "while the transition period ended on 31 December 2020", kind: "FACT" },
+    { claim: "The United Kingdom's transition period ended on 31 December 2020.", span: "while the transition period ended on 31 December 2020", kind: "FACT" }
+  ] }, t);
+  assert.equal(rejected.unresolved_subject, 1);
+  assert.deepEqual(claims.map(c => c.claim), ["The United Kingdom formally left the European Union on 31 January 2020.", "The United Kingdom's transition period ended on 31 December 2020."]);
+});

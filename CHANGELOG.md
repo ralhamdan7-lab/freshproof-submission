@@ -1,3 +1,8 @@
+# v0.3.15 — subject check for clause spans (2026-11-19)
+
+- A decomposed claim whose span is a bare clause ("while the transition period ended…") is now checked against the names of the whole text. "The transition period ended on 31 December 2020" is rejected, because it names neither country nor union. "The United Kingdom's transition period ended on 31 December 2020" is kept.
+- **Extraction check (40 external claims, after v0.3.14).** Every text was decomposed by a model. None fell back to the punctuation splitter, down from 13.
+
 # v0.3.14 — decomposition that holds up under load (2026-11-19)
 
 - **Decomposition no longer drops to sentence splitting under load.** In an extraction check of the 40 external claims, 13 fell back to the punctuation splitter, because Workers AI was slow and the strong Groq models were busy. Those compound claims would then have been verified whole. Decomposition now waits at most 15 seconds for Workers AI and may then use any Groq model, within a 50-second limit. Its output is still checked deterministically: verbatim spans, no new numbers, a named subject. Evidence assessment stays on the strong models only.

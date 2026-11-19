@@ -653,6 +653,408 @@
    "accept": [
     "CONTRADICTED"
    ]
+  },
+  {
+   "id": "E01",
+   "lang": "en",
+   "group": "external-health-true",
+   "claim": "On 5 May 2023, the WHO Director-General determined that COVID-19 no longer constituted a Public Health Emergency of International Concern, while explicitly maintaining that COVID-19 remained an ongoing health issue and a global health threat.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E02",
+   "lang": "en",
+   "group": "external-health-false",
+   "claim": "On 5 May 2023, the WHO formally declared that COVID-19 had been eradicated globally and that SARS-CoV-2 no longer represented a continuing public-health risk.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E03",
+   "lang": "en",
+   "group": "external-health-true",
+   "claim": "In October 2021, the WHO recommended widespread use of the RTS,S/AS01 malaria vaccine among children in regions with moderate-to-high Plasmodium falciparum transmission, following evidence from a pilot programme in Ghana, Kenya and Malawi.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E04",
+   "lang": "en",
+   "group": "external-health-false",
+   "claim": "The WHO's October 2021 malaria-vaccine recommendation was based on a completed global eradication programme that had eliminated malaria transmission in sub-Saharan Africa.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E05",
+   "lang": "en",
+   "group": "external-health-true",
+   "claim": "On 8 December 2023, the US FDA approved Casgevy and Lyfgenia for sickle cell disease in patients aged 12 years and older; Casgevy became the first FDA-approved therapy using CRISPR/Cas9 genome-editing technology.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E06",
+   "lang": "en",
+   "group": "external-health-false",
+   "claim": "Casgevy works by administering CRISPR/Cas9 directly into a patient's bloodstream to edit mature red blood cells in vivo, without collecting or modifying the patient's blood stem cells outside the body.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E07",
+   "lang": "en",
+   "group": "external-health-true",
+   "claim": "The WHO's global smallpox eradication campaign was intensified in 1967; the last known naturally occurring case was recorded in 1977, and global eradication was certified by the relevant international commission in 1979 before the World Health Assembly formally endorsed eradication in 1980.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E08",
+   "lang": "en",
+   "group": "external-health-false",
+   "claim": "The WHO certified smallpox eradication in 1967, the same year the intensified eradication campaign began, and the disease's last naturally occurring case was recorded in 1980.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E09",
+   "lang": "en",
+   "group": "external-climate-true",
+   "claim": "The Paris Agreement was adopted on 12 December 2015 and entered into force on 4 November 2016; its temperature objective is to hold warming well below 2°C above pre-industrial levels while pursuing efforts to limit it to 1.5°C.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E10",
+   "lang": "en",
+   "group": "external-climate-false",
+   "claim": "The Paris Agreement legally obliges every participating country to achieve an identical 43% reduction in national greenhouse-gas emissions by 2030, regardless of its national circumstances or emissions baseline.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E11",
+   "lang": "en",
+   "group": "external-climate-true",
+   "claim": "The IPCC's Sixth Assessment Report concluded that human activities, principally greenhouse-gas emissions, unequivocally caused global warming, with global surface temperature reaching approximately 1.1°C above the 1850–1900 average during 2011–2020.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E12",
+   "lang": "en",
+   "group": "external-climate-false",
+   "claim": "The IPCC's Sixth Assessment Report attributed the approximately 1.1°C of global warming observed during 2011–2020 primarily to natural climate variability, rather than human influence.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E13",
+   "lang": "en",
+   "group": "external-climate-true",
+   "claim": "NOAA identified 2023 as the warmest year in its 174-year global climate record, exceeding the previous record year, 2016, by approximately 0.15°C.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E14",
+   "lang": "en",
+   "group": "external-climate-false",
+   "claim": "NOAA's 2024 announcement identified 2023 as the warmest year in its climate record, but reported that 2016 remained warmer than 2023 by approximately 0.15°C.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E15",
+   "lang": "en",
+   "group": "external-climate-true",
+   "claim": "The Montreal Protocol was adopted in 1987 to protect the ozone layer by controlling ozone-depleting substances, and its subsequent amendments strengthened controls over additional chemicals.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E16",
+   "lang": "en",
+   "group": "external-climate-false",
+   "claim": "The Montreal Protocol was adopted in 1997 as a treaty specifically designed to regulate carbon dioxide emissions from fossil-fuel combustion and to implement the Paris Agreement's 1.5°C temperature target.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E17",
+   "lang": "en",
+   "group": "external-economics-true",
+   "claim": "Saudi Arabia became a member of the World Trade Organization on 11 December 2005, following the completion of its accession process.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E18",
+   "lang": "en",
+   "group": "external-economics-false",
+   "claim": "Saudi Arabia joined the World Trade Organization on 1 January 2001, as one of the original members established when the WTO replaced the GATT system.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E19",
+   "lang": "en",
+   "group": "external-economics-true",
+   "claim": "The International Monetary Fund's Special Drawing Rights basket began including the Chinese renminbi on 1 October 2016, alongside the US dollar, euro, Japanese yen and British pound sterling.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E20",
+   "lang": "en",
+   "group": "external-economics-false",
+   "claim": "The Chinese renminbi became part of the IMF's Special Drawing Rights basket in 2010, replacing the Japanese yen as one of the five currencies in the basket.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E21",
+   "lang": "en",
+   "group": "external-economics-true",
+   "claim": "The IMF's World Economic Outlook database distinguishes historical observations from staff estimates and projections; future-year figures should not automatically be treated as realised economic outcomes.",
+   "accept": [
+    "CURRENT",
+    "NEEDS_REVIEW"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E22",
+   "lang": "en",
+   "group": "external-economics-false",
+   "claim": "The IMF classifies every figure appearing in its World Economic Outlook database as an observed historical outcome, including figures for years beyond the database's latest actual-data period.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E23",
+   "lang": "en",
+   "group": "external-economics-true",
+   "claim": "The World Bank's international poverty-line methodology has undergone revisions associated with purchasing-power-parity benchmark updates, meaning that a poverty threshold expressed in nominal US dollars cannot be assumed to remain unchanged across methodological vintages.",
+   "accept": [
+    "CURRENT",
+    "NEEDS_REVIEW"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E24",
+   "lang": "en",
+   "group": "external-economics-false",
+   "claim": "The World Bank's international extreme-poverty threshold has remained permanently fixed at exactly US$1.90 per person per day in current nominal dollars since the institution first introduced the measure.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E25",
+   "lang": "en",
+   "group": "external-intl-law-true",
+   "claim": "South Sudan formally seceded from Sudan on 9 July 2011 and was admitted as a new United Nations Member State on 14 July 2011, becoming the UN's 193rd member.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E26",
+   "lang": "en",
+   "group": "external-intl-law-false",
+   "claim": "South Sudan became the 194th United Nations Member State in July 2011, while the Republic of Kosovo became the 193rd member earlier that same year.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E27",
+   "lang": "en",
+   "group": "external-intl-law-true",
+   "claim": "The International Court of Justice is the principal judicial organ of the United Nations and consists of 15 judges elected for nine-year terms by the UN General Assembly and Security Council.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E28",
+   "lang": "en",
+   "group": "external-intl-law-false",
+   "claim": "The International Court of Justice consists of 15 judges appointed directly by the UN Secretary-General for renewable five-year terms, without elections by the General Assembly or Security Council.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E29",
+   "lang": "en",
+   "group": "external-intl-law-true",
+   "claim": "In its 26 January 2024 order in South Africa v. Israel, the International Court of Justice indicated provisional measures under the Genocide Convention; that order was not a final judgment determining the merits of the genocide allegations.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E30",
+   "lang": "en",
+   "group": "external-intl-law-false",
+   "claim": "On 26 January 2024, the International Court of Justice issued a final merits judgment finding that Israel had committed genocide, thereby concluding the proceedings initiated by South Africa.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E31",
+   "lang": "en",
+   "group": "external-demography-true",
+   "claim": "The United Nations projected that the world's population would reach eight billion on 15 November 2022, and its 2022 population projections anticipated that India would surpass China as the world's most populous country in 2023.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E32",
+   "lang": "en",
+   "group": "external-demography-false",
+   "claim": "The United Nations reported that the world's population reached eight billion in November 2020, two years before its original projection, and that China remained the world's most populous country throughout 2023.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E33",
+   "lang": "en",
+   "group": "external-demography-true",
+   "claim": "The 2030 Agenda for Sustainable Development, adopted by UN Member States in September 2015, contains 17 Sustainable Development Goals and 169 targets.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E34",
+   "lang": "en",
+   "group": "external-demography-false",
+   "claim": "The United Nations adopted the 2030 Agenda in September 2015 with 15 Sustainable Development Goals and 169 targets, retaining the same goal structure as the earlier Millennium Development Goals.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E35",
+   "lang": "en",
+   "group": "external-politics-true",
+   "claim": "The United Kingdom formally left the European Union on 31 January 2020, while the transition period ended on 31 December 2020; these were separate legal and political milestones.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E36",
+   "lang": "en",
+   "group": "external-politics-false",
+   "claim": "The United Kingdom's EU membership formally ended on 31 December 2020, while the withdrawal agreement's transition period had already expired on 31 January 2020.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E37",
+   "lang": "en",
+   "group": "external-sports-true",
+   "claim": "The Tokyo 2020 Olympic Games were held in 2021 after being postponed because of the COVID-19 pandemic, while retaining the official Tokyo 2020 name.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E38",
+   "lang": "en",
+   "group": "external-sports-false",
+   "claim": "The Tokyo 2020 Olympic Games were cancelled permanently in 2020 and replaced by a separate Olympic event in Tokyo in 2021 under a new official name.",
+   "accept": [
+    "CONTRADICTED"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E39",
+   "lang": "en",
+   "group": "external-space-tech-true",
+   "claim": "NASA's DART mission intentionally impacted Dimorphos on 26 September 2022, and subsequent measurements confirmed that the collision altered the moonlet's orbital period around Didymos by substantially more than the mission's minimum success criterion.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "E40",
+   "lang": "en",
+   "group": "external-space-tech-true",
+   "claim": "OpenAI introduced GPT-4o mini in July 2024 with a 128,000-token context window, support for up to 16,000 output tokens per request, and a knowledge cutoff of October 2023.",
+   "accept": [
+    "CURRENT"
+   ],
+   "source": "external set written by another AI system at the owner's request (2026-11-19)"
   }
  ],
  "long_texts": [

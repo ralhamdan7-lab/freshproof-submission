@@ -1,3 +1,9 @@
+# v0.3.8 — faster evidence assessment (2026-11-19)
+
+- **Two fast models.** The Groq fast path now uses either of the two strongest models (`GROQ_FAST_MODELS = qwen/qwen3.8-27b, openai/gpt-oss-120b`), whichever has budget free right now, instead of only the first. This doubles the per-minute capacity before the slower Workers AI path is used.
+- **Shorter Workers AI wait.** Evidence assessment now waits at most 30 seconds for Workers AI (was 45) before the Groq cascade answers.
+- **Diagnostic (5 cases, public demo, v0.3.7).** 0 wrong decisive. Every search plan completed (all had failed before the fix). Some assessments took about 48 seconds, because Workers AI timed out first.
+
 # v0.3.7 — provider resilience (2026-11-19)
 
 - **Bounded Workers AI time.** A Workers AI call that takes longer than 45 seconds (15 seconds for light tasks; set with `CF_AI_TIMEOUT_MS`) is treated like a capacity failure. The paced Groq cascade answers instead, and Workers AI is skipped for the next minute.

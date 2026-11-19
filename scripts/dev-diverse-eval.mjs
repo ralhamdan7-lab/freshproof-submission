@@ -44,6 +44,8 @@ for (const item of cases) {
     frame: claims.map(claim => claim.claim_frame?.frame), parts: claims.length, ms: result.ms,
     provider: first.semantic_assessment?.provider || null, semantic: first.semantic_assessment?.status || null,
     plan: (first.retrieval_diagnostics || []).find(d => d.stage === "MODEL_SEARCH_PLAN")?.status || null,
+    plan_failure: (first.retrieval_diagnostics || []).find(d => d.stage === "MODEL_SEARCH_PLAN")?.failure || null,
+    plan_provider: (first.retrieval_diagnostics || []).find(d => d.stage === "MODEL_SEARCH_PLAN")?.provider || null,
     reason: first.abstention_diagnosis?.primary_reason || null,
     model: first.semantic_assessment?.model || null,
     fallback: first.semantic_assessment?.fallback_reason || null,

@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.6";
+export const VERSION = "0.3.7";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.

@@ -302,3 +302,30 @@ test("v0.2.97 fast path: Groq first when budget is free, Workers AI without wait
   await ai.run("@cf/test/model", { messages, max_tokens: 200, _freshproof_tier: "light" });
   assert.equal(cloudflareCalls, 2);
 });
+
+test("v0.3.7: a slow Workers AI response falls back to Groq and opens the breaker", async () => {
+  let cloudflareCalls = 0;
+  let groqCalls = 0;
+  const env = { ...baseEnv(), GROQ_MODELS: "openai/gpt-oss-120b-slowcf", CF_AI_TIMEOUT_MS: "5000", AI: { run() { cloudflareCalls++; return new Promise(() => {}); } } };
+  const ai = createResilientAi(env, { fetchImpl: async () => { groqCalls++; return okResponse(); }, sleep: async () => {} });
+  const started = Date.now();
+  const first = await ai.run("@cf/test/model", { messages, max_tokens: 650 });
+  assert.equal(first._freshproof_provider, "groq");
+  assert.equal(first._freshproof_fallback_reason, "cf_timeout");
+  assert.ok(Date.now() - started < 7000);
+  await ai.run("@cf/test/model", { messages, max_tokens: 650 });
+  assert.equal(cloudflareCalls, 1, "the breaker skips Workers AI for the next minute");
+  assert.equal(groqCalls, 2);
+});
+
+test("v0.3.7: light tasks use a Groq model with free budget first when the fast path is on", async () => {
+  let cloudflareCalls = 0;
+  const env = { ...baseEnv(), SEMANTIC_PRIMARY: "groq", GROQ_MODELS: "openai/gpt-oss-120b-light,openai/gpt-oss-20b-light", AI: { async run() { cloudflareCalls++; return { response: "{}" }; } } };
+  let usedModel = null;
+  const ai = createResilientAi(env, { fetchImpl: async (_url, init) => { usedModel = JSON.parse(init.body).model; return okResponse(); }, sleep: async () => {} });
+  const result = await ai.run("@cf/test/model", { messages, max_tokens: 300, _freshproof_tier: "light" });
+  assert.equal(result._freshproof_provider, "groq");
+  assert.equal(result._freshproof_fallback_reason, "groq_light_fast_path");
+  assert.equal(usedModel, "openai/gpt-oss-20b-light", "the smallest model is tried first");
+  assert.equal(cloudflareCalls, 0);
+});

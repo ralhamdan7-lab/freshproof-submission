@@ -129,6 +129,7 @@ function cloudflareFailure(error) {
   ].filter(Boolean).join(" ");
   if (/\b(4006|3036)\b|daily free allocation|neurons.*used up/i.test(message)) return "CF_DAILY_QUOTA";
   if (/\b3040\b|out of capacity|capacity temporarily exceeded/i.test(message)) return "CF_CAPACITY";
+  if (/\bCF_TIMEOUT\b|Workers AI response timed out/i.test(message)) return "CF_TIMEOUT";
   return null;
 }
 
@@ -422,8 +423,23 @@ export function createResilientAi(env, dependencies = {}) {
       if (input._freshproof_tier === "light" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY && env.LIGHT_TASKS_PREFER_GROQ === "true") {
         try { return await groqCascade(model, input, "light_task_routing"); } catch {}
       }
+      // v0.3.7: with the Groq fast path on, light tasks (decomposition, search
+      // planning) also try any Groq model that has budget free right now,
+      // smallest first, without waiting. A slow Workers AI response then no
+      // longer makes the search plan time out.
+      if (input._freshproof_tier === "light" && env.SEMANTIC_PRIMARY === "groq" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY) {
+        try { return await groqCascade(model, { ...input, _freshproof_no_wait: true, _freshproof_any_model: true }, "groq_light_fast_path"); } catch {}
+      }
       try {
-        const result = await env.AI.run(model, cloudflareInput);
+        // v0.3.7: Workers AI is given a bounded time. A slow response is
+        // treated like a capacity failure: the breaker opens for a minute and
+        // the paced Groq cascade answers instead.
+        const timeoutMs = Math.max(5000, Number(env.CF_AI_TIMEOUT_MS) || (input._freshproof_tier === "light" ? 15000 : 45000));
+        let timer;
+        const result = await Promise.race([
+          Promise.resolve(env.AI.run(model, cloudflareInput)).finally(() => clearTimeout(timer)),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error("Workers AI response timed out"), { code: "CF_TIMEOUT" })), timeoutMs); })
+        ]);
         if (result && typeof result === "object") {
           return { ...result, _freshproof_provider: "cloudflare", _freshproof_model: model };
         }

@@ -1,3 +1,9 @@
+# v0.3.7 — provider resilience (2026-11-19)
+
+- **Bounded Workers AI time.** A Workers AI call that takes longer than 45 seconds (15 seconds for light tasks; set with `CF_AI_TIMEOUT_MS`) is treated like a capacity failure. The paced Groq cascade answers instead, and Workers AI is skipped for the next minute.
+- **Light tasks on Groq first.** When the Groq fast path is on, decomposition and search planning first try any Groq model with budget free right now (smallest first), without waiting.
+- **Why.** In a public-demo diagnostic on 19 Nov, every search plan failed and some evidence assessments took more than three minutes, because Workers AI was answering slowly rather than failing.
+
 # v0.3.6 — debunking-language guard (2026-11-17)
 
 - A source that describes the claim as a myth, hoax, conspiracy theory, misinformation or a false claim (English or Arabic) can no longer SUPPORT an affirmative claim. This closes a failure mode found in the public-demo diagnostic, where a model read health-authority debunking pages as support.

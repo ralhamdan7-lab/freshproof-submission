@@ -1,3 +1,22 @@
+<p align="center">
+  <img src="docs/assets/freshproof-logo.svg" alt="FreshProof logo" width="520">
+</p>
+
+<p align="center">
+  <strong>Project owner: Raed Alhamdan</strong><br>
+  Sole owner and author of FreshProof · © 2026 Raed Alhamdan · All rights reserved
+</p>
+
+<p align="center">
+  <em>Designed to evolve:</em> FreshProof is a working prototype built to be extended with new sources, providers and claim types.
+</p>
+
+<p align="center">
+  <a href="https://freshproof-submission-demo.ralhamdan7.workers.dev">Live demo</a> ·
+  <a href="docs/RELEASES.md">Release history</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
+
 # FreshProof
 
 **Evidence-First Temporal Verification Engine**
@@ -7,6 +26,16 @@
 FreshProof checks AI-generated answers at the claim level. It extracts independent propositions, identifies potentially time-sensitive claims, retrieves bounded source evidence, compares supporting and conflicting material, and returns explainable outcomes with traceable sources.
 
 A recent publication date is not proof of a recent event. FreshProof distinguishes event date, source publication date, source update date, and retrieval time wherever evidence exposes them.
+
+## Providers and free-tier limits
+
+- **Evidence search: [Tavily](https://tavily.com).** Every claim is checked against sources found through Tavily's search API, called server-side only.
+- **AI providers: Cloudflare Workers AI and [Groq](https://groq.com).** Groq was added as a second, independent provider so the app keeps working when one provider is slow or out of capacity. When Groq has budget, its strong models assess the evidence first, and Cloudflare Workers AI is the other path. The smallest model is never used to judge evidence; if no suitable model is available, the engine abstains instead.
+- **Free quotas.** Every service runs on free-tier quotas: zero cost, no paid fallback. Under heavy use a quota can run out at any moment. A claim is then shown as **"Could not be assessed right now (free-tier service limit) — please retry"**. That is a temporary capacity limit, not a failure of the engine and not a verdict on the claim. Quotas renew automatically (Workers AI daily; Groq on a rolling 24-hour window).
+
+## Development record
+
+FreshProof grew through 70+ documented releases, from v0.2.0 to v0.3.15. The current version passes 542 automated tests in two time zones, backed by 187 merged pull requests and 2,900+ automated CI and validation runs. See the **[release history table](docs/RELEASES.md)**.
 
 ## What it does
 
@@ -56,39 +85,18 @@ The semantic model is advisory; it cannot independently establish truth or overr
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
 - **Evidence retrieval:** Tavily, server-side credential only
-- **Semantic assessment:** Cloudflare Workers AI with an optional free-tier Groq fallback; advisory and fail-closed
+- **Semantic assessment:** Groq (strong models) and Cloudflare Workers AI, both free tier; advisory and fail-closed
 - **Result cache:** identical claims reuse a short-lived cached assessment (marked with its assessment time)
 - **Storage:** no application database or durable user-submission storage is required
 - **Public release scope:** independently configured for public review; provider credentials remain server-side and no private user data is included
 
 The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
 
-## v0.2.92 release evidence
+## Current release evidence (v0.3.15)
 
-- A correction is shown only when every value it introduces appears in verbatim quotes from at least two contradicting, exact-scope sources, one of them a classified publisher. Example from a live staging check: the Arabic claim that humans first landed on the Moon in 1975 was corrected to 1969, citing official sources.
-- Questions are checked as the statement they ask about. The page offers example claims and a copy-report button.
-- 513 automated tests pass in UTC and in Asia/Riyadh. Targeted staging checks showed no wrong decisive verdict. As before, this is a development diagnostic, not an accuracy study.
-
-## v0.2.91 release evidence
-
-- The release adds model-planned multilingual retrieval with official-domain search, graded independent-evidence verdicts with a confidence tier, value-masked relevance (pages stating a different value can contradict a claim), and evidence-gated corrections that quote two independent publishers. Opinions and open forecasts are labelled without retrieval. Long text is split into atomic claims, and each claim is verified progressively. See [docs/ENGINE-v0.2.91.md](docs/ENGINE-v0.2.91.md).
-- 510 automated tests pass in UTC and in Asia/Riyadh.
-- Development diagnostic on an isolated staging Worker, using 54 assistant-authored EN/AR cases (labels not human-audited, so this is not an accuracy study): the v0.2.90 engine reached a decisive verdict on 57.5% of 40 cases with no wrong decisive verdict, up from 3–9% for v0.2.84. Targeted v0.2.91 reruns showed no wrong decisive verdict. Remaining non-decisive results were mostly free-tier model quota limits.
+- 542 automated tests pass in UTC and in Asia/Riyadh, with browser acceptance and live-deployment acceptance on every release.
+- Live diagnostics on the public demo covered 116 claims during development, from simple facts to long multi-part claims in technology, health, climate, economics, law and space. In the latest rounds, no part of any claim received a wrong decisive verdict. Its labels were written during development, so this is a development diagnostic, not an accuracy study.
 - No precision, recall, false-positive rate or cost-per-claim figure is claimed. Confidence tiers are evidence categories, not calibrated probabilities.
-
-## v0.2.84 release evidence
-
-- The release adds the v0.2.84 engine: claim frames, execution status, research planner, per-source trace, live issuer records and validated supersession. Each claim card shows the claim type, its recency policy and the sources that counted for or against it.
-- 484 automated tests pass in UTC and in Asia/Riyadh.
-- Before release, the same engine ran on an isolated staging Worker (bounded runs, each rolled back afterwards):
-  - English and Arabic temporal regression claims returned the expected statuses;
-  - browser acceptance passed;
-  - the Node.js 20 lifecycle claim returned `SUPERSEDED`.
-- These are integration checks, not an accuracy study. No precision, recall, false-positive rate or cost-per-claim figure is claimed; no claim of calibrated confidence is made.
-
-## Earlier release evidence (v0.2.81, 2026-11-15)
-
-- Public CI for v0.2.81 passed 321/321 tests in UTC and in Asia/Riyadh, and deployed-browser acceptance passed against version 0.2.81 for the Node.js 20 lifecycle claim (`OUTDATED`, six evidence links including two official nodejs.org links).
 
 ## Run locally
 
@@ -124,7 +132,7 @@ Automated tests and synthetic temporal benchmarks are engineering diagnostics, n
 - Input and provider operations are bounded.
 - Configure an exact allowed browser origin; CORS is not authentication.
 - Native Cloudflare rate limiting is an approximate per-edge abuse guard, not a strict global quota.
-- Semantic triage is advisory; model-assisted correction review is disabled in the public configuration.
+- Semantic triage is advisory. A correction is shown only when it passes the evidence contract (verbatim quotes from independent publishers).
 - Do not submit confidential or personal information to the public demo.
 
 ## Hackathon submission status
@@ -135,4 +143,4 @@ Submission assets: [portal-ready project copy](docs/SUBMISSION-COPY.md), [portal
 
 ## Ownership
 
-No open-source license is granted unless a separate license file explicitly states otherwise. All rights are reserved by the project owner.
+FreshProof is owned and authored by **Raed Alhamdan**. No open-source license is granted unless a separate license file explicitly states otherwise. All rights are reserved by the project owner.

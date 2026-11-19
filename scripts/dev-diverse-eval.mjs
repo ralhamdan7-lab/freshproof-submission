@@ -30,8 +30,26 @@ async function post(path, payload) {
 
 const rows = [];
 for (const item of cases) {
-  const result = await post("/api/verify", { text: item.claim });
-  const claims = result.body?.claims || [];
+  let result;
+  let claims;
+  if (process.env.DEV_UI_PATH) {
+    // The browser's progressive path: /api/extract, then one /api/verify per extracted claim.
+    const extracted = await post("/api/extract", { text: item.claim });
+    const parts = (extracted.body?.claims || []).map(c => c.claim).filter(Boolean);
+    claims = [];
+    result = { ms: extracted.ms || 0, status: extracted.status };
+    for (const part of parts.length ? parts : [item.claim]) {
+      const verified = await post("/api/verify", { text: part });
+      result.ms += verified.ms || 0;
+      if (verified.error) result.error = verified.error;
+      result.status = verified.status;
+      claims.push(...(verified.body?.claims || []));
+      await sleep(3000);
+    }
+  } else {
+    result = await post("/api/verify", { text: item.claim });
+    claims = result.body?.claims || [];
+  }
   const statuses = claims.map(claim => claim.status);
   // A claim the engine split into parts counts as the most severe part status.
   const severity = ["CONTRADICTED", "SUPERSEDED", "CURRENT", "UNVERIFIABLE", "NEEDS_REVIEW", "NOT_ASSESSED"];
@@ -70,6 +88,22 @@ for (const item of cases) {
   };
   rows.push(row);
   console.log("DEVCASE " + JSON.stringify(row));
+  if (process.env.DEV_RAW) {
+    for (const [index, claim] of claims.entries()) {
+      console.log("DEVRAW " + JSON.stringify({
+        id: item.id, part: index, claim: claim.claim || claim.text, status: claim.status, confidence: claim.confidence_tier,
+        method: claim.adjudication?.method, reason: claim.abstention_diagnosis?.primary_reason || null,
+        correction: claim.correction || null,
+        claim_assessment: claim.semantic_assessment?.claim_assessment || null,
+        assessments: (claim.semantic_assessment?.assessments || []).map(a => ({ i: a.source_index, rel: a.relation, method: a.method || null, model_rel: a.model_relation || null, why: String(a.rationale || "").slice(0, 220) })),
+        sources: (claim.sources || []).map((s, i) => ({ i, url: s.url, rel: s.source_reliability, basis: s.reliability_basis || null, date: s.published_date || s.evidence_date || null, title: String(s.title || "").slice(0, 120), snippet: String(s.snippet || "").slice(0, 420) })),
+        trace: (claim.adjudication?.adjudication_signals?.source_trace || []).map(t => `${t.registrable_domain}:${t.relation}:${t.reliability}:${t.eligible ? "ok" : (t.exclusion_reasons || []).join("+")}`),
+        consensus: claim.adjudication?.adjudication_signals?.consensus_trace || null,
+        searches: (claim.retrieval_diagnostics || []).filter(d => d.provider === "TAVILY" || /PLAN|SEARCH/.test(d.stage || "")).map(d => `${d.stage}:${d.purpose || "-"}:${d.status}:${String(d.query || "").slice(0, 90)}`).slice(0, 14),
+        plan_domains: (claim.retrieval_diagnostics || []).find(d => d.stage === "MODEL_SEARCH_PLAN")?.authority_domains || null
+      }));
+    }
+  }
   await sleep(4500);
 }
 

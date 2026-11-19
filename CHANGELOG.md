@@ -1,3 +1,10 @@
+# v0.3.12 — corrections shown with their basis (2026-11-19)
+
+- **Correction quotes compared fairly.** The final correction check normalised whitespace incorrectly: an escaping error meant runs of spaces and zero-width characters were never collapsed. Quotes are now compared with whitespace collapsed, and also ignoring punctuation, quote and dash styles, as the review step does.
+- **One bad quote no longer voids a correction.** An evidence item that fails a check is left out. The remaining items must still be two verbatim quotes from two independent, non-community publishers.
+- **Replacement values from unclassified publishers.** When the correct value (for example the completion date of an acquisition) is quoted verbatim by two independent publishers that are not yet classified as official, the correction is now shown with basis `INDEPENDENT_UNCLASSIFIED_SOURCES` and a limitation saying so, instead of being withheld. The verdict itself still needs the usual independent evidence, and the review still runs only when the source pool includes a classified publisher.
+- **Brand domains.** A brand top-level domain (blog.google) counts as that brand's first-party domain, under the same page-identity confirmation as other first-party domains.
+
 # v0.3.11 — sharper relation labels and event-date searches (2026-11-19)
 
 - **MIXED means a real conflict inside one source.** A source that confirms one part of a claim and is silent about the rest is INSUFFICIENT, not MIXED. A MIXED label from a qualified publisher blocks a verdict, so a mislabelled silent source could keep a claim under review even when other qualified sources settled it.

@@ -315,7 +315,11 @@ test("generic correction requires a classified publisher and eligible evidence e
     correctionCandidate: genericCorrectionCandidate,
     sources: unclassified
   });
-  assert.equal(correction.status, "WITHHELD");
+  // v0.3.11: unclassified-only replacement quotes are shown with that basis
+  // and a limitation, instead of being withheld.
+  assert.equal(correction.status, "PROVIDED");
+  assert.equal(correction.basis, "INDEPENDENT_UNCLASSIFIED_SOURCES");
+  assert.ok(correction.limitations.some(item => /not yet classified/.test(item)));
   const noExcerpt = genericCorrectionSources.map(item => ({ ...item, snippet: "" }));
   const missingExcerpt = buildCorrection({
     claim: "The service is currently available.",

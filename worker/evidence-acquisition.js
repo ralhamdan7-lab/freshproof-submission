@@ -174,7 +174,10 @@ export function firstPartyMatch(url, claim) {
   const label = domain.split(".")[0].replace(/[^a-z0-9]/g, "");
   if (label.length < 3) return null;
   const keys = claimEntityKeys(claim);
-  return keys.has(label) ? { entity_key: label, domain } : null;
+  if (keys.has(label)) return { entity_key: label, domain };
+  // v0.3.12: a brand top-level domain (blog.google) belongs to its brand.
+  const tld = domain.split(".").pop();
+  return domain.includes(".") && tld.length >= 4 && keys.has(tld) ? { entity_key: tld, domain } : null;
 }
 
 /**

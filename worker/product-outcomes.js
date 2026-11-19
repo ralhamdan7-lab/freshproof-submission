@@ -127,7 +127,12 @@ export function buildExplanationDetail({ claim, status, adjudication = null, sou
 }
 
 function normalizeEvidenceQuote(value) {
-  return String(value || "").normalize("NFKC").replace(/[\\u200B-\\u200D\\uFEFF]/g, "").replace(/\\s+/g, " ").trim().toLocaleLowerCase();
+  return String(value || "").normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
+// v0.3.11: the same words in the same order, ignoring punctuation and quote or
+// dash styles (matches the correction review's own check).
+function looseEvidenceQuote(value) {
+  return normalizeEvidenceQuote(value).replace(/[\p{P}\p{S}]+/gu, " ").replace(/\s+/g, " ").trim();
 }
 function hostForCorrection(value) {
   try {
@@ -156,11 +161,12 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
   // least one classified (official, institutional or established reference).
   let hasPrimary = false;
   let hasOfficial = false;
+  // v0.3.11: an item that fails a check is left out rather than voiding the
+  // whole correction; the remaining items must still meet every rule below.
   for (const item of candidate.evidence) {
     const index = item?.source_index;
     if (!Number.isInteger(index) || index < 0 || index >= sources.length || seenIndices.has(index)
-      || item?.relation !== "SUPPORTS_CANDIDATE") return null;
-    seenIndices.add(index);
+      || item?.relation !== "SUPPORTS_CANDIDATE") continue;
     const source = sources[index];
     const host = hostForCorrection(source?.url);
     const snippet = typeof source?.snippet === "string" ? source.snippet.trim() : "";
@@ -168,10 +174,11 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
     const supportingQuote = typeof item?.supporting_quote === "string" ? item.supporting_quote.trim() : "";
     const normalizedQuote = normalizeEvidenceQuote(supportingQuote);
     if (!host || snippet.length < 20 || supportingQuote.length < 20 || supportingQuote.length > 500
-      || !normalizeEvidenceQuote(snippet).includes(normalizedQuote)
+      || !(normalizeEvidenceQuote(snippet).includes(normalizedQuote) || looseEvidenceQuote(snippet).includes(looseEvidenceQuote(supportingQuote)))
       || source?.relevance_assessment?.relevance === "LOW"
-      || COMMUNITY_HOST.test(host)) return null;
-    if (seenHosts.has(host)) return null;
+      || COMMUNITY_HOST.test(host)) continue;
+    if (seenHosts.has(host)) continue;
+    seenIndices.add(index);
     seenHosts.add(host);
     if (["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL", "SECONDARY_REPUTABLE"].includes(reliability)) hasPrimary = true;
     if (reliability === "PRIMARY_OR_OFFICIAL_DOMAIN") hasOfficial = true;
@@ -179,8 +186,19 @@ function buildGenericEvidenceCorrection({ claim, status, correctionCandidate, so
     if (!ref) return null;
     evidenceRefs.push({ ...ref, relation: "SUPPORTS_CORRECTION", supporting_quote: supportingQuote });
   }
-  if (evidenceRefs.length < 2 || seenHosts.size < 2 || !hasPrimary) return null;
-  return { status: "PROVIDED", text, basis: hasOfficial ? "OFFICIAL_AND_INDEPENDENT_SOURCES" : "INDEPENDENT_CLASSIFIED_SOURCES", evidence_refs: evidenceRefs, limitations: uniqueStrings([candidate.limitation]) };
+  if (evidenceRefs.length < 2 || seenHosts.size < 2) return null;
+  // v0.3.11: when the replacement value is quoted only by unclassified
+  // publishers (two independent, non-community hosts, verbatim), it is shown
+  // with that basis stated, instead of being withheld.
+  const unclassifiedNote = isArabic(claim)
+    ? "القيمة البديلة مقتبسة حرفياً من ناشرَين مستقلَّين غير مصنَّفَين بعد كمصادر رسمية أو مؤسسية؛ راجع المصادر المرفقة."
+    : "The replacement value is quoted verbatim by two independent publishers that are not yet classified as official or institutional; check the linked sources.";
+  return {
+    status: "PROVIDED", text,
+    basis: hasOfficial ? "OFFICIAL_AND_INDEPENDENT_SOURCES" : hasPrimary ? "INDEPENDENT_CLASSIFIED_SOURCES" : "INDEPENDENT_UNCLASSIFIED_SOURCES",
+    evidence_refs: evidenceRefs,
+    limitations: uniqueStrings([candidate.limitation, hasPrimary ? null : unclassifiedNote])
+  };
 }
 
 export function buildCorrection({ claim, status, domainAdapter, domainEvidence, explanationDetail, sources = [], correctionCandidate = null } = {}) {

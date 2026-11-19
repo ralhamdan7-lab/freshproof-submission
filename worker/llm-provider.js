@@ -395,6 +395,12 @@ export function createResilientAi(env, dependencies = {}) {
 
   return {
     async run(model, input = {}) {
+      // v0.3.13: evidence assessment runs only on the strong (fast) Groq
+      // models or Workers AI. The smallest model misread relations in live
+      // diagnostics (debunking pages and "emergency ended" read as support),
+      // so it is kept for light tasks and the quote-checked correction review.
+      const assessmentInput = value => value._freshproof_tier === "light" || String(value._freshproof_task || "").startsWith("correction")
+        ? value : { ...value, _freshproof_fast_only: true };
       const forcedGroq = env.LLM_PROVIDER_MODE === "groq";
       if (forcedGroq) return groqCascade(model, input, "forced_groq");
       // Task-routing hints are for the Groq fallback only; Workers AI receives
@@ -403,7 +409,7 @@ export function createResilientAi(env, dependencies = {}) {
       if (env.LLM_PROVIDER_MODE === "cloudflare") return env.AI.run(model, cloudflareInput);
 
       if (cloudflareBlockedUntil > now()) {
-        return groqCascade(model, input, cloudflareFallbackReason || "cloudflare_breaker_open");
+        return groqCascade(model, assessmentInput(input), cloudflareFallbackReason || "cloudflare_breaker_open");
       }
       // Opt-in (LIGHT_TASKS_PREFER_GROQ=true): light tasks go to the smallest
       // Groq model first. Off by default since v0.2.93: Groq calls are paced and
@@ -455,7 +461,7 @@ export function createResilientAi(env, dependencies = {}) {
         if (!reason) throw error;
         cloudflareFallbackReason = reason.toLowerCase();
         cloudflareBlockedUntil = reason === "CF_DAILY_QUOTA" ? nextUtcMidnight(now()) : now() + 60000;
-        return groqCascade(model, input, reason.toLowerCase(), error);
+        return groqCascade(model, assessmentInput(input), reason.toLowerCase(), error);
       }
     }
   };

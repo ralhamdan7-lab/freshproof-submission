@@ -155,6 +155,8 @@ test("skips a Groq model with a long 429 reset and cascades to the second model"
   const attempted = [];
   const ai = createResilientAi({
     ...baseEnv(),
+    // v0.3.13: evidence assessment cascades only across the fast models.
+    GROQ_FAST_MODELS: "openai/gpt-oss-120b,openai/gpt-oss-20b",
     AI: { async run() { throw new Error("4006 daily free allocation"); } }
   }, {
     fetchImpl: async (_url, init) => {
@@ -328,4 +330,14 @@ test("v0.3.7: light tasks use a Groq model with free budget first when the fast 
   assert.equal(result._freshproof_fallback_reason, "groq_light_fast_path");
   assert.equal(usedModel, "openai/gpt-oss-20b-light", "the smallest model is tried first");
   assert.equal(cloudflareCalls, 0);
+});
+
+test("v0.3.13: evidence assessment never falls back to a non-fast Groq model", async () => {
+  const used = [];
+  const env = { ...baseEnv(), GROQ_MODELS: "openai/gpt-oss-120b-strong,openai/gpt-oss-20b-weak", GROQ_FAST_MODELS: "openai/gpt-oss-120b-strong", AI: { async run() { throw Object.assign(new Error("3040 out of capacity"), { code: 3040 }); } } };
+  const ai = createResilientAi(env, { fetchImpl: async (_url, init) => { const m = JSON.parse(init.body).model; used.push(m); return m.includes("strong") ? new Response("{}", { status: 429, headers: { "retry-after": "3600" } }) : okResponse(); }, sleep: async () => {} });
+  await assert.rejects(ai.run("@cf/test/model", { messages, max_tokens: 650 }));
+  assert.ok(!used.includes("openai/gpt-oss-20b-weak"), "the weak model is not used for evidence assessment");
+  const light = await ai.run("@cf/test/model", { messages, max_tokens: 300, _freshproof_tier: "light" });
+  assert.equal(light._freshproof_provider, "groq");
 });

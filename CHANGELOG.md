@@ -1,3 +1,8 @@
+# v0.3.13 — strong models only for evidence assessment (2026-11-19)
+
+- **No weak-model verdicts.** When Workers AI is slow or unavailable, evidence assessment now falls back only to the strong Groq models (`GROQ_FAST_MODELS`). If none has budget, the claim abstains instead of being judged by the smallest model. In a probe on the external test set, the smallest model read "the WHO ended the COVID-19 emergency" as support for "SARS-CoV-2 no longer represented a public-health risk". The smallest model stays in use for light tasks (decomposition fallback, search planning) and for the quote-checked correction review.
+- **Different attribute, no relation.** A source about a related but different attribute is INSUFFICIENT, not support or contradiction. For example, a source saying an emergency status ended says nothing about whether the underlying problem persists.
+
 # v0.3.12 — corrections shown with their basis (2026-11-19)
 
 - **Correction quotes compared fairly.** The final correction check normalised whitespace incorrectly: an escaping error meant runs of spaces and zero-width characters were never collapsed. Quotes are now compared with whitespace collapsed, and also ignoring punctuation, quote and dash styles, as the review step does.

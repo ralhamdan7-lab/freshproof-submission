@@ -36,10 +36,13 @@ for (const item of cases) {
     // The browser's progressive path: /api/extract, then one /api/verify per extracted claim.
     const extracted = await post("/api/extract", { text: item.claim });
     const parts = (extracted.body?.claims || []).map(c => c.claim).filter(Boolean);
+    console.log("DEVEXTRACTED " + JSON.stringify({ id: item.id, http: extracted.status || extracted.error, method: extracted.body?.method, diagnostics: extracted.body?.diagnostics || null, parts }));
+    if (process.env.DEV_EXTRACT_ONLY) { await sleep(4000); continue; }
     claims = [];
     result = { ms: extracted.ms || 0, status: extracted.status };
     for (const part of parts.length ? parts : [item.claim]) {
       const verified = await post("/api/verify", { text: part });
+      if (!verified.body?.claims?.length) console.log("DEVPARTFAIL " + JSON.stringify({ id: item.id, part, http: verified.status || null, error: verified.error || null, body: JSON.stringify(verified.body || null).slice(0, 300) }));
       result.ms += verified.ms || 0;
       if (verified.error) result.error = verified.error;
       result.status = verified.status;

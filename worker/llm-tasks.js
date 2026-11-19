@@ -249,6 +249,7 @@ const SEARCH_PLAN_SYSTEM = [
   "1. Do not assume the claim is true. Phrase queries neutrally around the subject and attribute (e.g. 'year Croatia joined the European Union', not 'Croatia joined the EU in 2010').",
   "2. Always include one English query, even when the claim is in another language. Add a query in the claim's own language if it is not English.",
   "3. Include one query aimed at the official or originating record (the organisation, government body, standards body, company or journal that would publish it).",
+  "3b. If the claim says an event (completion, release, launch, membership, withdrawal, approval) happened on a date, one query must ask when that event actually happened, without the claimed date (e.g. 'when was the X acquisition completed').",
   "4. If the claim is about a present state (who holds a role, membership, price, status, name, capital, currency), include a LATEST_STATUS query that would surface a later change.",
   "5. authority_domains: up to 3 official website domains (e.g. 'nato.int', 'who.int') of the organisations most likely to publish the primary record. Only include a domain you are confident is that organisation's official site; otherwise return an empty list.",
   "6. At most 3 queries, each under 200 characters, no URLs and no site: operators.",

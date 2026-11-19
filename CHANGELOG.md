@@ -1,3 +1,9 @@
+# v0.3.11 — sharper relation labels and event-date searches (2026-11-19)
+
+- **MIXED means a real conflict inside one source.** A source that confirms one part of a claim and is silent about the rest is INSUFFICIENT, not MIXED. A MIXED label from a qualified publisher blocks a verdict, so a mislabelled silent source could keep a claim under review even when other qualified sources settled it.
+- **When did it actually happen?** For a claim that an event (completion, release, launch, membership, withdrawal, approval) happened on a date, the search plan now always asks when the event actually happened, without the claimed date. This is how the completion announcement of an acquisition is found when the claim gives the announcement date.
+- **User notebooks are user content.** Colab notebooks, gists and Google Sites or Docs pages on a platform's domain no longer count as that platform's first-party record.
+
 # v0.3.10 — decomposition and name-guard fixes (2026-11-19)
 
 - **No dropped parts.** A decomposed claim may now carry a date or number from elsewhere in the same text (its time qualifier), but never one the text lacks. Previously such claims were rejected, and parts of multi-part claims went unverified (for example the AlphaFold 3 licence and the Llama 3.1 token count). When a part is still rejected, its verbatim sentence is verified instead, unless that sentence itself depends on earlier text.

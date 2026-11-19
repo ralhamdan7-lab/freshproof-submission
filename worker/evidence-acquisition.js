@@ -107,10 +107,14 @@ const ACADEMIC_HOST = /(?:^|\.)edu$|(?:^|\.)(?:edu|ac)\.[a-z]{2}$/i;
 const UGC_HOST = /^(?:community|communities|forum|forums|discuss|discussion|discussions|answers|support-community|groups|social|users?)\./i;
 const UGC_PATH = /\/(?:community|communities|forum|forums|discuss|discussions|answers|questions|thread|threads|t|users?|comments?)\/|\/~[^/]+/i;
 
+// v0.3.9: notebooks and gists hosted on a large platform's domain are written
+// by its users, not by the platform.
+const UGC_HOSTED_PATH = /^(?:colab\.research\.google\.com\/(?:github|drive|gist)\/|gist\.github\.com\/|sites\.google\.com\/|docs\.google\.com\/)/i;
 export function isUserGeneratedContentUrl(url) {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (UGC_HOSTED_PATH.test(host + parsed.pathname)) return true;
     return UGC_HOST.test(host) || UGC_PATH.test(parsed.pathname + "/");
   } catch { return false; }
 }

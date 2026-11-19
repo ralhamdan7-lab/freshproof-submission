@@ -34,3 +34,10 @@ test("without a plan nothing changes", () => {
   const result = assessSourceAuthority("https://unknown-publisher.net/x", "claim", "UNASSESSED");
   assert.equal(result.reliability, "UNASSESSED");
 });
+
+test("v0.3.10: user notebooks on a platform domain are user-generated content", async () => {
+  const { isUserGeneratedContentUrl } = await import("../worker/evidence-acquisition.js");
+  assert.equal(isUserGeneratedContentUrl("https://colab.research.google.com/github/someone/repo/blob/main/x.ipynb"), true);
+  assert.equal(isUserGeneratedContentUrl("https://gist.github.com/someone/abc"), true);
+  assert.equal(isUserGeneratedContentUrl("https://blog.google/technology/ai/x"), false);
+});

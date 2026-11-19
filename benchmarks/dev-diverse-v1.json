@@ -635,6 +635,24 @@
     "CONTRADICTED",
     "NEEDS_REVIEW"
    ]
+  },
+  {
+   "id": "A10",
+   "lang": "en",
+   "group": "tech-spec-true",
+   "claim": "Meta's Llama 3.1 405B does not use a Mixture-of-Experts architecture.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "A11",
+   "lang": "en",
+   "group": "event-date-false",
+   "claim": "Microsoft completed its acquisition of Activision Blizzard on 18 January 2022.",
+   "accept": [
+    "CONTRADICTED"
+   ]
   }
  ],
  "long_texts": [

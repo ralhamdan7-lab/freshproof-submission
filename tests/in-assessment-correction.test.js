@@ -47,3 +47,33 @@ test("v0.3.1: a negating correction is grounded by two contradicting quotes; new
   assert.equal(invented.candidate, null, "a new fact absent from every quote is rejected");
   assert.match(invented.reason, /UNGROUNDED_TERMS|GROUNDED_QUOTES_FROM/);
 });
+
+test("v0.3.9: a correction quote that differs only in punctuation or quote style is accepted", async () => {
+  const { assessCorrectionCandidateWithModel } = await import("../worker/index.js");
+  const sources = [
+    { url: "https://www.gov.uk/brexit", title: "Brexit", snippet: "The UK left the EU on 31 January 2020 — the transition period ended on 31 December 2020.", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", relevance_assessment: { relevance: "HIGH" } },
+    { url: "https://commission.europa.eu/uk", title: "UK withdrawal", snippet: "The United Kingdom withdrew from the European Union on 31 January 2020, and the “transition period” followed.", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", relevance_assessment: { relevance: "HIGH" } }
+  ];
+  const ai = { async run() { return { response: JSON.stringify({ status: "SUPPORTED", text: "The United Kingdom legally withdrew from the European Union on 31 January 2020.", scope_match: "MATCHED", timeframe_match: "MATCHED", conflict_status: "NONE", evidence: [
+    { source_index: 0, relation: "SUPPORTS_CANDIDATE", supporting_quote: "The UK left the EU on 31 January 2020 - the transition period ended" },
+    { source_index: 1, relation: "SUPPORTS_CANDIDATE", supporting_quote: "withdrew from the European Union on 31 January 2020, and the \"transition period\" followed" }
+  ], limitation: "" }) }; } };
+  const result = await assessCorrectionCandidateWithModel("The United Kingdom legally withdrew from the European Union on 31 December 2020.", "CONTRADICTED", sources, ai, {});
+  assert.ok(result, "loose verbatim quotes are accepted");
+  assert.equal(result.evidence.length, 2);
+});
+
+test("v0.3.9: reworded quotes are still rejected", async () => {
+  const { assessCorrectionCandidateWithModel } = await import("../worker/index.js");
+  const sources = [
+    { url: "https://www.gov.uk/brexit", title: "Brexit", snippet: "The UK left the EU on 31 January 2020 and the transition period ended on 31 December 2020.", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", relevance_assessment: { relevance: "HIGH" } },
+    { url: "https://commission.europa.eu/uk", title: "UK withdrawal", snippet: "The United Kingdom withdrew from the European Union on 31 January 2020.", source_reliability: "PRIMARY_OR_OFFICIAL_DOMAIN", relevance_assessment: { relevance: "HIGH" } }
+  ];
+  const ai = { async run() { return { response: JSON.stringify({ status: "SUPPORTED", text: "The UK withdrew on 31 January 2020.", scope_match: "MATCHED", timeframe_match: "MATCHED", conflict_status: "NONE", evidence: [
+    { source_index: 0, relation: "SUPPORTS_CANDIDATE", supporting_quote: "Britain departed the bloc at the end of January 2020" },
+    { source_index: 1, relation: "SUPPORTS_CANDIDATE", supporting_quote: "The United Kingdom withdrew from the European Union on 31 January 2020" }
+  ], limitation: "" }) }; } };
+  const diag = {};
+  assert.equal(await assessCorrectionCandidateWithModel("The UK withdrew on 31 December 2020.", "CONTRADICTED", sources, ai, diag), null);
+  assert.equal(diag.reason, "VERBATIM_QUOTES_FROM_1_SOURCES");
+});

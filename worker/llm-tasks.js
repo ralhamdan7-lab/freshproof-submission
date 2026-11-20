@@ -173,11 +173,19 @@ export function validateDecomposition(parsed, text) {
   }
   // The verbatim span of a rejected part is verified as written, so a false
   // detail inside it is never silently dropped.
-  for (const span of fallbackSpans) {
+  for (const rawSpan of fallbackSpans) {
+    let span = rawSpan;
+    // v0.3.16: a span that depends on earlier text ("the last case was
+    // recorded in 1977") is replaced by its whole sentence, so a rejected part
+    // is never dropped while its sentence names the subject.
+    if (hasUnresolvedSubject(span, source)) {
+      // Another accepted claim from the same clause already restates it.
+      if (accepted.some(item => item.span === rawSpan)) continue;
+      const sentence = source.split(/(?<=[.!?])\s+/).find(item => item.includes(span));
+      if (!sentence || hasUnresolvedSubject(sentence, source)) continue;
+      span = sentence;
+    }
     const key = span.toLowerCase();
-    // A span that itself depends on earlier text ("It was renamed…") is not
-    // verified alone; the accepted claims from it stand.
-    if (hasUnresolvedSubject(span, source)) continue;
     if (accepted.length >= DECOMPOSITION_LIMITS.maxClaims || seen.has(key) || span.length > 600) continue;
     seen.add(key);
     accepted.push({ claim: span, span, kind: "FACT", from_span: true });

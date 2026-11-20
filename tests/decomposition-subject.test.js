@@ -45,3 +45,14 @@ test("v0.3.15: a clause span without names is checked against the whole text", (
   assert.equal(rejected.unresolved_subject, 1);
   assert.deepEqual(claims.map(c => c.claim), ["The United Kingdom formally left the European Union on 31 January 2020.", "The United Kingdom's transition period ended on 31 December 2020."]);
 });
+
+test("v0.3.16: a rejected part whose clause lacks the subject is verified as its whole sentence", () => {
+  const t = "The WHO certified smallpox eradication in 1967, the same year the intensified eradication campaign began, and the disease's last naturally occurring case was recorded in 1980.";
+  const { claims } = validateDecomposition({ claims: [
+    { claim: "The WHO certified smallpox eradication in 1967.", span: "The WHO certified smallpox eradication in 1967", kind: "FACT" },
+    { claim: "The last naturally occurring case was recorded in 1980.", span: "the disease's last naturally occurring case was recorded in 1980", kind: "FACT" }
+  ] }, t);
+  assert.equal(claims.length, 2);
+  assert.equal(claims[1].claim, t);
+  assert.equal(claims[1].from_span, true);
+});

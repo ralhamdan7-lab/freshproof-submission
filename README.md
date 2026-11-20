@@ -136,15 +136,16 @@ Automated tests and synthetic temporal benchmarks are engineering diagnostics, n
 - Semantic triage is advisory. A correction is shown only when it passes the evidence contract (verbatim quotes from independent publishers).
 - Do not submit confidential or personal information to the public demo.
 
-## Hackathon submission status
+## Global AI Hackathon
 
-This repository is the public source snapshot. The organizer extended the prototype deadline to **21 November 2026** and allows already-submitted teams to keep updating their repositories. Repository publication, deployment and CI success do **not** prove that an entry was submitted or received.
+FreshProof is Raed Alhamdan's entry to the Global AI Hackathon (HackCulture × Geek Room, November 2026). This repository is its public source.
 
-Submission assets: [portal-ready project copy](docs/SUBMISSION-COPY.md), [portal submission checklist](docs/PORTAL-SUBMISSION-CHECKLIST.md), and [demo recording script](docs/DEMO-VIDEO-SCRIPT.md).
+- [Project overview](docs/PROJECT-OVERVIEW.md): the problem, what was built, technologies, and how AI is used
+- [Demo video script](docs/DEMO-VIDEO-SCRIPT.md) and [pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
 
 ## AI tools used to build FreshProof
 
-FreshProof was built during the hackathon by Raed Alhamdan with AI coding assistants under his direction: OpenAI ChatGPT in the early phase and Anthropic Claude from 15 November 2026 (engineering, testing, debugging and documentation). Inside the product, AI is used for claim decomposition, search planning, evidence reading and correction drafting; the verdict itself comes from deterministic rules. See [How AI is used](docs/SUBMISSION-COPY.md#how-ai-is-used).
+FreshProof was built during the hackathon by Raed Alhamdan with AI coding assistants under his direction: OpenAI ChatGPT in the early phase and Anthropic Claude from 15 November 2026 (engineering, testing, debugging and documentation). Inside the product, AI is used for claim decomposition, search planning, evidence reading and correction drafting; the verdict itself comes from deterministic rules. See [How AI is used](docs/PROJECT-OVERVIEW.md#how-ai-is-used).
 
 ## Ownership
 

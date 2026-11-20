@@ -435,7 +435,11 @@ export function createResilientAi(env, dependencies = {}) {
           // Poll without holding the shared Groq queue, so other requests in
           // this isolate are not delayed behind the wait.
           const waitStarted = now();
-          while (maxWait > 0 && now() - waitStarted < maxWait) {
+          // v0.3.19: no point waiting when every strong model has answered
+          // with a long rate-limit reset (daily quota): go to Workers AI now.
+          const strongModels = String(env.GROQ_FAST_MODELS || models[0] || "").split(",").map(item => item.trim()).filter(Boolean);
+          const allBlocked = () => strongModels.length > 0 && strongModels.every(item => (blockedModels.get(item) || 0) > now() + 30000);
+          while (maxWait > 0 && now() - waitStarted < maxWait && !allBlocked()) {
             await sleep(Math.min(5000, Math.max(0, maxWait - (now() - waitStarted))));
             try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_wait"); } catch {}
           }

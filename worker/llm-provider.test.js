@@ -365,3 +365,15 @@ test("v0.3.16: evidence assessment waits a bounded time for a strong model befor
   assert.equal(cloudflareCalls, 0);
   assert.ok(sleeps.reduce((a, b) => a + b, 0) <= 65000);
 });
+
+test("v0.3.19: no strong-model wait when every strong model reports a long rate-limit reset", async () => {
+  let clock = 2_000_000;
+  const sleeps = [];
+  let cloudflareCalls = 0;
+  const env = { ...baseEnv(), SEMANTIC_PRIMARY: "groq", GROQ_STRONG_MAX_WAIT_MS: "30000", GROQ_MODELS: "openai/gpt-oss-120b-daily", GROQ_120B_TPM: "9000", AI: { async run() { cloudflareCalls++; return { response: "{\"cf\":true}" }; } } };
+  const ai = createResilientAi(env, { now: () => clock, sleep: async ms => { sleeps.push(ms); clock += ms; }, fetchImpl: async () => new Response("{}", { status: 429, headers: { "retry-after": "3600" } }) });
+  const result = await ai.run("@cf/test/model", { messages, max_tokens: 650 });
+  assert.equal(result._freshproof_provider || "cloudflare", "cloudflare");
+  assert.equal(cloudflareCalls, 1);
+  assert.equal(sleeps.filter(ms => ms >= 5000).length, 0, "no polling sleeps once the strong models are blocked");
+});

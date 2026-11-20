@@ -1,92 +1,69 @@
-# FreshProof — Portal-Ready Submission Copy
+# FreshProof — Portal-Ready Submission Copy (v0.3.19)
+
+Copy each section into the matching field of the submission form. The order follows the hackathon's submission requirements (rule 7).
 
 ## Project title
 
 **FreshProof — Evidence-First Temporal Verification Engine**
 
+## Project owner
+
+Raed Alhamdan (solo entry)
+
 ## One-line summary
 
-FreshProof checks AI-generated answers claim by claim, retrieves current source evidence, distinguishes event dates from source dates, and explains when a claim is current, outdated, contradicted, or not sufficiently verifiable.
+FreshProof checks AI-generated answers claim by claim: it finds evidence from official and independent sources, marks each part true, false, outdated or unsettled, and corrects false claims with quotes from the sources.
 
-## Problem and intended users
+## The problem
 
-AI-generated answers can remain fluent and convincing after the facts they describe have changed. This creates risk for researchers, analysts, journalists, students, professionals, and anyone relying on AI-generated summaries of changing information such as software support, public policy, leadership, regulations, prices, and institutional decisions.
-
-A conventional search result is not enough. The user needs to know which proposition is being checked, whether the evidence refers to the same event, whether the source is authoritative, when the event happened versus when the page was published or updated, and whether the evidence justifies a conclusion.
+AI assistants answer with confidence, but the world keeps changing: laws take effect, records are broken, offices change hands. The most dangerous error is rarely the obvious one. It is a single wrong date or number inside a sentence that sounds right, or a page that debunks a myth being read as support for it. A list of search links does not tell the reader which part of an answer is wrong, why, or what the right value is.
 
 ## What was built
 
-FreshProof is a working web prototype with:
+A working web application and API, deployed on the public demo:
 
-- Claim-level extraction that preserves original wording and dependent clauses.
-- Temporal triage that remains separate from factual verification.
-- Bounded, claim-specific evidence retrieval using Tavily.
-- Preference for primary and official sources where available.
-- Source provenance and separate event, publication/update, and retrieval dates where the source exposes them.
-- Evidence comparison and conservative adjudication.
-- Explicit abstention when evidence is insufficient, conflicting, inaccessible, or weak.
-- Evidence-gated correction rather than unsupported rewriting.
-- Arabic RTL and English LTR browser interface.
-- A public Cloudflare Worker API and live browser application.
+- **Split:** a long answer is decomposed into small, self-contained claims, each naming its subject and its date. Every part is checked against the original text so nothing is invented.
+- **Search:** the engine plans its own queries and retrieves evidence through Tavily, aiming at official and primary sources.
+- **Read:** a strong language model labels each source as supporting, contradicting or insufficient for the exact claim.
+- **Decide:** a deterministic rule engine, not the model, gives the verdict. It requires independent publishers and qualified sources, and guards against a wrong year, a wrong name, and a debunking page misread as support.
+- **Correct:** a false claim gets the right value, quoted word for word from independent publishers. If the evidence cannot settle a claim, FreshProof says "needs review" instead of guessing.
+- Arabic (RTL) and English (LTR) interface.
 
-## What makes it different
+## Technologies and tools
 
-FreshProof is not just a search wrapper or a link summarizer. Its core output is a claim-level verification record. It separates:
-
-- Verification status
-- Temporal classification
-- Freshness
-- Evidence confidence
-- Source reliability
-
-A recent source is not automatically reliable evidence, and a recently updated page is not proof that the described event is recent. The semantic model is advisory; it does not independently establish truth or override evidence adjudication. Abstention is an intentional product outcome.
+- **Runtime:** Cloudflare Workers (API and web app), with a short-lived result cache. No database and no stored user submissions.
+- **Evidence search:** Tavily Search API, called server-side only.
+- **AI models (free tier):** Groq — `qwen/qwen3.8-27b` and `openai/gpt-oss-120b` judge evidence; Cloudflare Workers AI — `@cf/zai-org/glm-4.7-flash` as the second provider. The smallest model is never used to judge evidence.
+- **Quality:** Node.js test suite (547 tests in two time zones), Playwright browser acceptance, live-deployment acceptance on every release, GitHub Actions CI.
+- **Cost:** everything runs on free tiers. If a quota runs out, the app shows a temporary service-limit message instead of a verdict.
 
 ## How AI is used
 
-**In the product:** Tavily provides bounded evidence retrieval. Cloudflare Workers AI can provide optional semantic relation assessment when enabled and available; this assessment is advisory and fail-closed. The final status remains governed by the evidence policy, not by an unconstrained model answer.
+**In the product**
 
-**During development:** ChatGPT was used as an engineering copilot for architecture review, implementation support, test design, debugging, and documentation. The project owner directed the work, reviewed changes, and authorized merges and deployments.
+1. **Claim decomposition:** a language model splits long answers into atomic claims; deterministic validation rejects any part that is not supported by the original text.
+2. **Search planning:** the model proposes targeted queries and likely official domains for each claim.
+3. **Evidence reading:** a strong model labels the relation of each source to the claim (supports, contradicts, insufficient), its scope and its authority role.
+4. **Correction drafting:** the model proposes a corrected claim, which is shown only if the corrected value is quoted verbatim by independent publishers.
 
-## Live demonstration
+The model is advisory. The final verdict comes from deterministic rules over the evidence, so a model error cannot by itself produce a confident wrong answer.
 
-Public demo: https://freshproof-submission-demo.ralhamdan7.workers.dev
+**During development**
 
-Public source: https://github.com/ralhamdan7-lab/freshproof-submission
+FreshProof was built during the hackathon by Raed Alhamdan with AI coding assistants under his direction: OpenAI ChatGPT in the early phase (architecture review, implementation support, test design) and Anthropic Claude from 15 November (engineering, testing, debugging, documentation). The demo video's voice-over was generated with the open-weight Kokoro text-to-speech model (Apache-2.0).
 
-A bounded live acceptance test on deployed version 0.2.81 submitted the claim:
+## Results so far
 
-> “Node.js 20.x remains actively supported under LTS.”
+- 40 advanced claims written by a different AI system (health, climate, economics, law, space), split into 99 parts: no part received a wrong verdict in our checks.
+- Real examples from the live engine: "The UK legally withdrew from the EU on 31 December 2020" → false, corrected to 31 January 2020 (ora.ox.ac.uk, iasplus.com); "South Sudan became the 194th UN Member State" → false, the 193rd (un.org, bbc.com); the Paris Agreement's adoption, entry into force and temperature goals → all true with strong confidence (unfccc.int, un.org).
+- These are development diagnostics with labels set during development, not an accuracy study. No precision, recall or calibrated-probability figures are claimed.
 
-The live API returned HTTP 200 and classified the claim as **SUPERSEDED**, using the official Node.js lifecycle table. The request returned six evidence records and used two Tavily searches. The browser acceptance test on the same deployed version rendered the corresponding **OUTDATED** result, showed six evidence links including two official nodejs.org links, and recorded zero browser runtime errors.
+## Scalability and what comes next
 
-This is one specialist software-lifecycle scenario. It is not evidence of general-domain accuracy.
+FreshProof is designed to evolve: more official records (registries, gazettes, datasets) as evidence, more languages beyond English and Arabic, and an API for plugging verification into the tools where people read AI answers. Providers are interchangeable, so paid tiers or new models can be added without changing the verdict rules.
 
-## Validation and limitations
-
-- Release CI: 321/321 tests passed in UTC and 321/321 in Asia/Riyadh.
-- Deterministic local browser acceptance: passed.
-- Deployed public browser acceptance against exact version 0.2.81: passed.
-- One bounded live API scenario: passed.
-- A 32-case synthetic temporal diagnostic matched its synthetic labels; it is an engineering diagnostic, not a real-world accuracy estimate.
-- No representative real-world accuracy study is claimed; only the listed engineering checks and bounded live scenario are reported.
-- No general precision, recall, false-positive rate, citation correctness, calibrated confidence, or cost-per-claim is claimed.
-
-The prototype is designed for bounded verification and review, not as a guarantee that every proposition can be conclusively adjudicated. Users should inspect cited sources and respect NEEDS_REVIEW and UNVERIFIABLE outcomes.
-
-## Technology
-
-- Cloudflare Workers and static browser assets
-- Tavily evidence search
-- Optional Cloudflare Workers AI semantic assessment
-- Node.js test suite and Playwright browser acceptance
-- No application database or durable user-submission storage is required
-
-## Public links
+## Links
 
 - Live demo: https://freshproof-submission-demo.ralhamdan7.workers.dev
 - Source repository: https://github.com/ralhamdan7-lab/freshproof-submission
-- Official Node.js lifecycle source used in the live example: https://nodejs.org/en/about/previous-releases
-
-## Submission integrity
-
-The public repository and deployed demo are available for review. The editable 10-slide pitch deck is supplied as a separate PowerPoint artifact for portal upload. The official HackCulture submission must be completed through the event portal; repository publication and CI success do not constitute a submission receipt.
+- Release history: https://github.com/ralhamdan7-lab/freshproof-submission/blob/main/docs/RELEASES.md

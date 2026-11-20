@@ -141,6 +141,10 @@ This repository is the public source snapshot. The organizer extended the protot
 
 Submission assets: [portal-ready project copy](docs/SUBMISSION-COPY.md), [portal submission checklist](docs/PORTAL-SUBMISSION-CHECKLIST.md), and [demo recording script](docs/DEMO-VIDEO-SCRIPT.md).
 
+## AI tools used to build FreshProof
+
+FreshProof was built during the hackathon by Raed Alhamdan with AI coding assistants under his direction: OpenAI ChatGPT in the early phase and Anthropic Claude from 15 November 2026 (engineering, testing, debugging and documentation). Inside the product, AI is used for claim decomposition, search planning, evidence reading and correction drafting; the verdict itself comes from deterministic rules. See [How AI is used](docs/SUBMISSION-COPY.md#how-ai-is-used).
+
 ## Ownership
 
 FreshProof is owned and authored by **Raed Alhamdan**. No open-source license is granted unless a separate license file explicitly states otherwise. All rights are reserved by the project owner.

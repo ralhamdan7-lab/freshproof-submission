@@ -1,46 +1,16 @@
-# Demo Video Script — FreshProof v0.2.81
+# Demo Video Script — FreshProof v0.3.19 (final, 3:26)
 
-Target duration: 2:30–3:00. Record the actual deployed public application. Use a clean browser session and do not include credentials, private tabs, or personal information.
+Voice-over: Kokoro text-to-speech (open-weight, Apache-2.0), voice `am_michael`. Every result shown is a real output of the live engine. On-screen text in every scene: "FreshProof · Project owner: Raed Alhamdan" and the HackCulture and Geek Room logos.
 
-## 0:00–0:20 — Problem
-**Screen:** Title slide or public FreshProof landing page.
-
-**Narration:** “AI answers can become outdated while still sounding authoritative. A search result alone does not tell us whether the source supports the exact claim, whether the event itself is recent, or when the system should abstain.”
-
-## 0:20–0:45 — Product workflow
-**Screen:** Show the input area and paste the test claim.
-
-**Narration:** “FreshProof breaks an answer into individual claims, assesses temporal sensitivity separately from factual status, retrieves evidence for each proposition, and explains the result with source provenance.”
-
-## 0:45–1:35 — Live stale-claim demonstration
-**Input:** Node.js 20.x remains actively supported under LTS.
-
-**Screen:** Submit the claim on the deployed public demo. Wait for the actual response. Open the official Node.js lifecycle source.
-
-**Narration:** “This claim sounds plausible, but the deployed v0.2.81 API classified it as SUPERSEDED. The official Node.js lifecycle table reports version 20 as end-of-life. The live API request returned HTTP 200, processed one claim, and returned six evidence records using two Tavily searches.”
-
-**On-screen disclosure:** “One bounded software-lifecycle scenario; not a general accuracy benchmark. Evidence Confidence: LIMITED.”
-
-## 1:35–2:10 — Explain uncertainty
-**Screen:** Show the status and evidence details. If the UI displays freshness, evidence confidence, or source reliability separately, point to each without combining them.
-
-**Narration:** “Freshness and evidence confidence are not the same. FreshProof keeps the retrieval date separate from source dates, and it does not turn a recent page or a search ranking into a truth score. When evidence is insufficient or conflicting, it can return NEEDS_REVIEW or UNVERIFIABLE.”
-
-## 2:10–2:35 — Technical evidence
-**Screen:** Briefly show the public README or CI summary, not private repositories.
-
-**Narration:** “The public release is version 0.2.81. Its release checks passed 321 tests in UTC and 321 in Asia/Riyadh. These are engineering checks; we do not present them as real-world accuracy metrics.”
-
-## 2:35–2:50 — Close
-**Screen:** Public demo URL and public repository.
-
-**Narration:** “FreshProof makes AI answers accountable to time — claim by claim, with evidence and explicit uncertainty.”
-
-## Recording checklist
-
-- Capture the actual public UI and current live result; never substitute a mock for a live claim.
-- Confirm the live Worker health version is 0.2.81 immediately before recording.
-- Keep the official Node.js source URL visible and clickable.
-- Do not show non-public infrastructure, credentials, or personal information.
-- If editing out waiting time, disclose that the footage was edited.
-- Keep the final video within 2–4 minutes and test playback in a logged-out browser if hosted.
+| # | Scene | Narration |
+|---|---|---|
+| 1 | Title | This is FreshProof: an evidence-first verification engine for AI-generated answers, created by Raed Alhamdan for the Global AI Hackathon. |
+| 2 | The problem | AI assistants answer with confidence, but the world keeps changing. Laws take effect, records are broken, and offices change hands. The most dangerous error is not the obvious one. It is a single wrong date, or a wrong number, hidden inside a sentence that sounds right. |
+| 3 | The answer | FreshProof checks AI answers claim by claim. It does three things. It verifies, it explains, and it corrects. Always with evidence, dates, and honest uncertainty. |
+| 4 | How it works | Here is how it works. First, a long answer is split into small, self-contained claims, each naming its subject and its date. Next, the engine plans its own searches and retrieves evidence through Tavily, reaching for official and primary sources. A strong language model then reads every source, and labels it: supports, contradicts, or insufficient. Finally, a deterministic rule engine, not the model, decides the verdict. It requires independent publishers and qualified sources, and it guards against common traps: a wrong year, a wrong name, or a debunking page that is misread as support. |
+| 5 | Real result: Brexit date | These are real results from the live engine. Take this claim: the United Kingdom legally withdrew from the European Union on the thirty-first of December, twenty twenty. FreshProof marks it false, and shows the correction: the withdrawal took effect on the thirty-first of January, twenty twenty, quoted word for word from independent sources. |
+| 6 | Real result: UN membership | Another claim: South Sudan became the one hundred and ninety-fourth member of the United Nations. False. It was the one hundred and ninety-third, confirmed on the United Nations' own website. |
+| 7 | Real result: a true claim | And when a claim is true, like the adoption, the entry into force, and the temperature goals of the Paris Agreement, every part is confirmed with strong confidence, from the UNFCCC and the United Nations. |
+| 8 | Testing | We tested FreshProof against forty advanced claims, written by a different AI system, across health, climate, economics, law, and space. They were split into ninety-nine parts. In our checks, not one part received a wrong verdict. And when the evidence cannot settle a claim, FreshProof says so, instead of guessing. |
+| 9 | Free tiers | It runs entirely on free tiers: Cloudflare Workers, Tavily search, and two AI providers, Cloudflare Workers AI and Groq, so it keeps working when one is busy. More than five hundred automated tests guard every release. |
+| 10 | Designed to evolve | FreshProof is designed to evolve: more official sources, more languages, with Arabic already supported, and new ways to plug into the tools people use every day. FreshProof. Verify. Explain. Correct. |

@@ -10,16 +10,17 @@ Raed Alhamdan
 
 ## One-line summary
 
-FreshProof checks AI-generated answers claim by claim: it finds evidence from official and independent sources, marks each part true, false, outdated or unsettled, and corrects false claims with quotes from the sources.
+FreshProof verifies factual claims one by one, from a pasted AI-generated answer or typed in by the user: it finds evidence from official and independent sources, marks each claim true, false, outdated or unsettled, and corrects false claims with quotes from the sources.
 
 ## The problem
 
-AI assistants answer with confidence, but the world keeps changing: laws take effect, records are broken, offices change hands. The most dangerous error is rarely the obvious one. It is a single wrong date or number inside a sentence that sounds right, or a page that debunks a myth being read as support for it. A list of search links does not tell the reader which part of an answer is wrong, why, or what the right value is.
+AI assistants answer with confidence, but the world keeps changing: laws take effect, records are broken, offices change hands. The most dangerous error is rarely the obvious one. It is a single wrong date or number inside a sentence that sounds right, or a page that debunks a myth being read as support for it. The same is true of claims people meet every day and want to check. A list of search links does not tell the reader which part is wrong, why, or what the right value is.
 
 ## What was built
 
 A working web application and API, deployed on the public demo:
 
+- **Input:** a full AI-generated answer, a single claim or a question, in English or Arabic.
 - **Split:** a long answer is decomposed into small, self-contained claims, each naming its subject and its date. Every part is checked against the original text so nothing is invented.
 - **Search:** the engine plans its own queries and retrieves evidence through Tavily, aiming at official and primary sources.
 - **Read:** a strong language model labels each source as supporting, contradicting or insufficient for the exact claim.

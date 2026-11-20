@@ -71,7 +71,7 @@ From batch 1 of the external test set (13 multi-part claims, 31 parts): no part 
 
 # v0.3.9 — advanced multi-part claims (2026-11-19)
 
-Fixes found by the owner's advanced-claims test (AI regulation, Brexit dates, acquisitions, model specifications, AlphaFold 3 licensing, humanoid robot deployment).
+Fixes found by an advanced-claims test (AI regulation, Brexit dates, acquisitions, model specifications, AlphaFold 3 licensing, humanoid robot deployment).
 
 - **Atomic, self-contained claims.** Model decomposition now runs for any text longer than 100 characters (was 280), on the stronger fast models rather than the smallest one. The prompt asks it to split every distinct date, number, specification and contrast ("X on date A, while Y on date B") into its own claim, and to name the subject and time qualifier in each.
 - **No claim out of context.** A decomposed claim that opens with a pronoun or a bare generic noun ("They released…", "The license allows…"), or names none of the text's proper nouns, is rejected. Its verbatim span is verified instead, so a false detail is never dropped and a generic statement is never "confirmed" in place of the specific one. Before this fix, "The permissive open-source license allows unrestricted commercial deployment" was verified as a general truth, outside the AlphaFold 3 claim it came from.

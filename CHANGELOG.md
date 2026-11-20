@@ -1,3 +1,7 @@
+# v0.3.19 — no futile waiting when the quota is spent (2026-11-20)
+
+- The bounded wait for a strong model (v0.3.16) is now skipped when every strong Groq model has answered with a long rate-limit reset, which means its daily quota is spent. The claim then goes straight to Workers AI, or is reported as a service limit, instead of first waiting up to 30 seconds for a budget that cannot reopen. After today's quota-heavy testing, a live check had timed out at 45 seconds for exactly this reason.
+
 # v0.3.18 — abbreviations no longer split sentences (2026-11-20)
 
 - The fallback sentence splitter no longer breaks a sentence after common abbreviations ("South Africa v. Israel", "vs.", "e.g.", "No.", "Dr.", "Inc."). In the replacement-value check, a fallback split at "v." produced the fragment "Israel on 26 January 2024.", which was then checked as a claim of its own. The same rule now applies wherever sentences are split.

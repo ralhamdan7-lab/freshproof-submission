@@ -1,9 +1,9 @@
 # Documentation index
 
-**Current (v0.3.20)**
+**Current (v0.3.21)**
 
 - [Project overview](PROJECT-OVERVIEW.md) — the problem, what was built, technologies, how AI is used
-- [Release history](RELEASES.md) — every release from v0.2.0 to v0.3.20
+- [Release history](RELEASES.md) — every release from v0.2.0 to v0.3.21
 - [Demo video script](DEMO-VIDEO-SCRIPT.md) and [pitch deck outline](PITCH-DECK-OUTLINE.md)
 - [Product principles](PRODUCT-PRINCIPLES.md), [security notes](SECURITY.md), [synthetic benchmark](BENCHMARK.md)
 

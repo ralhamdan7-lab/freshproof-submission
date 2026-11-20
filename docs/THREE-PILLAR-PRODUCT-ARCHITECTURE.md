@@ -1,4 +1,4 @@
-> **Historical record.** This document describes FreshProof as of v0.2.43. The current release is **v0.3.20** (553 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+> **Historical record.** This document describes FreshProof as of v0.2.43. The current release is **v0.3.21** (560 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
 
 ## v0.2.43 — explicit wrong/right presentation
 - Each claim card must visibly preserve the submitted wording and state in plain language what is wrong or outdated.

@@ -1,5 +1,7 @@
 # Demo Video Script — FreshProof v0.3.19 (final, 3:26)
 
+Watch: https://youtu.be/9um3lz068pE
+
 Voice-over: Kokoro text-to-speech (open-weight, Apache-2.0), voice `am_michael`. Every result shown is a real output of the live engine. On-screen text in every scene: "FreshProof · Project owner: Raed Alhamdan" and the HackCulture and Geek Room logos.
 
 | # | Scene | Narration |

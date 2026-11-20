@@ -63,5 +63,6 @@ FreshProof is designed to evolve: more official records (registries, gazettes, d
 ## Links
 
 - Live demo: https://freshproof-submission-demo.ralhamdan7.workers.dev
+- Demo video (3:26): https://youtu.be/9um3lz068pE
 - Source repository: https://github.com/ralhamdan7-lab/freshproof-submission
 - Release history: https://github.com/ralhamdan7-lab/freshproof-submission/blob/main/docs/RELEASES.md

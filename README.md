@@ -35,7 +35,7 @@ A recent publication date is not proof of a recent event. FreshProof distinguish
 
 ## Development record
 
-FreshProof grew through 70+ documented releases, from v0.2.0 to v0.3.16. The current version passes 544 automated tests in two time zones, backed by 187 merged pull requests and 2,900+ automated CI and validation runs. See the **[release history table](docs/RELEASES.md)**.
+FreshProof grew through 70+ documented releases, from v0.2.0 to v0.3.17. The current version passes 545 automated tests in two time zones, backed by 187 merged pull requests and 2,900+ automated CI and validation runs. See the **[release history table](docs/RELEASES.md)**.
 
 ## What it does
 
@@ -80,7 +80,7 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 ## Public prototype
 
-- **Current version:** `0.3.16` (see the release evidence below for the deployment status)
+- **Current version:** `0.3.17` (see the release evidence below for the deployment status)
 - **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
@@ -92,9 +92,9 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
 
-## Current release evidence (v0.3.16)
+## Current release evidence (v0.3.17)
 
-- 544 automated tests pass in UTC and in Asia/Riyadh, with browser acceptance and live-deployment acceptance on every release.
+- 545 automated tests pass in UTC and in Asia/Riyadh, with browser acceptance and live-deployment acceptance on every release.
 - Live diagnostics on the public demo covered 116 claims during development, from simple facts to long multi-part claims in technology, health, climate, economics, law and space. In the latest rounds, no part of any claim received a wrong decisive verdict. Its labels were written during development, so this is a development diagnostic, not an accuracy study.
 - No precision, recall, false-positive rate or cost-per-claim figure is claimed. Confidence tiers are evidence categories, not calibrated probabilities.
 

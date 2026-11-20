@@ -1,3 +1,9 @@
+# v0.3.17 — replacement-value rule (2026-11-20)
+
+- **Refuted by the correct value.** Sources rarely say a wrong value is wrong ("it was not adopted in 1997"); they state the right one. A source that states, for the same subject, attribute and time frame, a different value of an attribute that has only one value then (a date, number, count, rank, duration, method, location, deciding body or membership status) now contradicts the claim. The rule does not apply to attributes that can hold several values or that changed over time, such as an announcement date versus a completion date, or a figure revised between editions. All evidence requirements are unchanged: independent publishers, qualified sources and verbatim quotes for corrections.
+- **Why.** In the external 40-claim test, about 20 of 30 "needs review" parts were false claims whose sources stated the correct value without negating the wrong one, for example "adopted in 1997" against "adopted on 16 September 1987".
+- **Staged rollout.** `REPLACEMENT_VALUE_MODE` is "on" | "header" (`x-freshproof-experiment: replacement-value`) | off. The public demo starts in header mode until a targeted check (10 false parts and 5 true controls) confirms that no true claim is contradicted.
+
 # v0.3.16 — strong models wait, parts are never dropped (2026-11-20)
 
 From batch 1 of the external test set (13 multi-part claims, 31 parts): no part received a wrong decisive verdict. Two generic patterns were fixed.

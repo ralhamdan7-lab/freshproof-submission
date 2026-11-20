@@ -1055,6 +1055,142 @@
     "CURRENT"
    ],
    "source": "external set written by another AI system at the owner's request (2026-11-19)"
+  },
+  {
+   "id": "N01",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "The Montreal Protocol was adopted in 1997.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N02",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "The Republic of Kosovo became the 193rd member of the United Nations in 2011.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N03",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "On 26 January 2024, the International Court of Justice issued a final merits judgment in South Africa v. Israel.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N04",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "Casgevy works by administering CRISPR/Cas9 directly into a patient's bloodstream to edit mature red blood cells in vivo.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N05",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "Saudi Arabia was one of the original members of the World Trade Organization when it was established in 1995.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N06",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "The Paris Agreement legally obliges every participating country to achieve an identical 43% reduction in national greenhouse-gas emissions by 2030.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N07",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "NOAA reported that 2016 remained warmer than 2023 in its global climate record.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N08",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "The Chinese renminbi replaced the Japanese yen in the IMF's Special Drawing Rights basket.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N09",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "The Montreal Protocol was designed to implement the Paris Agreement's 1.5°C temperature target.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "N10",
+   "lang": "en",
+   "group": "replacement-value-false",
+   "claim": "The 2030 Agenda for Sustainable Development contains 15 Sustainable Development Goals.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "T01",
+   "lang": "en",
+   "group": "replacement-value-control",
+   "claim": "Microsoft and Activision Blizzard announced their merger agreement on 18 January 2022.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "T02",
+   "lang": "en",
+   "group": "replacement-value-control",
+   "claim": "The World Bank set its international extreme-poverty line at US$2.15 per person per day in 2022.",
+   "accept": [
+    "CURRENT",
+    "SUPERSEDED"
+   ]
+  },
+  {
+   "id": "T03",
+   "lang": "en",
+   "group": "replacement-value-control",
+   "claim": "Saudi Arabia became a member of the World Trade Organization on 11 December 2005.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "T04",
+   "lang": "en",
+   "group": "replacement-value-control",
+   "claim": "The Montreal Protocol was adopted in 1987.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "T05",
+   "lang": "en",
+   "group": "replacement-value-control",
+   "claim": "OpenAI released GPT-4o mini in July 2024.",
+   "accept": [
+    "CURRENT"
+   ]
   }
  ],
  "long_texts": [

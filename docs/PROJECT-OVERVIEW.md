@@ -1,6 +1,4 @@
-# FreshProof — Portal-Ready Submission Copy (v0.3.19)
-
-Copy each section into the matching field of the submission form. The order follows the hackathon's submission requirements (rule 7).
+# FreshProof — Project Overview (v0.3.19)
 
 ## Project title
 
@@ -8,7 +6,7 @@ Copy each section into the matching field of the submission form. The order foll
 
 ## Project owner
 
-Raed Alhamdan (solo entry)
+Raed Alhamdan
 
 ## One-line summary
 

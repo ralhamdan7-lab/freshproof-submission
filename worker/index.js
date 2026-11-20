@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.16";
+export const VERSION = "0.3.17";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -631,7 +631,11 @@ function hasExactMilestoneDateMatch(claim, snippet) {
   return anchors.some(anchor => anchor.length >= 5 && sourceLower.includes(anchor));
 }
 
-export async function adjudicateEvidenceWithModel(claim, sources, ai) {
+// v0.3.17: a source that states the correct value for the same single-valued
+// attribute refutes a claim that states another value. Sources rarely negate a
+// wrong value in words ("it was not adopted in 1997"); they state the right one.
+export const REPLACEMENT_VALUE_RULE = "Replacement value: if the source states, for the same subject, the same attribute and the same time frame, a value different from the claim's (a date, year, number, count, rank or position, duration, method, location, author or body that decided, or membership status), and that attribute has only one value in that time frame, the source CONTRADICTS the claim, even though it does not say the claim's value is wrong. Do not apply this when the attribute can have several values at once or changed over time (an announcement date and a completion date, a figure revised between editions, several members, several methods) unless the source makes clear that its value is the only one for the exact attribute and time the claim names.";
+export async function adjudicateEvidenceWithModel(claim, sources, ai, options = {}) {
   if (!ai || typeof ai.run !== "function") return { status: "NOT_CONFIGURED", model: SEMANTIC_MODEL, assessments: [], attempts: 0, limitation: "No Workers AI binding is configured; rule-based evidence triage remains active." };
   const bounded = sources.slice(0, LIMITS.maxSemanticSources).map((s, index) => ({ source_index: index, title: String(s.title || "").slice(0, 240), snippet: String(s.snippet || "").slice(0, 900), published_date: s.published_date || null, event_date_candidate: s.event_date_candidate || null, date_mentions: Array.isArray(s.date_mentions) ? s.date_mentions : [], url: s.url }));
   const system = [
@@ -642,6 +646,7 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai) {
     "MIXED means the source itself states something that supports one essential part of the claim and states something that refutes another. A source that confirms one part and is silent about the rest is INSUFFICIENT, not MIXED.",
     "The original_claim is immutable and complete. Read every character; components are conservative clause views. Never silently omit, shorten, or replace the original claim. A source supporting one component does not establish the whole compound claim.",
     "If the claim has multiple components, consider every component, condition, negation, exception, entity, number, and timeframe before assigning a whole-claim relation. SUPPORTS requires every essential component to be supported. CONTRADICTS requires only that the source clearly refutes at least one essential component (an entity, number, mechanism, rule or condition the claim depends on): a claim with a false essential part is false. If coverage is incomplete and nothing essential is refuted, use INSUFFICIENT or MIXED rather than assuming support.",
+    ...(options.replacementValueRule ? [REPLACEMENT_VALUE_RULE] : []),
     "Completion versus plan: if the claim says something had already happened, been completed, delivered or released by a date, and the source shows it was only planned, announced, expected, piloted or scheduled to happen after that date, the source CONTRADICTS the claim. A source giving a different date for the same event (completion, release, membership, withdrawal) also CONTRADICTS a claim that states another date for it.",
     "General rules and exceptions: a source stating the general rule (for example that X holds exclusively, almost always, or as the norm) CONTRADICTS a claim that the opposite holds generally, equally or regularly; documented rare exceptions do not make such a general claim true. A source reporting that a claimed cause or link was investigated and not found (no association, no increased risk, rejected, debunked) CONTRADICTS a claim that the cause or link exists.",
     "Do not use outside knowledge. Do not infer that a source is authoritative from its domain. Distinguish event date from publication date.",
@@ -1337,6 +1342,12 @@ export default {
       // domains to every request, "header" only to requests that opt in with
       // x-freshproof-experiment: planned-authority (staged evaluation on the
       // live demo), anything else disables it.
+      // v0.3.17 rollout switch, as for planned authority domains:
+      // REPLACEMENT_VALUE_MODE "on" | "header" (x-freshproof-experiment:
+      // replacement-value) | anything else off.
+      const replacementValueMode = String(env.REPLACEMENT_VALUE_MODE || "on").toLowerCase();
+      const replacementValueEnabled = replacementValueMode === "on"
+        || (replacementValueMode === "header" && /(?:^|,)\s*replacement-value\s*(?:,|$)/i.test(request.headers.get("x-freshproof-experiment") || ""));
       const plannedAuthorityMode = String(env.PLANNED_AUTHORITY_MODE || "on").toLowerCase();
       const plannedAuthorityEnabled = plannedAuthorityMode === "on"
         || (plannedAuthorityMode === "header" && /(?:^|,)\s*planned-authority\s*(?:,|$)/i.test(request.headers.get("x-freshproof-experiment") || ""));
@@ -1459,7 +1470,7 @@ export default {
       for (const claim of claims) {
         // v0.2.91: an identical claim assessed within the cache lifetime is
         // served from the short-lived result cache (marked, with its time).
-        const cachedResult = await resultCache.get(VERSION + (plannedAuthorityEnabled ? "+pa" : ""), claim);
+        const cachedResult = await resultCache.get(VERSION + (plannedAuthorityEnabled ? "+pa" : "") + (replacementValueEnabled ? "+rv" : ""), claim);
         if (cachedResult) { output.push({ ...cachedResult, claim_id: `claim-${output.length + 1}` }); continue; }
         const outputLengthBefore = output.length;
         // v0.2.95 telemetry: where the time goes for each claim.
@@ -1867,7 +1878,7 @@ export default {
             ? { status: env.ENABLE_SEMANTIC_TRIAGE === "false" ? "DISABLED_BY_CONFIGURATION" : "DISABLED_BY_DEFAULT", model: SEMANTIC_MODEL, assessments: [], limitation: "Workers AI triage is opt-in and runs when ENABLE_SEMANTIC_TRIAGE=true; it is advisory-only and subject to the provider's free-tier limits." }
             : semanticQuotaCircuitOpen
               ? { status: "DISABLED_BY_PROVIDER_QUOTA", provider: "cloudflare", model: SEMANTIC_MODEL, assessments: [], limitation: "The request-level semantic provider circuit is open after an explicit free-allocation rejection." }
-              : await adjudicateEvidenceWithModel(retrievalClaim, sources, aiProvider);
+              : await adjudicateEvidenceWithModel(retrievalClaim, sources, aiProvider, { replacementValueRule: replacementValueEnabled });
           claimTimings.semantic_ms = Date.now() - semanticStartedAt;
           if (semantic_assessment.failure_code === "PROVIDER_LIMIT_OR_QUOTA") semanticQuotaCircuitOpen = true;
           const semanticTemporalKind = semantic_assessment?.status === "COMPLETED_ADVISORY"
@@ -1948,7 +1959,7 @@ export default {
         if (output.length > outputLengthBefore) {
           claimTimings.total_ms = Date.now() - claimStartedAt;
           output[output.length - 1].timings = claimTimings;
-          await resultCache.put(VERSION + (plannedAuthorityEnabled ? "+pa" : ""), claim, output[output.length - 1]);
+          await resultCache.put(VERSION + (plannedAuthorityEnabled ? "+pa" : "") + (replacementValueEnabled ? "+rv" : ""), claim, output[output.length - 1]);
         }
       }
       return json({ product: "FreshProof", version: VERSION, generated_at: new Date().toISOString(), extraction: { detected_count: extractedClaims.length, processed_count: claims.length, truncated_count: Math.max(0, extractedClaims.length - claims.length), is_truncated: extractedClaims.length > claims.length, maximum_processed_claims: LIMITS.maxClaims }, claims: output, methodology: { name: "Evidence-first factual verification with temporal assessment", limitations: ["Claim segmentation uses conservative punctuation and explicit connective heuristics; it is not semantic atomicity. Sentences or clauses led by a pronoun/demonstrative, a relative time expression or a contrast marker stay bound to the preceding statement (at most three sentences), so no extracted claim depends on text outside it.", "Publication dates are not event dates.", "Search relevance is not truth confidence.", "General semantic entailment is not inferred from snippets. Every claim receives bounded evidence retrieval regardless of temporal sensitivity; when semantic assessment is unavailable, generic adjudication abstains rather than treating relevance as truth. Domain adapters may add bounded retrieval or narrowly scoped adjudication; their limitations must be disclosed.", "Term overlap and rule-based relation signals are review aids only; they do not establish support, contradiction, or source quality.", "Cross-source numeric or polarity differences are conflict candidates, not verified contradictions; dates, units, scope and context require adjudication.", "Workers AI semantic relation analysis is opt-in and runs when ENABLE_SEMANTIC_TRIAGE=true; it uses the configured account's available plan allowance, is advisory only, never sets final verification status, and fails closed when unavailable or unsuccessful.", "Claim IDs identify extraction order only and are not persistent identifiers.", "Generic page acquisition (v0.2.82) fetches at most three candidate pages per claim within an eight-fetch request budget, HTTPS only, same-publisher redirects only, HTML only, 1 MB download cap and 600,000 characters parsed by a linear-time scanner. Blocked, script-rendered, PDF or unreachable pages fall back to the search snippet with an explicit reason. Passages are verbatim page text selected by claim-term overlap; selection is not entailment.", "Structural authority (government, intergovernmental and academic domain patterns of any country) and claim-derived first-party domains are publisher-role signals, not truth; a first-party domain counts as primary only when the fetched page's own title, site name or JSON-LD organisation names the entity (directly, or as the organisation the claim names whose acronym or compact name is the domain label) and the semantic assessment marks the page as the direct originating authority. A page's self-declared identity alone never confers authority. Independence is counted by publisher lineage (shared registrable domain, shared organisation label, or near-duplicate syndicated text), not by hostname.", "Evidence recency uses the publication date or a validated page-declared editorial update date (not the retrieval day, not before publication, with claim-relevant passages from the same page). HTTP Last-Modified headers and retrieval time never establish freshness; the date basis is reported per source. Community, forum and Q&A content is never primary.", "Each claim includes structured explanation_detail and a correction object; correction is provided only by explicitly validated, evidence-bound correction rules, otherwise it is withheld or marked not needed/not applicable.", "Domain adapters are optional, isolated extensions; the core applies request-wide limits to search calls and direct source fetches, and records bounded retrieval diagnostics. Python.org lifecycle verification may use a strictly validated, domain-restricted search-index excerpt when direct first-party fetch is denied; the acquisition limitation is retained in the finding."], score_policy: "No calibrated numeric freshness, confidence, or reliability score is claimed.", domain_adapters: DOMAIN_ADAPTERS, search_budget: { limit: maxQueries, used: requestSearchCount }, direct_fetch_budget: { limit: LIMITS.maxDirectFetches, used: requestDirectFetchCount }, evidence_acquisition: acquisitionTelemetry } }, 200, origin, allowed);

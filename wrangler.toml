@@ -14,6 +14,7 @@ ALLOWED_ORIGIN = "https://freshproof-submission-demo.ralhamdan7.workers.dev"
 ENABLE_SEMANTIC_TRIAGE = "true"
 ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
 PLANNED_AUTHORITY_MODE = "on"
+REPLACEMENT_VALUE_MODE = "header"
 # Optional free-tier Groq fallback. Active only when the GROQ_API_KEY secret is set.
 GROQ_FALLBACK_ENABLED = "true"
 SEMANTIC_PRIMARY = "groq"

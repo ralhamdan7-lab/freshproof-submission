@@ -26,3 +26,15 @@ test("v0.3.9 name guard: possessives, acronyms of runs and hyphenated compounds"
   assert.deepEqual(claimNamesAbsent("Llama 3.1 supports a 128K-token context window in May.", "llama 3.1 supports 128k tokens"), []);
   assert.deepEqual(claimNamesAbsent("The Titanic sank in 1912 in the Pacific Ocean.", "The Titanic sank in the North Atlantic Ocean in 1912."), ["Pacific"]);
 });
+
+test("v0.3.17: the replacement-value rule is sent only when enabled", async () => {
+  const { adjudicateEvidenceWithModel, REPLACEMENT_VALUE_RULE } = await import("../worker/index.js");
+  const seen = [];
+  const ai = { async run(_model, input) { seen.push(input.messages[0].content); return { response: JSON.stringify({ claim_assessment: { claim_risk: "LOW" }, assessments: [] }) }; } };
+  const sources = [{ title: "Montreal Protocol", snippet: "The Montreal Protocol was adopted on 16 September 1987.", url: "https://www.unep.org/ozonaction/who-we-are/about-montreal-protocol" }];
+  await adjudicateEvidenceWithModel("The Montreal Protocol was adopted in 1997.", sources, ai);
+  const before = seen.length;
+  assert.ok(seen.every(content => !content.includes("Replacement value:")));
+  await adjudicateEvidenceWithModel("The Montreal Protocol was adopted in 1997.", sources, ai, { replacementValueRule: true });
+  assert.ok(seen.slice(before).some(content => content.includes(REPLACEMENT_VALUE_RULE)));
+});

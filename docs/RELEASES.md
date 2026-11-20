@@ -6,9 +6,9 @@ Project owner: **Raed Alhamdan**. FreshProof is designed to evolve: this log sho
 
 | Item | Count |
 |---|---|
-| Documented releases (v0.2.0 → v0.3.19) | 70+ |
-| Automated tests in the current version (run in UTC and in Asia/Riyadh) | 547 |
-| Merged pull requests (private development + public submission repositories) | 187 |
+| Documented releases (v0.2.0 → v0.3.20) | 70+ |
+| Automated tests in the current version (run in UTC and in Asia/Riyadh) | 553 |
+| Merged pull requests (private development + public submission repositories) | 200+ |
 | Automated CI and validation workflow runs (both repositories) | 2,900+ |
 | Live diagnostic claims used during development (English and Arabic, simple to multi-part) | 116 |
 | Free AI providers used | 2 (Cloudflare Workers AI and Groq) |
@@ -50,5 +50,6 @@ These are effort and engineering figures, not accuracy figures. The diagnostic c
 | v0.3.17 | 20 Nov | A wrong value is refuted by the correct value stated in official sources (staged) |
 | v0.3.18 | 20 Nov | Abbreviations such as "v." and "e.g." no longer split a claim |
 | v0.3.19 | 20 Nov | Faster answers when the free quota is spent |
+| v0.3.20 | 20 Nov | The official text of a published standard (such as an RFC) settles claims about it (staged) |
 
 Full technical notes for each version are in [CHANGELOG.md](../CHANGELOG.md).

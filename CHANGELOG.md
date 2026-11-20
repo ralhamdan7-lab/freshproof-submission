@@ -1,3 +1,10 @@
+# v0.3.20 — the official text of a standard settles claims about it (2026-11-20)
+
+- **Normative specification rule.** When a claim is about what a published technical standard specifies (an IETF RFC, a W3C Recommendation, or an ISO, NIST, ECMA, Unicode, ITU-T, ETSI or IEEE standard), the standard's own official text, fetched from its issuer's host, now settles the claim on its own. It no longer needs a second independent publisher.
+- **Strict conditions.** The page must be a published standard, not a draft or commentary, and must not be marked obsoleted, superseded or withdrawn. A strong model must find it direct, exact in scope and the originating authority. Every such standard found must agree, no qualified source may take the opposite or a mixed position, and no assessed source at all may be mixed. Current-state, dynamic ("currently", "latest") and compound claims are excluded.
+- **Why.** A live check of "TLS 1.3 allows clients to encrypt the premaster secret using the server's RSA public key" stayed under review although RFC 8446, the TLS 1.3 standard on rfc-editor.org, was assessed as contradicting it: the only other contradicting page was not from a classified publisher.
+- **Staged rollout.** `NORMATIVE_SPEC_MODE` is "on" | "header" (`x-freshproof-experiment: normative-spec`) | off. The public demo starts in header mode until a check with the strong models confirms that no claim receives a wrong verdict.
+
 # v0.3.19 — no futile waiting when the quota is spent (2026-11-20)
 
 - The bounded wait for a strong model (v0.3.16) is now skipped when every strong Groq model has answered with a long rate-limit reset, which means its daily quota is spent. The claim then goes straight to Workers AI, or is reported as a service limit, instead of first waiting up to 30 seconds for a budget that cannot reopen. After today's quota-heavy testing, a live check had timed out at 45 seconds for exactly this reason.

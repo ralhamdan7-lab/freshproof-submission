@@ -1,21 +1,12 @@
-# Pitch Deck — FreshProof v0.2.81
+# Pitch Deck — FreshProof v0.3.19
 
-A 10-slide editable PowerPoint has been prepared as a separate submission artifact. This outline is the source record for its claims and slide order.
+An 8-slide deck (1920×1080, exportable as PDF or PowerPoint) accompanies the submission. Every slide carries "FreshProof · Project owner: Raed Alhamdan" and the HackCulture and Geek Room logos. This outline is the source record for its claims and slide order.
 
-1. **Title** — FreshProof: Evidence-First Temporal Verification Engine; Global AI Hackathon 2026; stale-answer detector.
-2. **Problem** — Fluent AI answers can become stale while still sounding authoritative.
-3. **Solution** — Claim-level extraction, temporal triage, evidence retrieval, adjudication, explanation, and guarded correction.
-4. **Temporal reasoning** — Event date, publication date, source update date, and retrieval time are distinct.
-5. **Architecture** — Browser UI, Cloudflare Worker, Tavily, source normalization, evidence adjudication, abstention.
-6. **Live proof** — The deployed v0.2.81 API classified “Node.js 20.x remains actively supported under LTS” as SUPERSEDED using the official Node.js lifecycle table; six evidence records, two Tavily searches, Freshness FRESH, Evidence Confidence LIMITED.
-7. **Responsible decisions** — CURRENT, SUPERSEDED, CONTRADICTED, NEEDS_REVIEW, UNVERIFIABLE, and NOT_TIME_SENSITIVE (temporal metadata, not a truth verdict).
-8. **Validation** — 321/321 tests in UTC and 321/321 in Asia/Riyadh; one bounded live API scenario; 32-case synthetic diagnostic clearly labeled non-representative. Broader real-world accuracy evaluation is not yet complete; no general accuracy metrics are claimed.
-9. **Trust and operating model** — Minimal data retention, server-side secrets, bounded operations, free-tier design, no paid fallback.
-10. **Close** — Public demo and source repository; evidence first, temporal context always, uncertainty stated.
-
-## Claim discipline
-
-- Do not claim general precision, recall, false-positive rate, citation correctness, calibrated confidence, or cost per claim without a completed and audited evaluation.
-- The Node.js lifecycle result is a single specialist software-release scenario, not general-domain proof.
-- Evidence Confidence LIMITED is shown in the live example and must not be omitted.
-- The editable deck is supplied as a separate PPTX file for the official portal upload.
+1. **Cover** — FreshProof: evidence-first verification for AI answers. Verify · Explain · Correct. Project owner: Raed Alhamdan.
+2. **Problem** — AI answers sound right while the world keeps changing: outdated facts, one wrong detail, myths with sources.
+3. **Solution** — Verify (verdict and confidence tier), explain (sources, dates, key quote), correct (the right value, quoted), and abstain honestly.
+4. **How it works** — Split, search (Tavily), read (strong model), decide (deterministic rules), correct (verbatim quotes from independent publishers); guards for wrong year, wrong name and misread debunking pages.
+5. **Real results** — UK withdrawal date (false → 31 January 2020), South Sudan's UN membership (false → 193rd), IPCC AR6 attribution (false → human activities), Paris Agreement (true, all four parts).
+6. **Rigor** — 40 advanced claims written by another AI system, 99 parts, 0 wrong verdicts in our checks; 547 automated tests. A development diagnostic, not an accuracy study.
+7. **Stack** — Cloudflare Workers, Tavily, Groq and Cloudflare Workers AI, all on free tiers; quota limits are reported, never shown as verdicts.
+8. **Designed to evolve** — More official records, more languages (Arabic already supported), an API and integrations; link to the live demo.

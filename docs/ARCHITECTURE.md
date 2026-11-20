@@ -1,3 +1,5 @@
+> **Historical record.** This document describes FreshProof as of v0.2.81. The current release is **v0.3.19** (547 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+
 ## v0.2.81 — universal retrieval and claim-graph integrity
 
 - The immutable original proposition is the universal retrieval baseline for every claim. The generic core does not rewrite queries based on entity/topic keywords and does not infer a publisher allowlist.

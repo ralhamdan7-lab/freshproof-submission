@@ -14,7 +14,8 @@
 <p align="center">
   <a href="https://freshproof-submission-demo.ralhamdan7.workers.dev">Live demo</a> ·
   <a href="docs/RELEASES.md">Release history</a> ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="docs/README.md">Documentation</a>
 </p>
 
 # FreshProof
@@ -147,4 +148,4 @@ FreshProof was built during the hackathon by Raed Alhamdan with AI coding assist
 
 ## Ownership
 
-FreshProof is owned and authored by **Raed Alhamdan**. No open-source license is granted unless a separate license file explicitly states otherwise. All rights are reserved by the project owner.
+FreshProof is owned and authored by **Raed Alhamdan**. All rights are reserved: this is not open-source software, and no permission is granted to copy, modify, deploy or use it without the owner's written permission. See [LICENSE](LICENSE).

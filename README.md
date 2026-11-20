@@ -25,9 +25,9 @@
 
 **Verify · Explain · Correct — with evidence, dates, and explicit uncertainty.**
 
-FreshProof checks AI-generated answers at the claim level. It extracts independent propositions, identifies potentially time-sensitive claims, retrieves bounded source evidence, compares supporting and conflicting material, and returns explainable outcomes with traceable sources.
+FreshProof verifies factual claims one by one, whether they come from a pasted AI-generated answer or are typed in by the user. For each claim it finds evidence from official and independent sources, decides whether the claim is supported, false or outdated, explains why with dated sources, and gives the correct value, quoted from the sources, when the evidence allows. When the evidence cannot settle a claim, it says so instead of guessing.
 
-A recent publication date is not proof of a recent event. FreshProof distinguishes event date, source publication date, source update date, and retrieval time wherever evidence exposes them.
+Time is built into every check, because many errors are facts that used to be true. A recent publication date is not proof of a recent event: FreshProof distinguishes event date, source publication date, source update date and retrieval time wherever evidence exposes them.
 
 ## Providers and free-tier limits
 
@@ -41,8 +41,9 @@ FreshProof grew through 70+ documented releases, from v0.2.0 to v0.3.21. The cur
 
 ## What it does
 
-- Extracts bounded claim candidates while preserving original wording and dependent clauses.
-- Separates temporal sensitivity from factual status: a stable claim is still assessed on evidence.
+- Accepts a full AI-generated answer, a single claim or a question, in English or Arabic.
+- Splits long text into self-contained claims while preserving original wording and dependent clauses.
+- Checks every claim on evidence, whether or not it is time-sensitive: true claims are confirmed, false claims are corrected, outdated claims are flagged.
 - Retrieves claim-specific evidence, preferring primary and official sources when available.
 - Compares supporting, conflicting, mixed, irrelevant, and insufficient evidence.
 - Abstains when evidence is weak, conflicting, inaccessible, or insufficient.
@@ -72,7 +73,7 @@ Browser UI
       -> deterministic claim frame (event / current state / past state / future / stable / opinion)
       -> model-planned multilingual search with candidate official domains, plus value-masked and change queries
       -> direct page acquisition (verbatim passages; publication, update and retrieval dates kept separate)
-      -> advisory Workers AI assessment of each source (relation, scope, authority role, change notice)
+      -> advisory strong-model assessment of each source (relation, scope, authority role, change notice)
       -> deterministic adjudication: frame-aware recency, graded independent corroboration
          (STRONG / MODERATE confidence tier), documented change, live issuer records, abstention
       -> per-source trace (why each source counted or not), explanation, evidence-gated correction
@@ -82,7 +83,7 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 ## Public prototype
 
-- **Current version:** `0.3.21` (see the release evidence below for the deployment status)
+- **Current version:** `0.3.21`
 - **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
@@ -90,9 +91,6 @@ The semantic model is advisory; it cannot independently establish truth or overr
 - **Semantic assessment:** Groq (strong models) and Cloudflare Workers AI, both free tier; advisory and fail-closed
 - **Result cache:** identical claims reuse a short-lived cached assessment (marked with its assessment time)
 - **Storage:** no application database or durable user-submission storage is required
-- **Public release scope:** independently configured for public review; provider credentials remain server-side and no private user data is included
-
-The public repository is an independently configured submission build. It includes the general claim extraction, temporal retrieval, evidence adjudication, and explanation improvements. It uses its own Worker name, allowed origin, and deployment configuration.
 
 ## Current release evidence (v0.3.21)
 
@@ -100,7 +98,7 @@ The public repository is an independently configured submission build. It includ
 - Live diagnostics on the public demo covered 116 claims during development, from simple facts to long multi-part claims in technology, health, climate, economics, law and space. In the latest rounds, no part of any claim received a wrong decisive verdict. Its labels were written during development, so this is a development diagnostic, not an accuracy study.
 - No precision, recall, false-positive rate or cost-per-claim figure is claimed. Confidence tiers are evidence categories, not calibrated probabilities.
 
-## Run locally
+## Run locally (for evaluation)
 
 Requirements: Node.js 20+ and npm.
 
@@ -115,10 +113,11 @@ Create a local `.dev.vars` file (never commit it):
 
 ```env
 TAVILY_API_KEY=your_key
+GROQ_API_KEY=your_key
 ALLOWED_ORIGIN=http://localhost:8787
 ```
 
-The optional Workers AI binding is configured by Wrangler. Never place provider keys in browser code, source files, screenshots, or logs.
+The Workers AI binding is configured by Wrangler. Provider keys stay server-side: never place them in browser code, source files, screenshots or logs.
 
 ## Limits and evaluation
 
@@ -135,14 +134,14 @@ Automated tests and synthetic temporal benchmarks are engineering diagnostics, n
 - Configure an exact allowed browser origin; CORS is not authentication.
 - Native Cloudflare rate limiting is an approximate per-edge abuse guard, not a strict global quota.
 - Semantic triage is advisory. A correction is shown only when it passes the evidence contract (verbatim quotes from independent publishers).
-- Do not submit confidential or personal information to the public demo.
+- The public demo is not designed for confidential or personal information; the interface reminds users of this.
 
 ## Global AI Hackathon
 
-FreshProof is Raed Alhamdan's entry to the Global AI Hackathon (HackCulture × Geek Room, November 2026). This repository is its public source.
+FreshProof, by Raed Alhamdan, is an entry to the Global AI Hackathon (HackCulture × Geek Room, November 2026). This repository is its public source.
 
 - [Project overview](docs/PROJECT-OVERVIEW.md): the problem, what was built, technologies, and how AI is used
-- [Demo video](https://youtu.be/9um3lz068pE) (3:26) and its [script](docs/DEMO-VIDEO-SCRIPT.md) and [pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
+- [Demo video](https://youtu.be/9um3lz068pE) (3:26) with its [script](docs/DEMO-VIDEO-SCRIPT.md), and the [pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
 
 ## AI tools used to build FreshProof
 
@@ -150,4 +149,4 @@ FreshProof was built during the hackathon by Raed Alhamdan with AI coding assist
 
 ## Ownership
 
-FreshProof is owned and authored by **Raed Alhamdan**. All rights are reserved: this is not open-source software, and no permission is granted to copy, modify, deploy or use it without the owner's written permission. See [LICENSE](LICENSE).
+FreshProof is owned and authored by **Raed Alhamdan**. All rights are reserved: this is not open-source software, and no permission is granted to copy, modify, deploy or use it without the owner's written permission, except that the hackathon's organizers and judges may run it to evaluate the entry. See [LICENSE](LICENSE).

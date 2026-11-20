@@ -1,16 +1,14 @@
-# Security and Privacy Notes
+# Security and Privacy Notes (v0.3.21)
 
-- Tavily key is accessed only from Worker environment secrets.
-- `.dev.vars`, `.env`, `node_modules`, and Wrangler state are excluded from Git.
-- The browser sends only submitted text to the Worker; the Worker forwards each temporal claim to Tavily.
-- No application database or user-content persistence is implemented.
-- API responses set `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
-- CORS fails closed for browser origins unless `ALLOWED_ORIGIN` is set to the exact allowed origin; wildcard reflection is not used. CORS is not authentication and does not block non-browser clients.
-- Search results and snippets are untrusted data. The UI renders them as text and source links; it does not execute retrieved content.
-- Resource controls: 12,000 characters, three claims, five results per claim, sequential queries, and a 10-second Tavily request timeout.
-- Native Cloudflare Rate Limiting binding `API_RATE_LIMITER` is configured for 3 verification requests per 60 seconds per client IP, per Cloudflare edge location. It is approximate and can be exceeded during propagation; it is an abuse guard, not a strict global quota or billing meter.
-- If the rate-limit binding errors, verification fails closed with HTTP 503. Requests over the configured threshold receive HTTP 429.
-- Workers AI semantic triage is enabled in the public deployment configuration and is advisory; it cannot independently establish a claim or override evidence adjudication. Monitor the free allocation and do not enable paid overages.
-- Model-assisted correction candidate review is disabled in the public configuration to reduce optional inference use. Deterministic, validated domain-adapter corrections remain separate.
-- No authentication or durable global rate limiter is implemented. The native limiter reduces casual abuse but is not a substitute for authentication or strict global quotas.
-- Before any configuration change or redeployment: verify provider data handling, free quotas, billing controls, exact CORS origin, secret configuration, and live Tavily integration. The public demo health endpoint has been checked, but the public `POST /api/verify` evidence-search path has not yet passed a live end-to-end test.
+- **Credentials.** Tavily and Groq keys are Worker secrets, read only on the server. They never reach the browser, the repository or the logs. `.dev.vars`, `.env`, `node_modules` and Wrangler state are excluded from Git.
+- **Data flow.** The browser sends only the submitted text to the Worker. The Worker sends search queries derived from each claim to Tavily, and the claim with retrieved source excerpts to the AI providers (Groq and Cloudflare Workers AI).
+- **No user database.** Submitted text is not stored. Completed results for a claim are kept for a few hours (up to 24 hours for stable facts) in the Workers Cache API, keyed by a hash of the normalized claim and the engine version, so an identical claim is not re-checked; results stopped by a provider limit are never cached.
+- **Response headers.** API responses set `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+- **CORS.** Browser access is allowed only from the exact origin in `ALLOWED_ORIGIN`; wildcard reflection is not used. CORS is not authentication and does not block non-browser clients.
+- **Untrusted content.** Search results and page passages are treated as data. The interface renders them as text and source links and never executes retrieved content; instructions found in a page are not followed by the models.
+- **Bounded work.** Up to 12,000 characters of input and up to 3 claims per verification request (the interface sends a long answer in batches); up to 7 searches and 8 direct page fetches per request, 5 results per search and 5 model-assessed sources per claim; a 10-second Tavily timeout and bounded model timeouts.
+- **Rate limiting.** The native Cloudflare rate-limit binding `API_RATE_LIMITER` allows 15 verification requests per 60 seconds per client IP and Cloudflare location. It is an approximate abuse guard, not a strict global quota. Requests over the limit receive HTTP 429; if the limiter itself fails, the request is rejected with HTTP 503.
+- **Fail-closed models.** Model output is advisory and cannot by itself establish a verdict. If no strong model is available, the claim is reported as not assessed rather than judged by a weaker model.
+- **Corrections.** A correction is shown only when it passes the evidence contract: the corrected value is quoted verbatim by independent publishers.
+- **Zero cost.** All providers run on free tiers with no paid overage. When a quota is spent, affected claims are reported as a temporary service limit.
+- **Not in scope.** There is no user authentication and no durable global rate limiter; the public demo is a prototype for review, not a production service.

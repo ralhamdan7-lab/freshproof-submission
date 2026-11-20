@@ -9,7 +9,7 @@ State labels follow the project convention: PLANNED / IMPLEMENTED / TESTED / VER
 | Code changes below | IMPLEMENTED, TESTED (510 Node tests, UTC and Asia/Riyadh; sealed-v2 leakage check passes) |
 | Local UI acceptance (EN / AR / mixed, progressive per-claim verification) | TESTED locally with headless Chrome |
 | Staging | DEPLOYED to isolated Staging and exercised with the development diagnostic (section 6) |
-| Public demo | Released by the owner's delegation of 2026-11-16 (see CHANGELOG) |
+| Public demo | Released on 2026-11-16 (see CHANGELOG) |
 
 ## 1. Goal
 

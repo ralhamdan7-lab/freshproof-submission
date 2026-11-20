@@ -1,3 +1,10 @@
+# v0.3.16 — strong models wait, parts are never dropped (2026-11-20)
+
+From batch 1 of the external test set (13 multi-part claims, 31 parts): no part received a wrong decisive verdict. Two generic patterns were fixed.
+
+- **Wait for a strong model.** When the strong Groq models' per-minute budget is in use, evidence assessment now waits up to 30 seconds for it to reopen (`GROQ_STRONG_MAX_WAIT_MS`), polling outside the shared request queue, before Workers AI is used. In batch 1, most parts that abstained with "semantic uncertainty" had been assessed by the Workers AI model, because the browser checks two parts at a time.
+- **No dropped parts.** A rejected part whose clause lacks the subject ("the disease's last naturally occurring case was recorded in 1980") is now verified as its whole sentence, unless another accepted part from the same clause already restates it. Previously, such parts could be dropped, as happened with two smallpox claims in batch 1.
+
 # v0.3.15 — subject check for clause spans (2026-11-19)
 
 - A decomposed claim whose span is a bare clause ("while the transition period ended…") is now checked against the names of the whole text. "The transition period ended on 31 December 2020" is rejected, because it names neither country nor union. "The United Kingdom's transition period ended on 31 December 2020" is kept.

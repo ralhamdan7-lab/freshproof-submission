@@ -286,7 +286,7 @@ test("v0.2.97 fast path: Groq first when budget is free, Workers AI without wait
   let cloudflareCalls = 0;
   let groqCalls = 0;
   let slept = 0;
-  const env = { ...baseEnv(), SEMANTIC_PRIMARY: "groq", GROQ_MODELS: "openai/gpt-oss-120b-fastpath", GROQ_120B_TPM: "6000", AI: { async run() { cloudflareCalls++; return { response: "{\"cf\":true}" }; } } };
+  const env = { ...baseEnv(), SEMANTIC_PRIMARY: "groq", GROQ_STRONG_MAX_WAIT_MS: "0", GROQ_MODELS: "openai/gpt-oss-120b-fastpath", GROQ_120B_TPM: "6000", AI: { async run() { cloudflareCalls++; return { response: "{\"cf\":true}" }; } } };
   const ai = createResilientAi(env, {
     fetchImpl: async () => { groqCalls++; return okResponse(); },
     sleep: async ms => { slept += ms; }
@@ -348,4 +348,20 @@ test("v0.3.14: decomposition may fall back to any Groq model after Workers AI fa
   const ai = createResilientAi(env, { fetchImpl: async (_url, init) => { const m = JSON.parse(init.body).model; used.push(m); return m.includes("dstrong") ? new Response("{}", { status: 429, headers: { "retry-after": "3600" } }) : okResponse(m); }, sleep: async () => {} });
   const result = await ai.run("@cf/test/model", { messages, max_tokens: 600, _freshproof_tier: "standard", _freshproof_task: "decomposition" });
   assert.equal(result._freshproof_model, "openai/gpt-oss-20b-dweak");
+});
+
+test("v0.3.16: evidence assessment waits a bounded time for a strong model before Workers AI", async () => {
+  let clock = 1_000_000;
+  let cloudflareCalls = 0;
+  const sleeps = [];
+  const env = { ...baseEnv(), SEMANTIC_PRIMARY: "groq", GROQ_STRONG_MAX_WAIT_MS: "30000", GROQ_MODELS: "openai/gpt-oss-120b-waitstrong", GROQ_120B_TPM: "9000", AI: { async run() { cloudflareCalls++; return { response: "{\"cf\":true}" }; } } };
+  const ai = createResilientAi(env, { now: () => clock, sleep: async ms => { sleeps.push(ms); clock += ms; }, fetchImpl: async () => okResponse() });
+  const big = [{ role: "system", content: "x".repeat(12000) }, { role: "user", content: JSON.stringify({ claim: "c", sources: [] }) }];
+  const first = await ai.run("@cf/test/model", { messages: big, max_tokens: 650 });
+  assert.equal(first._freshproof_provider, "groq");
+  const second = await ai.run("@cf/test/model", { messages: big, max_tokens: 650 });
+  assert.equal(second._freshproof_provider, "groq", "the strong model answers once its minute budget reopens");
+  assert.equal(second._freshproof_fallback_reason, "groq_fast_wait");
+  assert.equal(cloudflareCalls, 0);
+  assert.ok(sleeps.reduce((a, b) => a + b, 0) <= 65000);
 });

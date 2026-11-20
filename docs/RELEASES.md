@@ -6,8 +6,8 @@ Project owner: **Raed Alhamdan**. FreshProof is designed to evolve: this log sho
 
 | Item | Count |
 |---|---|
-| Documented releases (v0.2.0 → v0.3.15) | 70+ |
-| Automated tests in the current version (run in UTC and in Asia/Riyadh) | 542 |
+| Documented releases (v0.2.0 → v0.3.16) | 70+ |
+| Automated tests in the current version (run in UTC and in Asia/Riyadh) | 544 |
 | Merged pull requests (private development + public submission repositories) | 187 |
 | Automated CI and validation workflow runs (both repositories) | 2,900+ |
 | Live diagnostic claims used during development (English and Arabic, simple to multi-part) | 116 |
@@ -46,5 +46,6 @@ These are effort and engineering figures, not accuracy figures. The diagnostic c
 | v0.3.12 | 19 Nov | Corrections shown with their evidence basis |
 | v0.3.13 | 19 Nov | Evidence assessed by strong models only |
 | v0.3.14–v0.3.15 | 19 Nov | Claim splitting that holds up under load, subject check for every part |
+| v0.3.16 | 20 Nov | Evidence waits for a strong model; no claim part is dropped |
 
 Full technical notes for each version are in [CHANGELOG.md](../CHANGELOG.md).

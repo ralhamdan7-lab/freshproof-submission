@@ -193,8 +193,9 @@ function serialize(task) {
   return next;
 }
 
-function waitForSlot(model, estimate, rpm, tpm, now, sleep, noWait = false) {
+function waitForSlot(model, estimate, rpm, tpm, now, sleep, noWait = false, maxWaitMs = Infinity) {
   return (async () => {
+    const startedAt = now();
     let state = throttleStates.get(model);
     if (!state) {
       state = { nextAt: 0, pauseUntil: 0, window: [] };
@@ -217,6 +218,8 @@ function waitForSlot(model, estimate, rpm, tpm, now, sleep, noWait = false) {
         return entry;
       }
       if (noWait) throw new LlmProviderError("groq", "slot_busy", "The Groq per-minute budget is in use; another provider is tried instead of waiting.");
+      // v0.3.16: a bounded wait gives up when the slot would open too late.
+      if (current - startedAt + delay > maxWaitMs) throw new LlmProviderError("groq", "slot_busy", "The Groq per-minute budget will not free up within the allowed wait.");
       await sleep(delay + Math.min(250, Math.floor(Math.random() * 250)));
     }
   })();
@@ -255,7 +258,7 @@ async function groqRequest({ env, model, messages, input, fetchImpl, now, sleep,
       ...(/qwen/i.test(model) ? { reasoning_format: "hidden" } : {})
     };
 
-  const slot = await waitForSlot(model, estimate, rpm, tpm, now, sleep, Boolean(input._freshproof_no_wait));
+  const slot = await waitForSlot(model, estimate, rpm, tpm, now, sleep, Boolean(input._freshproof_no_wait), Number(input._freshproof_max_wait_ms) || Infinity);
   const response = await fetchImpl(API_URL, {
     method: "POST",
     headers: headersFor(),
@@ -423,6 +426,20 @@ export function createResilientAi(env, dependencies = {}) {
       // Groq call remains the fallback if Workers AI is unavailable.
       if (input._freshproof_tier !== "light" && env.SEMANTIC_PRIMARY === "groq" && env.GROQ_FALLBACK_ENABLED === "true" && env.GROQ_API_KEY) {
         try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_path"); } catch {}
+        // v0.3.16: for evidence assessment, wait a bounded time for a strong
+        // model's per-minute budget before using Workers AI. Per-minute
+        // budgets reopen within a minute, and the weaker model abstained far
+        // more often in live diagnostics.
+        if (!/^(?:correction|decomposition)/.test(String(input._freshproof_task || ""))) {
+          const maxWait = Math.max(0, Number(env.GROQ_STRONG_MAX_WAIT_MS ?? 30000));
+          // Poll without holding the shared Groq queue, so other requests in
+          // this isolate are not delayed behind the wait.
+          const waitStarted = now();
+          while (maxWait > 0 && now() - waitStarted < maxWait) {
+            await sleep(Math.min(5000, Math.max(0, maxWait - (now() - waitStarted))));
+            try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_wait"); } catch {}
+          }
+        }
         // v0.3.1: correction review follows its output contract more reliably
         // on the Groq models, so any of them with free budget is tried first.
         // v0.3.9: a correction retry waits for a fast model's slot instead

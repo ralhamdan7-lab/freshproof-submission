@@ -1,35 +1,28 @@
 # HackCulture Portal Submission Checklist
 
-Use this checklist in the authenticated Global AI Hackathon event dashboard. A project draft or project record alone is not a completed submission; the organizer's final reminder requires a successful Submit action.
+Use this checklist in the authenticated Global AI Hackathon event dashboard. A saved draft is not a submission; only the final **Submit** action counts.
 
-## Project entry
+## What to provide (hackathon rule 7)
 
-- Project title: **FreshProof — Evidence-First Temporal Verification Engine**
-- Track: **Tavily** — stale-answer detection / temporal verification.
-- Project summary and full description: use [SUBMISSION-COPY.md](SUBMISSION-COPY.md).
-- Public source repository: https://github.com/ralhamdan7-lab/freshproof-submission
-- Public demo: https://freshproof-submission-demo.ralhamdan7.workers.dev
-- Pitch deck: attach the separate editable PowerPoint artifact.
-- Demo video: optional; the recording script is in [DEMO-VIDEO-SCRIPT.md](DEMO-VIDEO-SCRIPT.md).
+| Requirement | Where it is |
+|---|---|
+| Working project or demo | https://freshproof-submission-demo.ralhamdan7.workers.dev |
+| Source code or repository | https://github.com/ralhamdan7-lab/freshproof-submission |
+| Project description | [SUBMISSION-COPY.md](SUBMISSION-COPY.md) — "One-line summary" and "What was built" |
+| Problem being solved | [SUBMISSION-COPY.md](SUBMISSION-COPY.md) — "The problem" |
+| Technologies and tools | [SUBMISSION-COPY.md](SUBMISSION-COPY.md) — "Technologies and tools" |
+| How AI is used | [SUBMISSION-COPY.md](SUBMISSION-COPY.md) — "How AI is used" (product and development) |
+| Demo video | FreshProof demo video (3:26, 1080p) — upload the MP4 or a video link, as the form asks |
+| Pitch deck | 8-slide FreshProof deck, exported as PDF or PowerPoint |
 
-## Team
+## Steps
 
-If participating solo, confirm that the dashboard accepts a one-person team or solo entry before submitting. The registration email directs participants to Event Dashboard → Manage Team; it does not specify team-size rules.
+1. Sign in with the registered HackCulture account and open the Global AI Hackathon dashboard.
+2. Create or open the FreshProof project entry; confirm the track (Tavily) and the one-person team.
+3. Paste the texts from SUBMISSION-COPY.md, add the demo and repository links, attach the deck and the video.
+4. Click the final **Submit** action and keep the confirmation screen or ID.
 
-## Final submission verification
+## Notes
 
-1. Sign in using the registered HackCulture account.
-2. Open the Global AI Hackathon event dashboard.
-3. Create or open the FreshProof project entry.
-4. Confirm the Tavily track and team membership.
-5. Add the public repository URL and attach the pitch deck.
-6. Review the description and live demo URL.
-7. Click the final **Submit** action (not only Save/Create).
-8. Wait for the platform's successful submission state or receipt. Record the confirmation ID or screenshot for the project audit log.
-
-## Accuracy and demo disclosures
-
-- The public prototype is deployed as version 0.2.81.
-- The live example is one bounded software-lifecycle scenario, not a general accuracy benchmark.
-- Do not claim general precision, recall, false-positive rate, citation correctness, calibrated confidence, or cost-per-claim.
-- A short demo video is recommended but not required by the published listing used for this preparation.
+- The free AI quotas renew daily; test the live demo shortly before judging starts.
+- The organizer allows repository updates after submission.

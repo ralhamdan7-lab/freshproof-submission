@@ -13,6 +13,7 @@
 
 <p align="center">
   <a href="https://freshproof-submission-demo.ralhamdan7.workers.dev">Live demo</a> ·
+  <a href="https://youtu.be/9um3lz068pE">Demo video</a> ·
   <a href="docs/RELEASES.md">Release history</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="docs/README.md">Documentation</a>
@@ -141,7 +142,7 @@ Automated tests and synthetic temporal benchmarks are engineering diagnostics, n
 FreshProof is Raed Alhamdan's entry to the Global AI Hackathon (HackCulture × Geek Room, November 2026). This repository is its public source.
 
 - [Project overview](docs/PROJECT-OVERVIEW.md): the problem, what was built, technologies, and how AI is used
-- [Demo video script](docs/DEMO-VIDEO-SCRIPT.md) and [pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
+- [Demo video](https://youtu.be/9um3lz068pE) (3:26) and its [script](docs/DEMO-VIDEO-SCRIPT.md) and [pitch deck outline](docs/PITCH-DECK-OUTLINE.md)
 
 ## AI tools used to build FreshProof
 

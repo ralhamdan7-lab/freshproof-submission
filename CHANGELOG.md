@@ -1,3 +1,10 @@
+# v0.3.21 — the issuer of a fact settles it, in any field (2026-11-20)
+
+- **Originating issuer rule.** One official source now settles a claim in any field (law, health, economics, technology, organisations) when that source is the body that itself made, issued, holds or maintains the stated fact: its own decision, law, record, register, membership list, appointment, product specification, official statistics or publication. Being on an official or government domain is not enough: a page that reports another body's fact does not qualify.
+- **Strict conditions.** The page was fetched directly and passed every qualification gate, including recency for current-state claims. A strong model must find it direct, exact in scope and the originating authority, and every issuer source found must agree. No qualified source may take the opposite position, and no assessed source at all may be mixed or opposed. Contested, scientific-consensus and compound claims are excluded, as are self-promotional superlatives on a company's own site. A research finding is settled only by the study itself, never by another body reporting it.
+- **What changes.** The earlier single-source path was limited to low-risk claims and was blocked by words such as "law", "security" or "minister". The issuer rule applies to all fields, because the issuer of a fact is its authority whatever the topic.
+- **Staged rollout.** `ISSUER_AUTHORITY_MODE` is "on" | "header" (`x-freshproof-experiment: issuer-authority`) | off. The public demo starts in header mode until a check with the strong models, across fields, confirms that no claim receives a wrong verdict.
+
 # v0.3.20 — the official text of a standard settles claims about it (2026-11-20)
 
 - **Normative specification rule.** When a claim is about what a published technical standard specifies (an IETF RFC, a W3C Recommendation, or an ISO, NIST, ECMA, Unicode, ITU-T, ETSI or IEEE standard), the standard's own official text, fetched from its issuer's host, now settles the claim on its own. It no longer needs a second independent publisher.

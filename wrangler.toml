@@ -16,6 +16,7 @@ ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
 PLANNED_AUTHORITY_MODE = "on"
 REPLACEMENT_VALUE_MODE = "header"
 NORMATIVE_SPEC_MODE = "header"
+ISSUER_AUTHORITY_MODE = "header"
 # Optional free-tier Groq fallback. Active only when the GROQ_API_KEY secret is set.
 GROQ_FALLBACK_ENABLED = "true"
 SEMANTIC_PRIMARY = "groq"

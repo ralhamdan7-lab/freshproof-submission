@@ -101,6 +101,30 @@ function normativeSpecificationSource(item) {
     && ["ORIGINATING_AUTHORITY", "PRIMARY_RESEARCH"].includes(assessed.authority_role)
     && ["SUPPORTS", "CONTRADICTS"].includes(item.relation);
 }
+// v0.3.21 originating issuer: in any field, one official source settles a
+// claim when that source is the body that itself made, issued, holds or
+// maintains the stated fact (its own decision, record, membership list,
+// product, statistics or publication), not a page that reports another body's
+// fact. Self-promotional superlatives on a company's own site never qualify.
+const ISSUER_MARKETING = /\b(?:best|fastest|leading|most (?:advanced|popular|powerful|trusted|secure|innovative)|world'?s (?:first|largest|best|leading|fastest)|number one|#1|unmatched|unrivalled|unrivaled|revolutionary|industry[- ]leading)\b/i;
+const ISSUER_BASES = new Set(["FIRST_PARTY_ENTITY_DOMAIN", "MODEL_PLANNED_AUTHORITY_DOMAIN", "CURATED_OR_SUFFIX_REGISTRY", "GOVERNMENT_OR_INTERGOVERNMENTAL_DOMAIN_PATTERN"]);
+function originatingIssuerSource(item, claim, claimType) {
+  const source = item?.source;
+  const assessed = item?.semanticSource;
+  if (!source || !assessed) return false;
+  if (source.evidence_origin !== "DIRECT_PAGE_PASSAGES") return false;
+  if (assessed.directness !== "DIRECT" || assessed.scope_match !== "EXACT") return false;
+  if (!["SUPPORTS", "CONTRADICTS"].includes(item.relation)) return false;
+  if (source.reliability_basis === "FIRST_PARTY_ENTITY_DOMAIN" && ISSUER_MARKETING.test(String(claim || ""))) return false;
+  // A finding attributed to a named study is settled only by the study itself,
+  // never by another body's page reporting it.
+  if (claimType === "ATTRIBUTED_RESEARCH_RESULT") {
+    return assessed.authority_role === "PRIMARY_RESEARCH"
+      && ["PRIMARY_OR_OFFICIAL_DOMAIN", "INSTITUTIONAL"].includes(source.source_reliability);
+  }
+  return assessed.authority_role === "ORIGINATING_AUTHORITY"
+    && source.source_reliability === "PRIMARY_OR_OFFICIAL_DOMAIN" && ISSUER_BASES.has(source.reliability_basis);
+}
 // v0.2.82: a first-party domain (publisher name equals an entity in the claim)
 // counts as primary only when the semantic assessment also finds that the page
 // itself directly originates the record. Structural/curated authority is unchanged.
@@ -424,7 +448,8 @@ export function adjudicateEvidence({
   temporalSensitive = true,
   claimFrame = null,
   changeSearchPerformed = false,
-  normativeSpecification = false
+  normativeSpecification = false,
+  originatingIssuer = false
 } = {}) {
   const materialComponents = Array.isArray(claimComponents) ? claimComponents : [];
   const evidenceFrame = claimFrame?.frame || null;
@@ -805,6 +830,35 @@ export function adjudicateEvidence({
           : "The official text of the published standard the claim is about directly contradicts the claim, and no qualified source supports it.",
         evidence: agreeing.map(x => evidenceItem(x.source, x.relation, x.index)),
         adjudication_signals: { ...signals, normative_specifications: specifications.map(x => hostOf(x.source.url)) }
+      };
+    }
+  }
+  // v0.3.21 originating issuer rule (rollout switch ISSUER_AUTHORITY_MODE):
+  // one official source that is the issuer of the stated fact settles the
+  // claim in any field when: the claim is not contested, a scientific
+  // consensus or compound; the source was fetched directly, passed every
+  // qualification gate (including recency for current-state claims), and the
+  // model found it DIRECT, EXACT scope and the originating authority; every
+  // issuer source agrees; no qualified source takes the opposite position;
+  // and no assessed source at all is mixed or opposed.
+  const issuerClaimType = relations?.claimAssessment?.claim_type || null;
+  const issuers = originatingIssuer && relations && !mixed && !allEvidenceMixed
+    && !lexicalGuard.compound && !modelOnlyCompound
+    && !["CONTESTED", "SCIENTIFIC_CONSENSUS", "COMPOUND"].includes(issuerClaimType)
+    ? qualified.filter(x => originatingIssuerSource(x, claim, issuerClaimType)) : [];
+  if (issuers.length > 0) {
+    const relation = issuers[0].relation;
+    const opposing = relation === "SUPPORTS" ? contradicting : supporting;
+    if (issuers.every(x => x.relation === relation) && opposing.length === 0) {
+      const agreeing = relation === "SUPPORTS" ? supporting : contradicting;
+      return {
+        status: relation === "SUPPORTS" ? "CURRENT" : "CONTRADICTED",
+        method: "ORIGINATING_ISSUER",
+        rationale: relation === "SUPPORTS"
+          ? "The body that itself issued or holds the stated fact confirms it in its own official source, and no assessed source disagrees."
+          : "The body that itself issued or holds the stated fact states otherwise in its own official source, and no assessed source supports the claim.",
+        evidence: agreeing.map(x => evidenceItem(x.source, x.relation, x.index)),
+        adjudication_signals: { ...signals, originating_issuers: issuers.map(x => hostOf(x.source.url)), claim_type: issuerClaimType }
       };
     }
   }

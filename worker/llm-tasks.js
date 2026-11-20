@@ -119,7 +119,7 @@ const UNRESOLVED_OPENING_AR = /^(?:هو|هي|هم|هما|هذا|هذه|ذلك|ت
 const NAME_SKIP = new Set(["The", "This", "That", "These", "Those", "They", "However", "While", "When", "Under", "By", "In", "On", "At", "As", "It", "Its", "A", "An", "And", "But", "Or", "If", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]);
 export function properNamesOf(value) {
   const names = new Set();
-  for (const sentence of String(value || "").split(/(?<=[.!?])\s+/)) {
+  for (const sentence of String(value || "").split(/(?<!\b(?:[A-Z]|v|vs|e\.g|i\.e|etc|cf|al|approx|No|no|Mr|Mrs|Ms|Dr|St|Jr|Sr|Inc|Ltd|Co|Corp|Gen|Gov|Sen|Rep|Prof|Art|Sec|Vol|Fig|Op|Nos)\.)(?<=[.!?])\s+/)) {
     const words = sentence.match(/(?<![0-9A-Za-z])(?:[A-Za-z][A-Za-z0-9'’.-]*[A-Za-z0-9]|[A-Z])/g) || [];
     words.forEach((word, index) => {
       const clean = word.replace(/['’]s$/, "");
@@ -181,7 +181,7 @@ export function validateDecomposition(parsed, text) {
     if (hasUnresolvedSubject(span, source)) {
       // Another accepted claim from the same clause already restates it.
       if (accepted.some(item => item.span === rawSpan)) continue;
-      const sentence = source.split(/(?<=[.!?])\s+/).find(item => item.includes(span));
+      const sentence = source.split(/(?<!\b(?:[A-Z]|v|vs|e\.g|i\.e|etc|cf|al|approx|No|no|Mr|Mrs|Ms|Dr|St|Jr|Sr|Inc|Ltd|Co|Corp|Gen|Gov|Sen|Rep|Prof|Art|Sec|Vol|Fig|Op|Nos)\.)(?<=[.!?])\s+/).find(item => item.includes(span));
       if (!sentence || hasUnresolvedSubject(sentence, source)) continue;
       span = sentence;
     }

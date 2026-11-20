@@ -1,3 +1,8 @@
+# v0.3.18 — abbreviations no longer split sentences (2026-11-20)
+
+- The fallback sentence splitter no longer breaks a sentence after common abbreviations ("South Africa v. Israel", "vs.", "e.g.", "No.", "Dr.", "Inc."). In the replacement-value check, a fallback split at "v." produced the fragment "Israel on 26 January 2024.", which was then checked as a claim of its own. The same rule now applies wherever sentences are split.
+- **Replacement-value rule (v0.3.17): first check, Workers AI model only, because the Groq quota was exhausted.** All 5 true controls were confirmed (STRONG or MODERATE), so no true claim was contradicted. 1 of 10 false parts was refuted with a correction; the rest stayed under review or unassessed. It stays header-gated on the public demo until it is checked with the strong models.
+
 # v0.3.17 — replacement-value rule (2026-11-20)
 
 - **Refuted by the correct value.** Sources rarely say a wrong value is wrong ("it was not adopted in 1997"); they state the right one. A source that states, for the same subject, attribute and time frame, a different value of an attribute that has only one value then (a date, number, count, rank, duration, method, location, deciding body or membership status) now contradicts the claim. The rule does not apply to attributes that can hold several values or that changed over time, such as an announcement date versus a completion date, or a figure revised between editions. All evidence requirements are unchanged: independent publishers, qualified sources and verbatim quotes for corrections.

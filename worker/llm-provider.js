@@ -1,6 +1,9 @@
-// Optional, quota-aware semantic-provider fallback for FreshProof.
-// Cloudflare Workers AI remains primary. Groq is used only after explicit
-// Cloudflare quota/capacity failures and only when the owner enables it.
+// Quota-aware semantic-provider routing for FreshProof.
+// With SEMANTIC_PRIMARY=groq (the public configuration), Groq's strong models
+// are the primary provider for evidence assessment and Cloudflare Workers AI
+// is the second provider; light tasks use whichever has budget free. Groq is
+// active only when GROQ_FALLBACK_ENABLED=true (a legacy name kept for
+// configuration compatibility) and the GROQ_API_KEY secret is set.
 const DEFAULT_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MAX_EVIDENCE_CHARS = 6500; // v0.2.92: keeps about 900 characters of evidence per source within an 8K-token minute budget
@@ -323,7 +326,7 @@ export function createResilientAi(env, dependencies = {}) {
   async function groqCascade(modelInput, input, reason, cloudflareError = null) {
     if (env.GROQ_FALLBACK_ENABLED !== "true" || !env.GROQ_API_KEY) {
       if (cloudflareError) throw cloudflareError;
-      throw new LlmProviderError("groq", "fallback_not_configured", "The optional Groq fallback is not configured.");
+      throw new LlmProviderError("groq", "fallback_not_configured", "Groq is not configured (GROQ_FALLBACK_ENABLED and GROQ_API_KEY).");
     }
     let lastError = null;
     // Light tasks (decomposition, search planning) try the smaller models first
@@ -347,7 +350,7 @@ export function createResilientAi(env, dependencies = {}) {
       const rpm = Number((suffix && env[`GROQ_${suffix}_RPM`]) || env.GROQ_RPM);
       const tpm = Number((suffix && env[`GROQ_${suffix}_TPM`]) || env.GROQ_TPM);
       if (!Number.isFinite(rpm) || rpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
-        throw new LlmProviderError("groq", "limits_not_configured", `Set account-verified RPM/TPM values for ${model} before enabling Groq fallback.`);
+        throw new LlmProviderError("groq", "limits_not_configured", `Set account-verified RPM/TPM values for ${model} before enabling Groq.`);
       }
       try {
         const result = await serialize(() => groqRequest({

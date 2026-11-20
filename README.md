@@ -32,7 +32,7 @@ Time is built into every check, because many errors are facts that used to be tr
 ## Providers and free-tier limits
 
 - **Evidence search: [Tavily](https://tavily.com).** Every claim is checked against sources found through Tavily's search API, called server-side only.
-- **AI providers: Cloudflare Workers AI and [Groq](https://groq.com).** Groq was added as a second, independent provider so the app keeps working when one provider is slow or out of capacity. When Groq has budget, its strong models assess the evidence first, and Cloudflare Workers AI is the other path. The smallest model is never used to judge evidence; if no suitable model is available, the engine abstains instead.
+- **AI providers: Cloudflare Workers AI and [Groq](https://groq.com).** Groq is the primary provider: its strong models assess the evidence first, because they were more accurate and much faster than the free Workers AI model in live tests. Cloudflare Workers AI is the second, independent provider, so the app keeps working when Groq is busy. The smallest model is never used to judge evidence; if no suitable model is available, the engine abstains instead.
 - **Free quotas.** Every service runs on free-tier quotas: zero cost, no paid fallback. Under heavy use a quota can run out at any moment. A claim is then shown as **"Could not be assessed right now (free-tier service limit) — please retry"**. That is a temporary capacity limit, not a failure of the engine and not a verdict on the claim. Quotas renew automatically (Workers AI daily; Groq on a rolling 24-hour window).
 
 ## Development record

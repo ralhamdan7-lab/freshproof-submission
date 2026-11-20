@@ -1,6 +1,6 @@
 # FreshProof v0.2.90 – v0.2.91: evidence coverage engine
 
-> **Historical record.** This document describes FreshProof as of v0.2.91. The current release is **v0.3.19** (547 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+> **Historical record.** This document describes FreshProof as of v0.2.91. The current release is **v0.3.20** (553 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
 
 State labels follow the project convention: PLANNED / IMPLEMENTED / TESTED / VERIFIED / DEPLOYED.
 

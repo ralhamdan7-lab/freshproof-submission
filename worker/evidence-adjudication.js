@@ -65,6 +65,42 @@ function liveIssuerRecord(item, now, maxAgeDays) {
   const recency = evidenceRecency(source, { now, maxAgeDays });
   return recency.recency_basis === "UNDATED" || recency.is_recent;
 }
+// v0.3.20 normative specification: when a claim is about what a published
+// technical standard specifies, the standard's own official text is the
+// primary authority. Only published standards on their issuers' own hosts
+// qualify (RFCs, W3C Technical Reports, ISO, NIST FIPS/SP, ECMA, Unicode,
+// ITU-T Recommendations, ETSI, IEEE); drafts and secondary write-ups never do.
+const NORMATIVE_SPECIFICATION_PATHS = [
+  [/(^|\.)rfc-editor\.org$/, /^\/(?:rfc|info)\/rfc\d+(?:\.(?:html|txt|pdf))?\/?$/i],
+  [/^datatracker\.ietf\.org$/, /^\/doc\/(?:html\/)?rfc\d+\/?$/i],
+  [/^(?:www\.)?ietf\.org$/, /^\/rfc\/rfc\d+(?:\.(?:html|txt))?$/i],
+  [/^(?:www\.)?w3\.org$/, /^\/TR\/(?!.*(?:-?WD-|\/ED\/|NOTE-))/],
+  [/^(?:www\.)?iso\.org$/, /^\/(?:[a-z]{2}\/)?standard\/\d+/i],
+  [/^(?:nvlpubs|csrc)\.nist\.gov$/, /^\/(?:nistpubs\/(?:FIPS|SpecialPublications)\/|pubs\/(?:fips|sp)\/)/i],
+  [/^(?:www\.)?ecma-international\.org$/, /^\/publications-and-standards\/standards\/ecma-\d+/i],
+  [/^(?:www\.)?unicode\.org$/, /^\/(?:reports\/tr\d+|versions\/Unicode\d)/i],
+  [/^(?:www\.)?itu\.int$/, /^\/rec\/T-REC-/i],
+  [/^(?:www\.)?etsi\.org$/, /^\/deliver\/etsi_(?:ts|en|es)\//i],
+  [/^standards\.ieee\.org$/, /^\/ieee\/\d+/i]
+];
+export function isNormativeSpecificationUrl(rawUrl) {
+  let url;
+  try { url = new URL(String(rawUrl || "")); } catch { return false; }
+  if (url.protocol !== "https:" || url.username || url.password || url.port) return false;
+  const host = url.hostname.toLowerCase();
+  return NORMATIVE_SPECIFICATION_PATHS.some(([hostRule, pathRule]) => hostRule.test(host) && pathRule.test(url.pathname));
+}
+function normativeSpecificationSource(item) {
+  const source = item?.source;
+  const assessed = item?.semanticSource;
+  if (!source || !assessed) return false;
+  if (!isNormativeSpecificationUrl(source.url)) return false;
+  if (source.source_reliability !== "PRIMARY_OR_OFFICIAL_DOMAIN" || source.evidence_origin !== "DIRECT_PAGE_PASSAGES") return false;
+  if (/\bobsoleted\s+by\b|\bsuperseded\s+by\b|\bwithdrawn\b|\bhistoric(?:al)?\s+status\b/i.test(`${source.title || ""} ${source.snippet || ""}`)) return false;
+  return assessed.directness === "DIRECT" && assessed.scope_match === "EXACT"
+    && ["ORIGINATING_AUTHORITY", "PRIMARY_RESEARCH"].includes(assessed.authority_role)
+    && ["SUPPORTS", "CONTRADICTS"].includes(item.relation);
+}
 // v0.2.82: a first-party domain (publisher name equals an entity in the claim)
 // counts as primary only when the semantic assessment also finds that the page
 // itself directly originates the record. Structural/curated authority is unchanged.
@@ -387,7 +423,8 @@ export function adjudicateEvidence({
   maxEvidenceAgeDays = 180,
   temporalSensitive = true,
   claimFrame = null,
-  changeSearchPerformed = false
+  changeSearchPerformed = false,
+  normativeSpecification = false
 } = {}) {
   const materialComponents = Array.isArray(claimComponents) ? claimComponents : [];
   const evidenceFrame = claimFrame?.frame || null;
@@ -742,6 +779,34 @@ export function adjudicateEvidence({
       evidence: agreeing.map(x => evidenceItem(x.source, x.relation, x.index)),
       adjudication_signals: { ...signals, live_issuer_records: liveRecords.map(x => hostOf(x.source.url)), observation_time_is_retrieval_time: true }
     };
+  }
+  // v0.3.20 normative specification rule (rollout switch NORMATIVE_SPEC_MODE):
+  // a claim about what a published standard specifies is settled by the
+  // standard's own official text when every condition holds: the claim is not
+  // a current-state, scheduled or mixed-time claim, not dynamic and not
+  // compound; the standard was fetched directly from its issuer's host and is
+  // not marked obsoleted, superseded or withdrawn; the model found it DIRECT,
+  // EXACT scope and the originating or primary authority; every such standard
+  // agrees; and no qualified source takes the opposite or a mixed position,
+  // with no mixed relation among any assessed source.
+  const specifications = normativeSpecification && relations && !requireRecentEvidence
+    && !lexicalGuard.dynamic && !lexicalGuard.compound && !modelOnlyCompound && !mixed && !allEvidenceMixed
+    ? qualified.filter(normativeSpecificationSource) : [];
+  if (specifications.length > 0) {
+    const relation = specifications[0].relation;
+    const opposing = relation === "SUPPORTS" ? contradicting : supporting;
+    if (specifications.every(x => x.relation === relation) && opposing.length === 0) {
+      const agreeing = relation === "SUPPORTS" ? supporting : contradicting;
+      return {
+        status: relation === "SUPPORTS" ? "CURRENT" : "CONTRADICTED",
+        method: "NORMATIVE_SPECIFICATION",
+        rationale: relation === "SUPPORTS"
+          ? "The official text of the published standard the claim is about directly states what the claim says, and no qualified source disagrees."
+          : "The official text of the published standard the claim is about directly contradicts the claim, and no qualified source supports it.",
+        evidence: agreeing.map(x => evidenceItem(x.source, x.relation, x.index)),
+        adjudication_signals: { ...signals, normative_specifications: specifications.map(x => hostOf(x.source.url)) }
+      };
+    }
   }
   // Narrow corroboration by reputable secondary publishers; no single-source shortcut.
   const secondaryOnlyEligible = (items) => {

@@ -1,5 +1,7 @@
 # Test Strategy — FreshProof v0.2.81
 
+> **Historical record.** This document describes FreshProof as of v0.2.81. The current release is **v0.3.19** (547 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+
 ## Current public CI (2026-11-15)
 - Main verification workflow [#43711250834](https://github.com/ralhamdan7-lab/freshproof-submission/actions/runs/43711250834): **321/321 PASS in UTC and 321/321 PASS in Asia/Riyadh**, zero failures/skips.
 - Worker, adjudication, domain adapter, and browser application syntax checks passed.

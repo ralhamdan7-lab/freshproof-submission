@@ -1,5 +1,7 @@
 # Public Release Readiness — FreshProof v0.2.81
 
+> **Historical record.** This document describes FreshProof as of v0.2.81. The current release is **v0.3.19** (547 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+
 Updated: 2026-11-15
 
 ## Public release identity

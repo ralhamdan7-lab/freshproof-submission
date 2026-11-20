@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.17";
+export const VERSION = "0.3.18";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -175,7 +175,8 @@ export function bindDependentSentences(sentences) {
 export function extractClaimCandidates(text) {
   const sentences = String(text).replace(/\s+/g, " ")
     // Do not split after an initial/abbreviation such as "J. Trump" or "U.S. President".
-    .split(/(?<!\b[A-Z]\.)(?<=[.!?؟])\s+(?=[A-Z0-9\u0600-\u06FF“"'])/);
+    // v0.3.18: nor after common abbreviations ("South Africa v. Israel", "e.g.", "No.").
+    .split(/(?<!\b(?:[A-Z]|v|vs|e\.g|i\.e|etc|cf|al|approx|No|no|Mr|Mrs|Ms|Dr|St|Jr|Sr|Inc|Ltd|Co|Corp|Gen|Gov|Sen|Rep|Prof|Art|Sec|Vol|Fig|Op|Nos)\.)(?<=[.!?؟])\s+(?=[A-Z0-9؀-ۿ“"'])/);
   return bindDependentSentences(sentences).map(unit => unit.text).flatMap(splitAtomicClauses).map(s => s.trim())
     .filter(s => s.length >= 12);
 }
@@ -1003,7 +1004,7 @@ export function claimNamesAbsent(claim, sourceText) {
   const text = String(claim || "");
   if (/[\u0600-\u06FF]/.test(text)) return [];
   const names = new Set();
-  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+  for (const sentence of text.split(/(?<!\b(?:[A-Z]|v|vs|e\.g|i\.e|etc|cf|al|approx|No|no|Mr|Mrs|Ms|Dr|St|Jr|Sr|Inc|Ltd|Co|Corp|Gen|Gov|Sen|Rep|Prof|Art|Sec|Vol|Fig|Op|Nos)\.)(?<=[.!?])\s+/)) {
     // v0.3.9: a letter run glued to digits ("128K-token", "4o") is a unit or
     // model code, not a name.
     const words = sentence.match(/(?<![0-9A-Za-z])[A-Za-z][A-Za-z'’-]*(?![0-9])/g) || [];

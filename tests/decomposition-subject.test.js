@@ -56,3 +56,9 @@ test("v0.3.16: a rejected part whose clause lacks the subject is verified as its
   assert.equal(claims[1].claim, t);
   assert.equal(claims[1].from_span, true);
 });
+
+test("v0.3.18: sentence splitting keeps common abbreviations inside the sentence", async () => {
+  const { extractClaimCandidates } = await import("../worker/index.js");
+  assert.deepEqual(extractClaimCandidates("On 26 January 2024, the International Court of Justice issued a final merits judgment in South Africa v. Israel."), ["On 26 January 2024, the International Court of Justice issued a final merits judgment in South Africa v. Israel."]);
+  assert.equal(extractClaimCandidates("The case Brown vs. Board of Education was decided in 1954. The U.S. Senate confirmed Dr. Smith in 2020.").length, 2);
+});

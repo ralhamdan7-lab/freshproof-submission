@@ -6,11 +6,11 @@ Project owner: **Raed Alhamdan**. FreshProof is designed to evolve: this log sho
 
 | Item | Count |
 |---|---|
-| Documented releases (v0.2.0 → v0.3.22) | 70+ |
+| Documented releases (v0.2.0 → v0.3.23) | 70+ |
 | Automated tests in the current version (run in UTC and in Asia/Riyadh) | 562 |
 | Merged pull requests (private development + public submission repositories) | 200+ |
 | Automated CI and validation workflow runs (both repositories) | 2,900+ |
-| Live diagnostic claims used during development (English and Arabic, simple to multi-part) | 116 |
+| Live diagnostic claims used during development (English and Arabic, simple to multi-part) | 138 |
 | Free AI providers used | 2 (Cloudflare Workers AI and Groq) |
 | Evidence search provider | Tavily |
 
@@ -53,5 +53,6 @@ These are effort and engineering figures, not accuracy figures. The diagnostic c
 | v0.3.20 | 20 Nov | The official text of a published standard (such as an RFC) settles claims about it (staged) |
 | v0.3.21 | 20 Nov | In any field, the body that issued a fact can settle it on its own official source (staged) |
 | v0.3.22 | 21 Nov | A single-authority verdict also needs a second, independent reading of the same fact |
+| v0.3.23 | 21 Nov | Three evidence rules switched on for everyone after live checks with no wrong verdict |
 
 Full technical notes for each version are in [CHANGELOG.md](../CHANGELOG.md).

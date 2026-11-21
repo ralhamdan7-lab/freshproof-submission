@@ -1,1 +1,1 @@
-run 19 2026-11-21T11:02:36Z cases=S01,S02,S03,S04,S05,S06,S07,S08 ui=1 raw=1 experiment=normative-spec
+run 20 2026-11-21T11:07:02Z cases=I01,I02,I03,I04,I05,I06,I07,I08,I09,I10,I11,I12,I13,I14 ui=1 raw=1 experiment=issuer-authority

@@ -1234,8 +1234,9 @@
    "group": "standard-true",
    "claim": "Web Authentication Level 2 is a W3C Recommendation.",
    "accept": [
-    "CURRENT"
-   ]
+    "SUPERSEDED"
+   ],
+   "note": "Level 3 became a W3C Recommendation on 25 August 2026 and succeeds Level 2 (w3.org news); the original label CURRENT was wrong."
   },
   {
    "id": "S06",

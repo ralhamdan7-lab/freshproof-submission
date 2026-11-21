@@ -1191,6 +1191,205 @@
    "accept": [
     "CURRENT"
    ]
+  },
+  {
+   "id": "S01",
+   "lang": "en",
+   "group": "standard-false",
+   "claim": "TLS 1.3 allows clients to encrypt the premaster secret using the server's RSA public key during the handshake.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "S02",
+   "lang": "en",
+   "group": "standard-false",
+   "claim": "TLS 1.3 supports static RSA key transport as a negotiated key-exchange mechanism.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "S03",
+   "lang": "en",
+   "group": "standard-true",
+   "claim": "TLS 1.3 supports PSK with (EC)DHE key exchange.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "S04",
+   "lang": "en",
+   "group": "standard-true",
+   "claim": "HTTP/1.1 is defined in RFC 9112.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "S05",
+   "lang": "en",
+   "group": "standard-true",
+   "claim": "Web Authentication Level 2 is a W3C Recommendation.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "S06",
+   "lang": "en",
+   "group": "standard-false",
+   "claim": "HTTP/2 is defined in RFC 7230.",
+   "accept": [
+    "CONTRADICTED",
+    "SUPERSEDED"
+   ]
+  },
+  {
+   "id": "S07",
+   "lang": "en",
+   "group": "standard-false",
+   "claim": "IPv6 addresses are 64 bits long.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "S08",
+   "lang": "en",
+   "group": "standard-true",
+   "claim": "IPv6 addresses are 128 bits long.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I01",
+   "lang": "en",
+   "group": "issuer-law-false",
+   "claim": "The EU Artificial Intelligence Act, Regulation (EU) 2024/1689, entered into force on 1 January 2025.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "I02",
+   "lang": "en",
+   "group": "issuer-law-true",
+   "claim": "The EU Artificial Intelligence Act, Regulation (EU) 2024/1689, entered into force on 1 August 2024.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I03",
+   "lang": "en",
+   "group": "issuer-health-true",
+   "claim": "The U.S. FDA granted traditional approval to Leqembi (lecanemab) on 6 July 2023.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I04",
+   "lang": "en",
+   "group": "issuer-health-false",
+   "claim": "The U.S. FDA granted traditional approval to Leqembi (lecanemab) in January 2021.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "I05",
+   "lang": "en",
+   "group": "issuer-membership-true",
+   "claim": "Finland became a member of NATO on 4 April 2023.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I06",
+   "lang": "en",
+   "group": "issuer-membership-false",
+   "claim": "Sweden became a member of NATO on 4 April 2023.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "I07",
+   "lang": "en",
+   "group": "issuer-product-true",
+   "claim": "The Raspberry Pi 5 uses the Broadcom BCM2712 processor.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I08",
+   "lang": "en",
+   "group": "issuer-product-false",
+   "claim": "The Raspberry Pi 5 uses the Broadcom BCM2711 processor.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "I09",
+   "lang": "en",
+   "group": "issuer-statistics-true",
+   "claim": "The 2020 United States Census counted a resident population of 331,449,281.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I10",
+   "lang": "en",
+   "group": "issuer-statistics-false",
+   "claim": "The 2020 United States Census counted a resident population of 308,745,538.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "I11",
+   "lang": "en",
+   "group": "issuer-appointment-true",
+   "claim": "Mark Carney was sworn in as Prime Minister of Canada on 14 March 2025.",
+   "accept": [
+    "CURRENT"
+   ]
+  },
+  {
+   "id": "I12",
+   "lang": "en",
+   "group": "issuer-appointment-false",
+   "claim": "António Guterres took office as UN Secretary-General on 1 January 2015.",
+   "accept": [
+    "CONTRADICTED"
+   ]
+  },
+  {
+   "id": "I13",
+   "lang": "en",
+   "group": "issuer-marketing",
+   "claim": "The NVIDIA H100 is the world's most advanced data center GPU.",
+   "accept": [
+    "UNVERIFIABLE"
+   ]
+  },
+  {
+   "id": "I14",
+   "lang": "en",
+   "group": "issuer-consensus",
+   "claim": "Vaccines cause autism.",
+   "accept": [
+    "CONTRADICTED"
+   ]
   }
  ],
  "long_texts": [

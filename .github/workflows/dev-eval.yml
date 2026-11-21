@@ -30,7 +30,7 @@ jobs:
         id: scope
         run: |
           cases=$(grep -o 'cases=[A-Z0-9,]*' triggers/dev-eval.txt | cut -d= -f2 || true)
-          experiment=$(grep -o 'experiment=[a-z-]*' triggers/dev-eval.txt | cut -d= -f2 || true)
+          experiment=$(grep -o 'experiment=[a-z,-]*' triggers/dev-eval.txt | cut -d= -f2 || true)
           if [ -z "$cases" ]; then echo "No cases listed; nothing to run."; fi
           echo "cases=$cases" >> "$GITHUB_OUTPUT"
           echo "experiment=$experiment" >> "$GITHUB_OUTPUT"

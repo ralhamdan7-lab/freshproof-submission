@@ -1,3 +1,10 @@
+# v0.3.22 — a second, independent reading for single-authority verdicts (2026-11-21)
+
+- **Live check of the staged rules (strong models, public demo, header-gated).** Normative specification, 8 standard-content claims: every decisive verdict was right; the rule decided 4 (TLS 1.3 RSA key transport and premaster-secret encryption contradicted by RFC 8446, PSK with (EC)DHE and 128-bit IPv6 addresses confirmed) and stood aside for an obsoleted RFC. One label was wrong, not the engine: WebAuthn Level 2 was correctly reported as superseded by Level 3 (W3C Recommendation, 25 August 2026). Originating issuer, 14 claims across law, health regulation, membership, product specifications, statistics and appointments: no wrong decisive verdict; the rule decided one (FDA, Leqembi approval date); two claims were not assessed because the free Groq quota was spent.
+- **Near miss found and closed.** On one claim a strong model read NATO's official page ("Finland and Sweden became full members of the Alliance on 4 April 2023 and 7 March 2024") as saying Sweden joined on 4 April 2023. Other sources disagreed, so the engine abstained, but with no other source a single misread official page could have produced a wrong verdict.
+- **Second reading required.** The normative specification and originating issuer rules now also require at least two independent publishers, of any reliability, to take the authority's position. The authority still settles the claim; the second reading only checks that the authority's page was read correctly.
+- 562 automated tests pass in UTC and Asia/Riyadh.
+
 # v0.3.21 — the issuer of a fact settles it, in any field (2026-11-20)
 
 - **Originating issuer rule.** One official source now settles a claim in any field (law, health, economics, technology, organisations) when that source is the body that itself made, issued, holds or maintains the stated fact: its own decision, law, record, register, membership list, appointment, product specification, official statistics or publication. Being on an official or government domain is not enough: a page that reports another body's fact does not qualify.

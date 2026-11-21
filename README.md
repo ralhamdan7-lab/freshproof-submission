@@ -37,7 +37,7 @@ Time is built into every check, because many errors are facts that used to be tr
 
 ## Development record
 
-FreshProof grew through 70+ documented releases, from v0.2.0 to v0.3.21. The current version passes 560 automated tests in two time zones, backed by 200+ merged pull requests and 2,900+ automated CI and validation runs. See the **[release history table](docs/RELEASES.md)**.
+FreshProof grew through 70+ documented releases, from v0.2.0 to v0.3.22. The current version passes 562 automated tests in two time zones, backed by 200+ merged pull requests and 2,900+ automated CI and validation runs. See the **[release history table](docs/RELEASES.md)**.
 
 ## What it does
 
@@ -83,7 +83,7 @@ The semantic model is advisory; it cannot independently establish truth or overr
 
 ## Public prototype
 
-- **Current version:** `0.3.21`
+- **Current version:** `0.3.22`
 - **Public demo:** https://freshproof-submission-demo.ralhamdan7.workers.dev
 - **Health:** https://freshproof-submission-demo.ralhamdan7.workers.dev/api/health
 - **Runtime:** Cloudflare Worker with static browser assets
@@ -92,9 +92,9 @@ The semantic model is advisory; it cannot independently establish truth or overr
 - **Result cache:** identical claims reuse a short-lived cached assessment (marked with its assessment time)
 - **Storage:** no application database or durable user-submission storage is required
 
-## Current release evidence (v0.3.21)
+## Current release evidence (v0.3.22)
 
-- 560 automated tests pass in UTC and in Asia/Riyadh, with browser acceptance and live-deployment acceptance on every release.
+- 562 automated tests pass in UTC and in Asia/Riyadh, with browser acceptance and live-deployment acceptance on every release.
 - Live diagnostics on the public demo covered 116 claims during development, from simple facts to long multi-part claims in technology, health, climate, economics, law and space. In the latest rounds, no part of any claim received a wrong decisive verdict. Its labels were written during development, so this is a development diagnostic, not an accuracy study.
 - No precision, recall, false-positive rate or cost-per-claim figure is claimed. Confidence tiers are evidence categories, not calibrated probabilities.
 

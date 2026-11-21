@@ -17,7 +17,7 @@ const official = (overrides = {}) => ({
   relevance_assessment: { relevance: "HIGH" }, ...overrides
 });
 const other = (overrides = {}) => ({
-  title: "A blog", url: "https://notes.example.net/post", snippet: "Background.",
+  title: "A blog", url: "https://notes.sample-blog.net/post", snippet: "Background.",
   source_reliability: "UNKNOWN", reliability_basis: "UNCLASSIFIED_PUBLISHER", evidence_origin: "SEARCH_SNIPPET",
   relevance_assessment: { relevance: "HIGH" }, ...overrides
 });
@@ -37,16 +37,16 @@ const UN_CLAIM = "South Sudan became the 194th United Nations Member State in Ju
 const LAW_CLAIM = "The Personal Data Protection Law was published in the Official Gazette on 24 September 2021.";
 
 test("the issuing body's own official record settles claims in any field, including high-impact ones", () => {
-  const un = run(UN_CLAIM, [official()], semantic("CONTRADICTS"));
+  const un = run(UN_CLAIM, [official(), other({ snippet: "South Sudan, the 193rd member." })], semantic("CONTRADICTS", { extra: ["CONTRADICTS"] }));
   assert.equal(un.status, "CONTRADICTED");
   assert.equal(un.method, "ORIGINATING_ISSUER");
   assert.deepEqual(un.adjudication_signals.originating_issuers, ["un.org"]);
-  const law = run(LAW_CLAIM, [official({ url: "https://www.example.gov.sa/gazette/pdpl", reliability_basis: "GOVERNMENT_OR_INTERGOVERNMENTAL_DOMAIN_PATTERN", snippet: "The Personal Data Protection Law was published in the Official Gazette on 24 September 2021." })], semantic("SUPPORTS"));
+  const law = run(LAW_CLAIM, [official({ url: "https://www.example.gov.sa/gazette/pdpl", reliability_basis: "GOVERNMENT_OR_INTERGOVERNMENTAL_DOMAIN_PATTERN", snippet: "The Personal Data Protection Law was published in the Official Gazette on 24 September 2021." }), other()], semantic("SUPPORTS", { extra: ["SUPPORTS"] }));
   assert.equal(law.status, "CURRENT");
   assert.equal(law.method, "ORIGINATING_ISSUER");
-  const product = run("The Velmora V2 sensor has a resolution of 48 megapixels.", [official({ url: "https://www.velmora.example/v2/specs", reliability_basis: "FIRST_PARTY_ENTITY_DOMAIN", snippet: "V2 sensor resolution: 48 MP." })], semantic("SUPPORTS", { claimType: "OTHER" }), { frame: STABLE });
+  const product = run("The Velmora V2 sensor has a resolution of 48 megapixels.", [official({ url: "https://www.velmora.example/v2/specs", reliability_basis: "FIRST_PARTY_ENTITY_DOMAIN", snippet: "V2 sensor resolution: 48 MP." }), other()], semantic("SUPPORTS", { claimType: "OTHER", extra: ["SUPPORTS"] }), { frame: STABLE });
   assert.equal(product.method, "ORIGINATING_ISSUER");
-  const study = run("The Arden Trial reported a 31% reduction in admissions.", [official({ url: "https://journal.example.edu/arden", source_reliability: "INSTITUTIONAL", reliability_basis: "ACADEMIC_DOMAIN_PATTERN", snippet: "Admissions fell by 31%." })], semantic("SUPPORTS", { claimType: "ATTRIBUTED_RESEARCH_RESULT", src: { authority_role: "PRIMARY_RESEARCH" } }));
+  const study = run("The Arden Trial reported a 31% reduction in admissions.", [official({ url: "https://journal.example.edu/arden", source_reliability: "INSTITUTIONAL", reliability_basis: "ACADEMIC_DOMAIN_PATTERN", snippet: "Admissions fell by 31%." }), other()], semantic("SUPPORTS", { claimType: "ATTRIBUTED_RESEARCH_RESULT", src: { authority_role: "PRIMARY_RESEARCH" }, extra: ["SUPPORTS"] }));
   assert.equal(study.method, "ORIGINATING_ISSUER");
 });
 
@@ -99,4 +99,11 @@ test("a research result is settled only by the study itself, not by another body
   const reported = run("The Arden Trial reported a 31% reduction in admissions.", [official({ url: "https://www.health.example.gov/news/arden", reliability_basis: "GOVERNMENT_OR_INTERGOVERNMENTAL_DOMAIN_PATTERN", snippet: "The Arden Trial reported a 31% reduction in admissions." })],
     semantic("SUPPORTS", { claimType: "ATTRIBUTED_RESEARCH_RESULT" }));
   assert.notEqual(reported.method, "ORIGINATING_ISSUER");
+});
+
+test("v0.3.22: the issuer alone is not enough without a second, independent reading", () => {
+  const alone = run(UN_CLAIM, [official()], semantic("CONTRADICTS"));
+  assert.notEqual(alone.method, "ORIGINATING_ISSUER");
+  const onlyInsufficient = run(UN_CLAIM, [official(), other()], semantic("CONTRADICTS", { extra: ["INSUFFICIENT"] }));
+  assert.notEqual(onlyInsufficient.method, "ORIGINATING_ISSUER");
 });

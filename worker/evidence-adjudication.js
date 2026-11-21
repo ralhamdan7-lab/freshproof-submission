@@ -722,6 +722,15 @@ export function adjudicateEvidence({
   const allRelations = relations ? [...relations.byIndex.values()] : [];
   const allEvidenceMixed = allRelations.includes("MIXED")
     || (allRelations.includes("SUPPORTS") && allRelations.includes("CONTRADICTS"));
+  // v0.3.22: a single-authority verdict also needs a second, independent
+  // reading of the same fact: at least two distinct publishers (any
+  // reliability) must take the authority's position. In live checks a strong
+  // model once misread an official page ("Finland and Sweden became members
+  // on 4 April 2023 and 7 March 2024") as supporting the wrong date; only
+  // other sources disagreeing prevented a wrong verdict.
+  const hostsTaking = relation => uniqueHosts(allRelations.length
+    ? [...relations.byIndex.entries()].filter(([, value]) => value === relation).map(([index]) => sources[index]).filter(Boolean)
+    : []);
   const signals = {
     source_trace,
     claim_frame: evidenceFrame,
@@ -820,7 +829,7 @@ export function adjudicateEvidence({
   if (specifications.length > 0) {
     const relation = specifications[0].relation;
     const opposing = relation === "SUPPORTS" ? contradicting : supporting;
-    if (specifications.every(x => x.relation === relation) && opposing.length === 0) {
+    if (specifications.every(x => x.relation === relation) && opposing.length === 0 && hostsTaking(relation).size >= 2) {
       const agreeing = relation === "SUPPORTS" ? supporting : contradicting;
       return {
         status: relation === "SUPPORTS" ? "CURRENT" : "CONTRADICTED",
@@ -849,7 +858,7 @@ export function adjudicateEvidence({
   if (issuers.length > 0) {
     const relation = issuers[0].relation;
     const opposing = relation === "SUPPORTS" ? contradicting : supporting;
-    if (issuers.every(x => x.relation === relation) && opposing.length === 0) {
+    if (issuers.every(x => x.relation === relation) && opposing.length === 0 && hostsTaking(relation).size >= 2) {
       const agreeing = relation === "SUPPORTS" ? supporting : contradicting;
       return {
         status: relation === "SUPPORTS" ? "CURRENT" : "CONTRADICTED",

@@ -58,8 +58,8 @@ test("the standard's own text settles a claim about what it specifies (contradic
   assert.equal(contradicted.status, "CONTRADICTED");
   assert.equal(contradicted.method, "NORMATIVE_SPECIFICATION");
   assert.deepEqual(contradicted.adjudication_signals.normative_specifications, ["rfc-editor.org"]);
-  const supported = run([rfc({ snippet: "TLS 1.3 supports three key exchange modes: (EC)DHE, PSK-only and PSK with (EC)DHE." })],
-    semantic("SUPPORTS"), { claim: "TLS 1.3 supports PSK with (EC)DHE key exchange." });
+  const supported = run([rfc({ snippet: "TLS 1.3 supports three key exchange modes: (EC)DHE, PSK-only and PSK with (EC)DHE." }), blog({ snippet: "TLS 1.3 offers PSK with (EC)DHE." })],
+    semantic("SUPPORTS", {}, ["SUPPORTS"]), { claim: "TLS 1.3 supports PSK with (EC)DHE key exchange." });
   assert.equal(supported.status, "CURRENT");
   assert.equal(supported.method, "NORMATIVE_SPECIFICATION");
 });
@@ -109,4 +109,14 @@ test("any disagreement blocks the rule", () => {
     { ...semantic("CONTRADICTS"), assessments: [{ source_index: 0, relation: "CONTRADICTS" }, { source_index: 1, relation: "SUPPORTS" }],
       source_assessments: [0, 1].map(i => ({ source_index: i, directness: "DIRECT", scope_match: "EXACT", authority_role: "ORIGINATING_AUTHORITY", temporal_role: "BACKGROUND", change_type: "NONE" })) });
   assert.notEqual(twoStandardsDisagree.method, "NORMATIVE_SPECIFICATION");
+});
+
+test("v0.3.22: the standard alone is not enough without a second, independent reading", () => {
+  const alone = run([rfc()], semantic("CONTRADICTS"));
+  assert.notEqual(alone.method, "NORMATIVE_SPECIFICATION");
+  assert.notEqual(alone.status, "CONTRADICTED");
+  const twoStandardHosts = run([rfc(), rfc({ url: "https://datatracker.ietf.org/doc/html/rfc8446", snippet: "Section 2: the key exchange modes are (EC)DHE, PSK-only and PSK with (EC)DHE; RSA key transport was removed." })],
+    { ...semantic("CONTRADICTS"), assessments: [0, 1].map(i => ({ source_index: i, relation: "CONTRADICTS" })),
+      source_assessments: [0, 1].map(i => ({ source_index: i, directness: "DIRECT", scope_match: "EXACT", authority_role: "ORIGINATING_AUTHORITY", temporal_role: "BACKGROUND", change_type: "NONE" })) });
+  assert.equal(twoStandardHosts.method, "NORMATIVE_SPECIFICATION");
 });

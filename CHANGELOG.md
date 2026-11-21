@@ -1,3 +1,14 @@
+# v0.3.23 — three evidence rules switched on after live checks (2026-11-21)
+
+- **Switched on for everyone:** the replacement-value rule (v0.3.17), the normative specification rule (v0.3.20) and the originating issuer rule (v0.3.21, with the v0.3.22 second-reading safeguard). Until now they ran only for requests carrying a test header.
+- **Live checks with the strong models (21 November, public demo).** Across 42 claim checks (8 standard-content claims, 14 claims across law, health regulation, membership, product specifications, statistics and appointments, 15 replacement-value claims with true controls, and a combined run of all three rules), no claim received a wrong decisive verdict:
+  - normative specification decided 5 checks, all correct (RFC 8446 on TLS 1.3 key exchange, IETF RFCs on 128-bit IPv6 addresses) and stood aside for an obsoleted RFC;
+  - originating issuer decided 1 check, correctly (FDA, Leqembi approval date); the run also exposed a misread official page, now covered by the v0.3.22 second-reading safeguard;
+  - replacement value produced 4 corrections, all correct (South Sudan was the 193rd UN member; Casgevy edits a patient's own stem cells outside the body; NOAA reported 2023 warmer than 2016; the 2030 Agenda has 17 goals), and no true control was contradicted.
+  - 10 checks were not assessed because the free Groq quota was spent; they are reported as such, not counted as passes.
+- These are development diagnostics on labels written during development, not an accuracy study.
+- **Repository.** The development diagnostic set and its runner moved to the private development repository.
+
 # v0.3.22 — a second, independent reading for single-authority verdicts (2026-11-21)
 
 - **Live check of the staged rules (strong models, public demo, header-gated).** Normative specification, 8 standard-content claims: every decisive verdict was right; the rule decided 4 (TLS 1.3 RSA key transport and premaster-secret encryption contradicted by RFC 8446, PSK with (EC)DHE and 128-bit IPv6 addresses confirmed) and stood aside for an obsoleted RFC. One label was wrong, not the engine: WebAuthn Level 2 was correctly reported as superseded by Level 3 (W3C Recommendation, 25 August 2026). Originating issuer, 14 claims across law, health regulation, membership, product specifications, statistics and appointments: no wrong decisive verdict; the rule decided one (FDA, Leqembi approval date); two claims were not assessed because the free Groq quota was spent.

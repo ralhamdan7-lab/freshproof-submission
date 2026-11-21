@@ -1,4 +1,4 @@
-# FreshProof — Project Overview (v0.3.22)
+# FreshProof — Project Overview (v0.3.23)
 
 ## Project title
 

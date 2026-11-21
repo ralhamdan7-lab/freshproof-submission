@@ -14,9 +14,9 @@ ALLOWED_ORIGIN = "https://freshproof-submission-demo.ralhamdan7.workers.dev"
 ENABLE_SEMANTIC_TRIAGE = "true"
 ENABLE_CORRECTION_CANDIDATE_REVIEW = "true"
 PLANNED_AUTHORITY_MODE = "on"
-REPLACEMENT_VALUE_MODE = "header"
-NORMATIVE_SPEC_MODE = "header"
-ISSUER_AUTHORITY_MODE = "header"
+REPLACEMENT_VALUE_MODE = "on"
+NORMATIVE_SPEC_MODE = "on"
+ISSUER_AUTHORITY_MODE = "on"
 # Groq free tier is the primary provider (SEMANTIC_PRIMARY): its strong models assess evidence first.
 # GROQ_FALLBACK_ENABLED is a legacy name kept for compatibility; it switches Groq on when the GROQ_API_KEY secret is set.
 GROQ_FALLBACK_ENABLED = "true"

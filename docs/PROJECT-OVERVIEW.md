@@ -1,4 +1,4 @@
-# FreshProof — Project Overview (v0.3.21)
+# FreshProof — Project Overview (v0.3.22)
 
 ## Project title
 
@@ -33,7 +33,7 @@ A working web application and API, deployed on the public demo:
 - **Runtime:** Cloudflare Workers (API and web app), with a short-lived result cache. No database and no stored user submissions.
 - **Evidence search:** Tavily Search API, called server-side only.
 - **AI models (free tier):** Groq — `qwen/qwen3.8-27b` and `openai/gpt-oss-120b` judge evidence; Cloudflare Workers AI — `@cf/zai-org/glm-4.7-flash` as the second provider. The smallest model is never used to judge evidence.
-- **Quality:** Node.js test suite (560 tests in two time zones), Playwright browser acceptance, live-deployment acceptance on every release, GitHub Actions CI.
+- **Quality:** Node.js test suite (562 tests in two time zones), Playwright browser acceptance, live-deployment acceptance on every release, GitHub Actions CI.
 - **Cost:** everything runs on free tiers. If a quota runs out, the app shows a temporary service-limit message instead of a verdict.
 
 ## How AI is used

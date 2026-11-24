@@ -241,7 +241,7 @@ test("v0.3.0: broad agreement (4+ agreeing, none opposing, 3 lineages, classifie
   assert.equal(strong.confidence_tier, "STRONG");
   assert.equal(strong.adjudication_signals.confidence_basis, "BROAD_INDEPENDENT_AGREEMENT");
   const three = run(sources.slice(0, 3), sem(["SUPPORTS", "SUPPORTS", "SUPPORTS"]));
-  assert.equal(three.confidence_tier, "MODERATE", "three agreeing sources stay MODERATE");
+  assert.equal(three.confidence_tier, "STRONG", "v0.3.24: three agreeing sources are STRONG for a stable, non-high-risk claim");
   const withDissent = run(sources, sem(["SUPPORTS", "SUPPORTS", "SUPPORTS", "CONTRADICTS"], { scope: ["EXACT", "EXACT", "EXACT", "PARTIAL"] }));
   assert.notEqual(withDissent.confidence_tier, "STRONG", "any opposing assessment prevents STRONG");
 });

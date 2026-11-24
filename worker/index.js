@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.23";
+export const VERSION = "0.3.24";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -742,6 +742,7 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai, options = 
         // v0.3.6 safety: a source that frames the claim as a myth, hoax or
         // false claim cannot support an affirmative claim. Models sometimes
         // read "this debunking page is about the claim" as support.
+        if (a.relation === "CONTRADICTS" && dateWithinClaimedMonth(claim, sourceText)) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: "Downgraded: the source dates the event within the month the claim states, so it does not contradict the claimed month.", requires_review: true, method: "WITHIN_CLAIMED_PERIOD_GUARD", model_relation: "CONTRADICTS" };
         if (a.relation === "SUPPORTS" && sourceDebunksClaim(claim, sourceText)) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: "Downgraded: the source describes this claim as false, a myth or misinformation, so it cannot support it.", requires_review: true, method: "DEBUNKING_LANGUAGE_GUARD", model_relation: "SUPPORTS" };
         return {
           source_index: a.source_index,
@@ -1004,6 +1005,28 @@ const NAME_STOPWORDS = new Set(["The", "This", "That", "These", "Those", "There"
   "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec",
   "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "However", "Under", "Meanwhile", "Although", "Because"]);
 const nameStem = word => word.toLowerCase().replace(/(?:'s|’s|s)$/u, "");
+const UNIT_SYMBOL_EQUIVALENTS = { celsius: /\d\s*[°º]\s*C\b/, fahrenheit: /\d\s*[°º]\s*F\b/ };
+// v0.3.24: a claim dated to a month ("in November 2022") is not contradicted by
+// a source that dates the same event to a day within that month ("30 November
+// 2022"). Such a contradiction is downgraded to INSUFFICIENT, never flipped.
+const MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December";
+export function claimMonthPeriods(claim) {
+  const text = String(claim || "");
+  const periods = [];
+  for (const match of text.matchAll(new RegExp(`(?<!\\d\\s)(?<!\\d)\\b(${MONTHS})\\s+(\\d{4})\\b`, "g"))) {
+    const before = text.slice(Math.max(0, match.index - 4), match.index);
+    const after = text.slice(match.index, match.index + match[0].length + 4);
+    if (/\d\s*$/.test(before) || new RegExp(`^(?:${MONTHS})\\s+\\d{1,2},`).test(after)) continue;
+    periods.push({ month: match[1].toLowerCase(), year: match[2] });
+  }
+  return periods;
+}
+export function dateWithinClaimedMonth(claim, sourceText) {
+  const periods = claimMonthPeriods(claim);
+  if (!periods.length) return false;
+  const text = String(sourceText || "");
+  return periods.some(({ month, year }) => new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+${month}\\s+${year}\\b|\\b${month}\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+${year}\\b`, "i").test(text));
+}
 export function claimNamesAbsent(claim, sourceText) {
   const text = String(claim || "");
   if (/[\u0600-\u06FF]/.test(text)) return [];
@@ -1044,6 +1067,8 @@ export function claimNamesAbsent(claim, sourceText) {
   return [...names].filter(name => {
     const stem = nameStem(name);
     if (haystack.includes(stem)) return false;
+    // v0.3.24: a temperature scale is often written as its symbol ("100 °C").
+    if (UNIT_SYMBOL_EQUIVALENTS[name.toLowerCase()]?.test(original)) return false;
     // A hyphenated name may be written with spaces ("Mixture of Experts").
     if (stem.includes("-") && spaced.includes(stem.replace(/-+/g, " "))) return false;
     if (name.includes("-")) {

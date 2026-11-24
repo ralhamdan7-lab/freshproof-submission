@@ -1,6 +1,6 @@
 # Public Verification Log — FreshProof v0.2.76
 
-> **Historical record.** This document describes FreshProof as of v0.2.76. The current release is **v0.3.23** (562 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+> **Historical record.** This document describes FreshProof as of v0.2.76. The current release is **v0.3.24** (565 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
 
 This log records only public release evidence. It contains no credentials or personal data.
 

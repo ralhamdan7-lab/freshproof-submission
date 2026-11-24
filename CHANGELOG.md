@@ -1,3 +1,14 @@
+# v0.3.24 — fixes from a judge-style test round (2026-11-24)
+
+A new set of 30 everyday claims, written the way a reviewer might test the app (well-known facts, common myths, changed facts, a long mixed answer, Arabic claims), was run against the public demo. The first 15 produced no wrong true/false verdict, but four patterns needed work:
+
+- **"Superseded" only when the claim was once true.** "The capital of Australia is Sydney" was reported as superseded (an outdated state) instead of false, because history pages were read as a past state. A present-state claim is now superseded only when a source documents a change, or at least two sources describe the claimed state as former; otherwise it is contradicted. The correction (Canberra) was already right.
+- **A day inside the claimed month is not a contradiction.** One source dating ChatGPT's launch to 23 November 2022 blocked "OpenAI released ChatGPT in November 2022". A contradiction from a source that dates the event within the month the claim states is now downgraded to insufficient (never flipped to support).
+- **Temperature symbols.** "100 °C" now counts as naming "Celsius", so the name guard no longer discards a supporting source for "Water boils at 100 degrees Celsius at sea level".
+- **Strong confidence for clear stable facts.** Three agreeing sources (three independent lineages, a classified publisher, a directly read page, none opposing) now give strong confidence for a low- or medium-risk claim that is not about a present, changeable state. High-risk and present-state claims still need four.
+- **Waiting for a strong model.** Free-tier token limits reset every minute. The engine now waits up to 60 seconds for a strong model whose limit resets within that window, instead of handing the claim to the second provider after 30 seconds; a spent daily quota still skips the wait.
+- 565 automated tests pass in UTC and Asia/Riyadh.
+
 # v0.3.23 — three evidence rules switched on after live checks (2026-11-21)
 
 - **Switched on for everyone:** the replacement-value rule (v0.3.17), the normative specification rule (v0.3.20) and the originating issuer rule (v0.3.21, with the v0.3.22 second-reading safeguard). Until now they ran only for requests carrying a test header.

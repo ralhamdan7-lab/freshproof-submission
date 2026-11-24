@@ -1,6 +1,6 @@
 # API
 
-> **Historical record.** This document describes FreshProof as of v0.2.40. The current release is **v0.3.23** (562 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+> **Historical record.** This document describes FreshProof as of v0.2.40. The current release is **v0.3.24** (565 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
 
 ## `GET /api/health`
 Returns service identity and version. Does not require Tavily credentials.

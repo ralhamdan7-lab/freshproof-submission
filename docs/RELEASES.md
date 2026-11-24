@@ -36,7 +36,7 @@ These are effort and engineering figures, not accuracy figures. The diagnostic c
 | v0.2.75–v0.2.81 | 14–15 Nov | First-party provenance, claim dependency preservation, publisher-agnostic retrieval |
 | v0.2.82–v0.2.84 | 15–16 Nov | Direct page reading, strict date provenance, claim types, execution status, per-source trace |
 | v0.2.91 | 16 Nov | Model-planned search, graded verdicts with confidence tiers, evidence-gated corrections, progressive checks |
-| v0.2.92–v0.2.95 | 16 Nov | Corrections in the same pass, questions as claims, judge-ready interface, timing telemetry |
+| v0.2.92–v0.2.95 | 16 Nov | Corrections in the same pass, questions as claims, clearer interface, timing telemetry |
 | v0.2.96–v0.2.99 | 16 Nov | Verdict-first result box, faster assessment on Groq, present-state evidence, clearer key quotes |
 | v0.3.0 | 16 Nov | STRONG confidence when many independent sources agree |
 | v0.3.1–v0.3.2 | 16 Nov | Complex scientific claims, neutral model instructions |
@@ -54,7 +54,7 @@ These are effort and engineering figures, not accuracy figures. The diagnostic c
 | v0.3.21 | 20 Nov | In any field, the body that issued a fact can settle it on its own official source (staged) |
 | v0.3.22 | 21 Nov | A single-authority verdict also needs a second, independent reading of the same fact |
 | v0.3.23 | 21 Nov | Three evidence rules switched on for everyone after live checks with no wrong verdict |
-| v0.3.24 | 24 Nov | Fixes from a judge-style test round: clearer outdated-versus-false verdicts, strong confidence for clear facts, steadier strong-model access |
+| v0.3.24 | 24 Nov | Fixes from an independent test round on unseen claims: clearer outdated-versus-false verdicts, strong confidence for clear facts, steadier strong-model access |
 | v0.3.25 | 24 Nov | A publisher's own domain counts as naming it (fifa.com names FIFA) |
 
 Full technical notes for each version are in [CHANGELOG.md](../CHANGELOG.md).

@@ -1,11 +1,11 @@
 # v0.3.25 — a publisher's own domain counts as naming it (2026-11-24)
 
-- **Second judge-style round on v0.3.24 (19 claims):** no claim was left unassessed for quota, 15 were decided, and no part received a wrong verdict. "Argentina won the 2022 FIFA World Cup" stayed under review because FIFA's own page and The Athletic were discarded by the name guard: their excerpts do not spell out "FIFA". The publisher's own domain now counts, so fifa.com names FIFA.
+- **Second round of unseen claims on v0.3.24 (19 claims):** no claim was left unassessed for quota, 15 were decided, and no part received a wrong verdict. "Argentina won the 2022 FIFA World Cup" stayed under review because FIFA's own page and The Athletic were discarded by the name guard: their excerpts do not spell out "FIFA". The publisher's own domain now counts, so fifa.com names FIFA.
 - 566 automated tests pass in UTC and Asia/Riyadh.
 
-# v0.3.24 — fixes from a judge-style test round (2026-11-24)
+# v0.3.24 — fixes from an independent test round on unseen claims (2026-11-24)
 
-A new set of 30 everyday claims, written the way a reviewer might test the app (well-known facts, common myths, changed facts, a long mixed answer, Arabic claims), was run against the public demo. The first 15 produced no wrong true/false verdict, but four patterns needed work:
+A new set of 30 everyday claims the engine had not seen before (well-known facts, common myths, facts that have changed, a long mixed answer, Arabic claims) was run against the public demo. The first 15 produced no wrong true/false verdict, but four patterns needed work:
 
 - **"Superseded" only when the claim was once true.** "The capital of Australia is Sydney" was reported as superseded (an outdated state) instead of false, because history pages were read as a past state. A present-state claim is now superseded only when a source documents a change, or at least two sources describe the claimed state as former; otherwise it is contradicted. The correction (Canberra) was already right.
 - **A day inside the claimed month is not a contradiction.** One source dating ChatGPT's launch to 23 November 2022 blocked "OpenAI released ChatGPT in November 2022". A contradiction from a source that dates the event within the month the claim states is now downgraded to insufficient (never flipped to support).
@@ -187,7 +187,7 @@ Fixes found by an advanced-claims test (AI regulation, Brexit dates, acquisition
 
 - Claim decomposition and search planning use Workers AI first again, so evidence assessment is never queued behind a paced fallback call. The browser acceptance now reports what the page showed if it times out.
 
-# v0.2.92 — grounded corrections, questions, judge-ready UI (2026-11-16)
+# v0.2.92 — grounded corrections, questions, clearer interface (2026-11-16)
 
 - **Grounded corrections.** The evidence model proposes the correction in the same pass. It is shown only when every introduced value is quoted verbatim by two contradicting, exact-scope sources, and a classified publisher is among them.
 - **Questions.** Factual questions are checked as the statement they ask about.

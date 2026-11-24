@@ -1,3 +1,8 @@
+# v0.3.25 — a publisher's own domain counts as naming it (2026-11-24)
+
+- **Second judge-style round on v0.3.24 (19 claims):** no claim was left unassessed for quota, 15 were decided, and no part received a wrong verdict. "Argentina won the 2022 FIFA World Cup" stayed under review because FIFA's own page and The Athletic were discarded by the name guard: their excerpts do not spell out "FIFA". The publisher's own domain now counts, so fifa.com names FIFA.
+- 566 automated tests pass in UTC and Asia/Riyadh.
+
 # v0.3.24 — fixes from a judge-style test round (2026-11-24)
 
 A new set of 30 everyday claims, written the way a reviewer might test the app (well-known facts, common myths, changed facts, a long mixed answer, Arabic claims), was run against the public demo. The first 15 produced no wrong true/false verdict, but four patterns needed work:

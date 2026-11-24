@@ -51,7 +51,7 @@ export { SEMANTIC_MODEL };
 // v0.2.47: source independence uses registrable domains; curated first-party documentation hosts are recognized.
 // v0.2.82: generic multi-stage evidence acquisition (claim-conditioned authority search, bounded direct page fetch,
 //          verbatim claim passages, structural/first-party authority, UGC downgrade, abstention diagnosis).
-export const VERSION = "0.3.24";
+export const VERSION = "0.3.25";
 // v0.2.75: allow validated first-party PEP 373 lifecycle evidence to produce source-bound corrections.
 // v0.2.74: activate additive claim-conditioned retrieval and validated corporate/EU first-party hints.
 // v0.2.73: enrich corporate-role, EU-membership, and legal lifecycle retrieval without relaxing adjudication.
@@ -737,7 +737,9 @@ export async function adjudicateEvidenceWithModel(claim, sources, ai, options = 
         if (missingYear) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: "Downgraded: the source does not mention the year the claim states, so it cannot support it.", requires_review: true, method: "CLAIMED_YEAR_ABSENT_GUARD", model_relation: "SUPPORTS" };
         // v0.3.4 safety: in a Latin-script claim, every proper name (a place,
         // body, person or thing) must appear in a source that supports it.
-        const missingNames = a.relation === "SUPPORTS" && !exactMilestoneMatch ? claimNamesAbsent(claim, sourceText) : [];
+        // v0.3.25: the publisher's own name counts (fifa.com for "FIFA").
+        const publisherHost = (() => { try { return new URL(String(bounded[a.source_index].url || "")).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+        const missingNames = a.relation === "SUPPORTS" && !exactMilestoneMatch ? claimNamesAbsent(claim, `${sourceText} ${publisherHost}`) : [];
         if (missingNames.length) return { source_index: a.source_index, relation: "INSUFFICIENT", rationale: `Downgraded: the source does not mention ${missingNames.slice(0, 3).join(", ")}, which the claim states.`, requires_review: true, method: "CLAIMED_NAME_ABSENT_GUARD", model_relation: "SUPPORTS" };
         // v0.3.6 safety: a source that frames the claim as a myth, hoax or
         // false claim cannot support an affirmative claim. Models sometimes

@@ -36,7 +36,7 @@ const officialDirectory = {
 };
 
 test("v0.2.90 candidate version contract", () => {
-  assert.equal(VERSION, "0.3.24");
+  assert.equal(VERSION, "0.3.25");
 });
 
 test("validated direct evidence replaces a duplicate generic search snippet without losing provenance", () => {

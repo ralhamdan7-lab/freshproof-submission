@@ -31,3 +31,8 @@ test("a never-true present-state claim is contradicted, not superseded, without 
   const run = role => adjudicateEvidence({ claim: "The capital of Australia is Sydney.", sources, semanticAssessment: sem(role), claimFrame: { frame: "CURRENT_STATE", is_time_sensitive: true, temporal_status: "TEMPORAL_REVIEW_REQUIRED" }, temporalSensitive: true, now, changeSearchPerformed: true });
   for (const role of ["HISTORICAL_RECORD", "EVENT_REPORT", "BACKGROUND"]) assert.notEqual(run(role).status, "SUPERSEDED", role);
 });
+
+test("v0.3.25: a name carried by the publisher's own domain counts as present", () => {
+  assert.deepEqual(claimNamesAbsent("Argentina won the 2022 FIFA World Cup.", "Argentina won the World Cup in Qatar in 2022. fifa.com"), []);
+  assert.deepEqual(claimNamesAbsent("Argentina won the 2022 FIFA World Cup.", "Argentina won the World Cup in Qatar in 2022."), ["FIFA"]);
+});

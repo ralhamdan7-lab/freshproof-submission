@@ -1,4 +1,4 @@
-> **Historical record.** This document describes FreshProof as of v0.2.81. The current release is **v0.3.24** (565 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
+> **Historical record.** This document describes FreshProof as of v0.2.81. The current release is **v0.3.25** (566 tests). For the current state see the [README](../README.md) and the [release history](RELEASES.md).
 
 ## v0.2.81 — universal retrieval and claim-graph integrity
 

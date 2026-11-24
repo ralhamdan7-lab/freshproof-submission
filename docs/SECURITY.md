@@ -1,4 +1,4 @@
-# Security and Privacy Notes (v0.3.24)
+# Security and Privacy Notes (v0.3.25)
 
 - **Credentials.** Tavily and Groq keys are Worker secrets, read only on the server. They never reach the browser, the repository or the logs. `.dev.vars`, `.env`, `node_modules` and Wrangler state are excluded from Git.
 - **Data flow.** The browser sends only the submitted text to the Worker. The Worker sends search queries derived from each claim to Tavily, and the claim with retrieved source excerpts to the AI providers (Groq and Cloudflare Workers AI).

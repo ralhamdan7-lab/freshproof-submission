@@ -434,14 +434,17 @@ export function createResilientAi(env, dependencies = {}) {
         // budgets reopen within a minute, and the weaker model abstained far
         // more often in live diagnostics.
         if (!/^(?:correction|decomposition)/.test(String(input._freshproof_task || ""))) {
-          const maxWait = Math.max(0, Number(env.GROQ_STRONG_MAX_WAIT_MS ?? 30000));
+          const maxWait = Math.max(0, Number(env.GROQ_STRONG_MAX_WAIT_MS ?? 60000));
           // Poll without holding the shared Groq queue, so other requests in
           // this isolate are not delayed behind the wait.
           const waitStarted = now();
           // v0.3.19: no point waiting when every strong model has answered
           // with a long rate-limit reset (daily quota): go to Workers AI now.
           const strongModels = String(env.GROQ_FAST_MODELS || models[0] || "").split(",").map(item => item.trim()).filter(Boolean);
-          const allBlocked = () => strongModels.length > 0 && strongModels.every(item => (blockedModels.get(item) || 0) > now() + 30000);
+          // v0.3.24: free-tier token limits reset each minute, so a strong model
+          // is waited for whenever its reset falls inside the wait window; only
+          // resets beyond the window (a spent daily quota) skip the wait.
+          const allBlocked = () => strongModels.length > 0 && strongModels.every(item => (blockedModels.get(item) || 0) > waitStarted + maxWait);
           while (maxWait > 0 && now() - waitStarted < maxWait && !allBlocked()) {
             await sleep(Math.min(5000, Math.max(0, maxWait - (now() - waitStarted))));
             try { return await groqCascade(model, { ...input, _freshproof_no_wait: true }, "groq_fast_wait"); } catch {}

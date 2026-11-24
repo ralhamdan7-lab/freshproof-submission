@@ -242,6 +242,8 @@ function corroborable(x) {
   if (assessedSource.scope_match !== "EXACT" || assessedSource.directness === "UNCLEAR") return false;
   return x.relation === "SUPPORTS" || x.relation === "CONTRADICTS";
 }
+const PAST_STATE_MARKERS = /\b(?:former(?:ly)?|previously|no longer|was succeeded|succeeded by|replaced by|served as|stepped down|left (?:the|office|his|her)|once (?:run|led|held|the)|until (?:\d{4}|19|20)|from \d{4} to \d{4}|ended in)\b/i;
+const DOCUMENTED_CHANGE_TYPES = new Set(["REPLACED", "ENDED", "RENAMED", "REVISED", "REVOKED", "EXPIRED", "SUSPENDED", "DISCONTINUED", "WITHDRAWN"]);
 function consensusStrength(items, highRisk) {
   const lineages = independentLineages(items.map(x => x.source)).length;
   const qualifiedCount = new Set(items.filter(x => QUALIFIED_TIERS.has(x.source.source_reliability)).map(x => registrableDomain(x.source.url))).size;
@@ -267,7 +269,11 @@ function gradedConsensus(args) {
   const agreeing = args.assessed.filter(x => x.relation === side).length;
   const opposing = args.assessed.filter(x => x.relation === opposite).length;
   const strength = consensusStrength(result.items, highRisk);
-  if (agreeing >= 4 && opposing === 0 && strength.lineages >= 3 && strength.qualified_publishers >= (highRisk ? 2 : 1)) {
+  // v0.3.24: three agreeing sources suffice for a low- or medium-risk claim
+  // that is not about a present, changeable state.
+  const stableFrame = !["CURRENT_STATE", "SCHEDULED_OR_FUTURE", "MIXED_OR_AMBIGUOUS"].includes(args.claimFrame?.frame) && result.method === "INDEPENDENT_SOURCE_CONSENSUS";
+  const threeSuffice = stableFrame && !highRisk && strength.direct_page_sources >= 1;
+  if (agreeing >= (threeSuffice ? 3 : 4) && opposing === 0 && strength.lineages >= 3 && strength.qualified_publishers >= (highRisk ? 2 : 1)) {
     return { ...result, confidence_tier: "STRONG", signals: { ...(result.signals || {}), confidence_basis: "BROAD_INDEPENDENT_AGREEMENT", agreeing_sources: agreeing } };
   }
   return result;
@@ -391,7 +397,12 @@ function gradedConsensusBase({ assessed, claimFrame, requireRecentEvidence, now,
           signals: signalsFor(items)
         };
       }
-      const pastState = items.some(x => ["CHANGE_NOTICE", "HISTORICAL_RECORD", "EVENT_REPORT"].includes(x.semanticSource?.temporal_role));
+      // v0.3.24: "superseded" means the claimed state once held. A history page
+      // or event report alone does not show that (e.g. "Sydney is the capital
+      // of Australia" was never true); a documented change does.
+      const documentsChange = x => x.semanticSource?.temporal_role === "CHANGE_NOTICE" || DOCUMENTED_CHANGE_TYPES.has(x.semanticSource?.change_type);
+      const describesPast = x => PAST_STATE_MARKERS.test(`${x.source?.title || ""} ${x.source?.snippet || ""}`);
+      const pastState = items.some(documentsChange) || items.filter(describesPast).length >= 2;
       return {
         status: pastState ? "SUPERSEDED" : "CONTRADICTED",
         method: "UNCONTESTED_CURRENT_STATE_CONTRADICTION",
